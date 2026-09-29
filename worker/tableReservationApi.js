@@ -1,6 +1,9 @@
-import { apiError, json } from './http.js'
+import { apiError, assertSameOriginMutation, json, readJson } from './http.js'
 import { loadAutomaticPrintJobForOrder } from './orderPrintingRepository.js'
 import { loadOrderById } from './repositories.js'
+import { cancelOrder } from './orderCancellation.js'
+import { listTables } from './tableRepository.js'
+import { requireCapability } from './settingsAccess.js'
 import {
   listTableReservations,
   loadTableReservationById,
@@ -45,15 +48,16 @@ const parseFilters = (searchParams) => {
 
 export const handleTableReservationApi = async (request, env, context, url = new URL(request.url)) => {
   if (!url.pathname.startsWith('/api/table-reservations')) return null
-  requireReservationRead(context)
 
   if (url.pathname === '/api/table-reservations' && request.method === 'GET') {
+    requireReservationRead(context)
     const reservations = await listTableReservations(env.DB, context.businessId, parseFilters(url.searchParams))
     return json({ reservations })
   }
 
   const detailMatch = /^\/api\/table-reservations\/([^/]+)$/.exec(url.pathname)
   if (detailMatch && request.method === 'GET') {
+    requireReservationRead(context)
     const reservation = await loadTableReservationById(env.DB, context.businessId, decodeURIComponent(detailMatch[1]))
     if (!reservation) throw apiError(404, 'TABLE_RESERVATION_NOT_FOUND', 'Reserva não encontrada.')
     const [order, printJob] = await Promise.all([
@@ -62,6 +66,46 @@ export const handleTableReservationApi = async (request, env, context, url = new
     ])
     if (!order) throw apiError(404, 'TABLE_RESERVATION_NOT_FOUND', 'Reserva não encontrada.')
     return json({ reservation, order, printJob })
+  }
+
+  const actionMatch = /^\/api\/table-reservations\/([^/]+)\/(cancel|no-show)$/.exec(url.pathname)
+  if (actionMatch && request.method === 'POST') {
+    requireCapability(context, 'orders.cancel')
+    assertSameOriginMutation(request)
+    const body = await readJson(request)
+    if (!Number.isInteger(body.expectedRevision) || body.expectedRevision < 1) {
+      throw apiError(400, 'TABLE_RESERVATION_REVISION_REQUIRED', 'Atualize a reserva e tente novamente.')
+    }
+    const reservation = await loadTableReservationById(env.DB, context.businessId, decodeURIComponent(actionMatch[1]))
+    if (!reservation) throw apiError(404, 'TABLE_RESERVATION_NOT_FOUND', 'Reserva não encontrada.')
+    const cancellationInput = {
+      reason: body.reason,
+      note: body.note,
+      refundNow: Boolean(body.refundNow),
+      refundMethod: body.refundMethod,
+      ...(Number.isInteger(body.cancelReasonRevision) && body.cancelReasonRevision >= 0
+        ? { expectedRevision: body.cancelReasonRevision }
+        : {}),
+    }
+    const now = env.now instanceof Date ? env.now : new Date()
+    const result = await cancelOrder(
+      env.DB,
+      context.businessId,
+      reservation.orderId,
+      cancellationInput,
+      now,
+      {
+        requireActiveReservation: true,
+        expectedReservationRevision: body.expectedRevision,
+        reservationDisposition: actionMatch[2] === 'no-show' ? 'no_show' : 'cancelled',
+      },
+    )
+    const closedReservation = await loadTableReservationById(env.DB, context.businessId, reservation.id)
+    return json({
+      ...result,
+      reservation: closedReservation,
+      tables: await listTables(env.DB, context.businessId),
+    })
   }
 
   return null
