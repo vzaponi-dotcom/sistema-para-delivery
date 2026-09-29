@@ -63,7 +63,7 @@ const apiCall = (db, action, body, grants = ['orders.cancel']) => {
     headers: { origin: 'https://delivery.test', 'content-type': 'application/json' },
     body: JSON.stringify(body),
   })
-  return handleTableReservationApi(request, { DB: db }, {
+  return handleTableReservationApi(request, { DB: db, now: NOW }, {
     businessId: BUSINESS,
     sessionId: 'reservation-lifecycle',
     granted: new Set(grants),
