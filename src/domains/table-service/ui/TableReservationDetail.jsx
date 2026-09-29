@@ -5,6 +5,7 @@ import Button from '../../../shared/ui/Button'
 import ConfirmationDialog from '../../../shared/ui/ConfirmationDialog'
 import Icon from '../../../shared/ui/Icon'
 import Modal from '../../../shared/ui/Modal'
+import SystemSelect from '../../../shared/ui/SystemSelect'
 
 const itemLabel = (count) => `${count} ${count === 1 ? 'item' : 'itens'}`
 
@@ -76,17 +77,17 @@ function ReservationClosureDialog({
           <strong>{reservation.tableName}</strong>
           <span>{formatServiceDate(reservation.scheduledFor)} · {formatServiceTime(reservation.scheduledFor)}</span>
         </div>
-        <label className="form-field">
+        <div className="form-field">
           <span>Motivo</span>
-          <select
+          <SystemSelect
             value={reason}
-            onChange={(event) => { setReason(event.target.value); setError('') }}
+            options={reasonOptions}
+            onChange={(value) => { setReason(value); setError('') }}
+            placeholder="Selecione um motivo"
+            label="Motivo"
             disabled={disabled || !configured}
-          >
-            <option value="">Selecione um motivo</option>
-            {reasonOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-          </select>
-        </label>
+          />
+        </div>
         {requiresNote && (
           <label className="form-field">
             <span>Descreva o motivo</span>
