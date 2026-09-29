@@ -227,7 +227,7 @@ test('manual print document rebuild preserves scheduled delivery and reservation
       subtotal_cents, delivery_fee_cents, adjustment_type, adjustment_amount_cents,
       adjustment_reason, total_cents, created_at
     ) VALUES
-      ('scheduled-delivery', 'amor-e-sabor', 'Ana', '', '', 'registered_client', NULL, 61,
+      ('scheduled-delivery', 'amor-e-sabor', NULL, 'Ana', '', '', 'registered_client', NULL, 61,
        'Entrega', '2026-09-04', '2026-09-04T15:00:00.000Z',
        2500, 0, 'none', 0, '', 2500, '2026-09-03T12:00:00.000Z'),
       ('reserved-local', 'amor-e-sabor', 'client-hugo', 'Hugo', '', '', 'table', NULL, 62,
