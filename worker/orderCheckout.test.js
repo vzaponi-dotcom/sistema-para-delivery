@@ -152,3 +152,18 @@ test('checkout rejects the 91st day and mismatched scheduled business date', () 
     scheduledFor: '2026-09-06T15:00:00Z',
   }, 'scheduled-mismatch', scheduledNow), /data do pedido.*horário agendado/i)
 })
+
+
+test('scheduled table checkout rejects expectedTableTabId because a reservation must not target an open tab', () => {
+  assert.throws(() => validateCheckoutInput({
+    ...scheduledBase,
+    type: 'Local',
+    customerIdentity: { type: 'table', tableId: 'table-123' },
+    expectedTableTabId: 'tab-open',
+    scheduledFor: '2026-09-04T15:00:00Z',
+  }, 'scheduled-local-open-tab', scheduledNow), (error) => (
+    error.status === 400
+    && error.field === 'expectedTableTabId'
+    && /reserva|agend/i.test(error.message)
+  ))
+})
