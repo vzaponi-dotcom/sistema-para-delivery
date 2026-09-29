@@ -122,6 +122,9 @@ export const validateCheckoutInput = (body = {}, idempotencyKey, now = new Date(
   if (expectedTableTabId && customerIdentity.type !== 'table') {
     throw checkoutError('expectedTableTabId', 'A comanda esperada só pode ser usada em pedidos de mesa.')
   }
+  if (expectedTableTabId && scheduledFor && customerIdentity.type === 'table') {
+    throw checkoutError('expectedTableTabId', 'Reservas agendadas não podem ser vinculadas a uma comanda aberta.')
+  }
 
   return {
     customerIdentity,
