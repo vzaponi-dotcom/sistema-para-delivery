@@ -121,6 +121,10 @@ export function useNewOrderDraft({
         return { ok: false, code: 'POLICY_CHANGED' }
       }
 
+      const retryableCreateConflict = error?.status === 409
+        && !editMode
+        && !token.context.expectedTableTabId
+
       if (error?.status === 409) {
         if (editMode && refreshReservationRef.current) {
           const refreshed = await refreshReservationRef.current(reservationContext.id)
@@ -136,13 +140,13 @@ export function useNewOrderDraft({
           await onConflictRef.current?.(token.context, error)
         } else if (token.context.expectedTableTabId) {
           await onConflictRef.current?.(token.context, error)
-        } else if (error?.code === 'TABLE_RESERVATION_CONFLICT') {
+        } else if (retryableCreateConflict) {
           controllerRef.current.renewIdempotencyKey(token)
         }
       }
 
       if (controllerRef.current.isCurrent(token) || editMode) onErrorRef.current(error)
-      if (error?.status === 409) {
+      if (retryableCreateConflict) {
         return {
           ok: false,
           code: error?.code || 'CONFLICT',
