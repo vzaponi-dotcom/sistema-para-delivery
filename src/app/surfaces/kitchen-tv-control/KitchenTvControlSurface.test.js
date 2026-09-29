@@ -254,10 +254,10 @@ test('exposes offline state without queueing page or order commands', async (t) 
 })
 
 
-test('tapping a card opens actions without mutating, then hide can be undone safely', async (t) => {
+test('tapping Retirar da TV closes the action sheet and leaves restoration to Retirados', async (t) => {
   let state = structuredClone(freshState)
   const mutations = []
-  const { screen } = await render(t, {
+  const { screen, calls } = await render(t, {
     state,
     apiOverrides: {
       getKitchenTvControl: async () => state,
@@ -265,11 +265,6 @@ test('tapping a card opens actions without mutating, then hide can be undone saf
         mutations.push(['hide', orderId])
         state = { ...state, hiddenOrderIds: [...state.hiddenOrderIds, orderId] }
         return { orderId, hidden: true }
-      },
-      restoreKitchenTvOrder: async (orderId) => {
-        mutations.push(['restore', orderId])
-        state = { ...state, hiddenOrderIds: state.hiddenOrderIds.filter((id) => id !== orderId) }
-        return { orderId, hidden: false }
       },
     },
   })
@@ -286,12 +281,10 @@ test('tapping a card opens actions without mutating, then hide can be undone saf
 
   await act(async () => buttonNamed(sheet, 'Retirar da TV').props.onClick())
   assert.deepEqual(mutations, [['hide', 'order-1']])
-  assert.match(nodeText(screen.root), /Retirado/)
-  assert.ok(buttonNamed(screen.root, 'Desfazer'))
-
-  await act(async () => buttonNamed(screen.root, 'Desfazer').props.onClick())
-  assert.deepEqual(mutations, [['hide', 'order-1'], ['restore', 'order-1']])
-  assert.match(nodeText(screen.root), /Na TV/)
+  assert.equal(screen.root.findAllByProps({ role: 'dialog' }).length, 0)
+  assert.equal(buttonNamed(screen.root, 'Desfazer'), undefined)
+  assert.ok(calls.some(([kind, message]) => kind === 'feedback' && message === 'Pedido retirado da TV.'))
+  assert.ok(buttonNamed(screen.root, 'Retirados 2'))
 })
 
 test('hidden active orders stay restorable from a separate Retirados panel without inflating the mirrored page', async (t) => {
