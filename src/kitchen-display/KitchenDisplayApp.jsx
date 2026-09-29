@@ -11,6 +11,7 @@ import {
   writeKitchenSoundProfilePreference,
   writeKitchenSoundVolumePreference,
 } from '../infrastructure/storage/kitchenSoundPreference.js'
+import { filterKitchenTvOrders } from '../../shared/kitchenTvModality.js'
 import { KitchenDisplayHttpError } from './kitchenDisplayApi.js'
 import { createKitchenDisplayAudio } from './kitchenDisplayAudio.js'
 import { buildKitchenDisplayPages } from './kitchenDisplayPresentation.js'
@@ -99,8 +100,9 @@ export function KitchenDisplayApp({
     const currentNow = new Date(next.serverNow || Date.now())
     const arrival = detectOperationalArrivals(previousIds.current, next.orders || [], currentNow, alertedIds.current, next.timing)
     previousIds.current = arrival.currentIds
+    const filteredOrders = filterKitchenTvOrders(next.orders || [], next.control?.requestedModality)
     const builtPages = buildKitchenDisplayPages(
-      next.orders || [],
+      filteredOrders,
       next.timing,
       currentNow,
       new Set(),
@@ -343,16 +345,20 @@ export function KitchenDisplayApp({
   const boardViewportHeight = fullscreenRecoveryNeeded && viewport.height
     ? Math.max(1, viewport.height - FULLSCREEN_RECOVERY_SAFE_AREA_PX)
     : viewport.height
+  const filteredOrders = useMemo(
+    () => filterKitchenTvOrders(snapshot?.orders || [], snapshot?.control?.requestedModality),
+    [snapshot?.control?.requestedModality, snapshot?.orders],
+  )
   const pageSet = useMemo(() => phase === 'live'
     ? buildKitchenDisplayPages(
-        snapshot?.orders || [],
+        filteredOrders,
         snapshot?.timing,
         now,
         highlightedIds,
         { viewportWidth: viewport.width, viewportHeight: boardViewportHeight },
       )
     : { pages: [], totalVisible: 0, unrenderableOrderIds: [] },
-  [boardViewportHeight, highlightedIds, now, phase, snapshot, viewport.width])
+  [boardViewportHeight, filteredOrders, highlightedIds, now, phase, snapshot?.timing, viewport.width])
   const pageCount = Math.max(1, pageSet.pages.length)
   const selectedPage = pageSet.pages[Math.min(paging.currentPage, pageCount) - 1] || null
   const nextPageCount = pageSet.pages[paging.currentPage]?.cards?.length || 0
@@ -492,7 +498,7 @@ export function KitchenDisplayApp({
     </div>}
     {soundBlocked && <button className="kds-sound-action" type="button" onClick={enableSound}>Ativar alertas sonoros</button>}
     <KitchenDisplayBoard
-      orders={snapshot?.orders || []}
+      orders={filteredOrders}
       timing={snapshot?.timing}
       now={now}
       highlightedIds={highlightedIds}

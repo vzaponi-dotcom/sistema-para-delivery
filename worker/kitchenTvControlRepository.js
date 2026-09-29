@@ -1,7 +1,8 @@
 import { isScheduledWaiting } from '../shared/orderTiming.js'
+import { normalizeKitchenTvModality } from '../shared/kitchenTvModality.js'
 import { loadOperations } from './operationSettingsRepository.js'
 
-const SELECT_CONTROL = `SELECT business_id, revision, requested_page, updated_at,
+const SELECT_CONTROL = `SELECT business_id, revision, requested_page, requested_modality, updated_at,
   reported_revision, reported_page, reported_page_count,
   reported_viewport_width, reported_viewport_height,
   reported_visible_order_ids_json, reported_at
@@ -16,6 +17,7 @@ const parseVisibleOrderIds = (value) => {
 const mapControl = (row) => ({
   revision: Number(row?.revision ?? 0),
   requestedPage: Number(row?.requested_page ?? 1),
+  requestedModality: normalizeKitchenTvModality(row?.requested_modality),
   updatedAt: row?.updated_at ?? null,
   telemetry: row?.reported_at ? {
     appliedRevision: Number(row.reported_revision ?? 0),
@@ -42,6 +44,22 @@ export async function setKitchenTvRequestedPage(db, businessId, page, now = new 
       requested_page = excluded.requested_page,
       updated_at = excluded.updated_at`)
     .bind(businessId, page, updatedAt)
+    .run()
+  return loadKitchenTvControl(db, businessId)
+}
+
+export async function setKitchenTvRequestedModality(db, businessId, modality, now = new Date()) {
+  const requestedModality = normalizeKitchenTvModality(modality)
+  const updatedAt = now.toISOString()
+  await db.prepare(`INSERT INTO kitchen_tv_display_control (
+      business_id, revision, requested_page, requested_modality, updated_at
+    ) VALUES (?, 1, 1, ?, ?)
+    ON CONFLICT(business_id) DO UPDATE SET
+      revision = kitchen_tv_display_control.revision + 1,
+      requested_page = 1,
+      requested_modality = excluded.requested_modality,
+      updated_at = excluded.updated_at`)
+    .bind(businessId, requestedModality, updatedAt)
     .run()
   return loadKitchenTvControl(db, businessId)
 }

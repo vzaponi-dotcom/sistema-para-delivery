@@ -50,6 +50,7 @@ export async function loadKitchenTvState(db, businessId) {
     control: {
       revision: control.revision,
       requestedPage: control.requestedPage,
+      requestedModality: control.requestedModality,
     },
     orders: rows(ordersResult).map((row) => ({
       id: row.id,

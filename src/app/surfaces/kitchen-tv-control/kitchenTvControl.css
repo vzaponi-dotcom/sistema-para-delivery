@@ -178,6 +178,87 @@
   cursor: not-allowed;
 }
 
+.kitchen-tv-control-modality-filters {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.kitchen-tv-control-modality-filter {
+  min-width: 0;
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-soft);
+  font: inherit;
+  font-size: .72rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.kitchen-tv-control-modality-filter > svg {
+  color: var(--muted);
+}
+
+.kitchen-tv-control-modality-filter > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kitchen-tv-control-modality-filter:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-soft);
+}
+
+.kitchen-tv-control-modality-filter.is-active {
+  border-color: var(--primary-control-border);
+  background: var(--primary-soft);
+  color: var(--primary);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 18%, transparent);
+}
+
+.kitchen-tv-control-modality-filter.is-active > svg {
+  color: var(--primary);
+}
+
+.kitchen-tv-control-modality-filter:focus-visible {
+  outline: 3px solid var(--primary-control-ring);
+  outline-offset: 2px;
+}
+
+.kitchen-tv-control-modality-filter:disabled {
+  opacity: .48;
+  cursor: not-allowed;
+}
+
+.kitchen-tv-control-modality-count {
+  min-width: 25px;
+  height: 25px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 5px;
+  border-radius: 999px;
+  background: var(--surface-strong);
+  color: var(--text-soft);
+  font-size: .68rem;
+  line-height: 1;
+}
+
+.kitchen-tv-control-modality-filter.is-active .kitchen-tv-control-modality-count {
+  background: color-mix(in srgb, var(--primary) 18%, var(--surface));
+  color: var(--primary);
+}
+
 .kitchen-tv-control-summary {
   min-width: 0;
   display: grid;
@@ -566,6 +647,31 @@
 
   .kitchen-tv-control-page-button span {
     white-space: nowrap;
+  }
+
+  .kitchen-tv-control-modality-filters {
+    gap: 5px;
+  }
+
+  .kitchen-tv-control-modality-filter {
+    min-height: 52px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 5px;
+    padding: 6px 7px;
+    border-radius: 12px;
+    font-size: .64rem;
+  }
+
+  .kitchen-tv-control-modality-filter > svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .kitchen-tv-control-modality-count {
+    min-width: 23px;
+    height: 23px;
+    padding-inline: 4px;
+    font-size: .63rem;
   }
 
   .kitchen-tv-control-summary {

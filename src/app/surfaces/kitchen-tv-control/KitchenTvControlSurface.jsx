@@ -5,6 +5,11 @@ import Button from '../../../shared/ui/Button.jsx'
 import BottomSheet from '../../../shared/ui/BottomSheet.jsx'
 import Icon from '../../../shared/ui/Icon.jsx'
 import { formatOrderDisplayNumber } from '../../../../shared/orderDisplayNumber.js'
+import {
+  countKitchenTvModalities,
+  matchesKitchenTvModality,
+  normalizeKitchenTvModality,
+} from '../../../../shared/kitchenTvModality.js'
 import * as defaultApi from './kitchenTvControlApi.js'
 import {
   countKitchenTvOffscreen,
@@ -48,6 +53,12 @@ function SummaryTile({ label, value, icon, tone = 'neutral' }) {
 
 const statusIcon = (key) => key === 'late' ? 'alert' : key === 'near-limit' ? 'clock' : key === 'scheduled' ? 'calendar' : 'preparation'
 const visibilityIcon = (key) => key === 'visible' ? 'eye' : 'eye-off'
+const MODALITY_FILTERS = Object.freeze([
+  { id: 'all', label: 'Todos', icon: 'dashboard' },
+  { id: 'delivery', label: 'Entrega', icon: 'delivery-bike' },
+  { id: 'pickup', label: 'Retira', icon: 'pickup' },
+  { id: 'table', label: 'Mesa', icon: 'meal' },
+])
 const printItemLabel = (item = {}) => {
   const quantity = Math.max(1, Number(item.quantity) || 1)
   const name = String(item.name ?? '').trim() || 'Item'
@@ -95,14 +106,29 @@ function KitchenTvControlSurface({
   const pageEntries = useMemo(
     () => (controlState?.telemetry?.visibleOrderIds || [])
       .map((id) => entryById.get(String(id)))
-      .filter((entry) => entry && !hiddenIds.has(String(entry.order.id))),
-    [controlState?.telemetry?.visibleOrderIds, entryById, hiddenIds],
+      .filter((entry) => entry
+        && !hiddenIds.has(String(entry.order.id))
+        && matchesKitchenTvModality(entry.order, activeModality)),
+    [activeModality, controlState?.telemetry?.visibleOrderIds, entryById, hiddenIds],
   )
   const hiddenEntries = useMemo(
     () => (controlState?.hiddenOrderIds || [])
       .map((id) => entryById.get(String(id)))
       .filter(Boolean),
     [controlState?.hiddenOrderIds, entryById],
+  )
+  const activeModality = normalizeKitchenTvModality(controlState?.control?.requestedModality)
+  const tvEligibleEntries = useMemo(
+    () => queueModel.allActive.filter(({ order }) => !hiddenIds.has(String(order.id))),
+    [hiddenIds, queueModel.allActive],
+  )
+  const modalityCounts = useMemo(
+    () => countKitchenTvModalities(tvEligibleEntries.map(({ order }) => order)),
+    [tvEligibleEntries],
+  )
+  const filteredEntries = useMemo(
+    () => tvEligibleEntries.filter(({ order }) => matchesKitchenTvModality(order, activeModality)),
+    [activeModality, tvEligibleEntries],
   )
   const selectedEntry = useMemo(
     () => selectedOrderId ? entryById.get(String(selectedOrderId)) ?? null : null,
@@ -222,6 +248,26 @@ function KitchenTvControlSurface({
     }
   }
 
+  const requestModality = async (modality) => {
+    if (!operationalControlsEnabled || normalizeKitchenTvModality(modality) === activeModality) return false
+    const expectedRevision = Math.max(0, Number(controlState?.control?.revision) || 0) + 1
+    setPendingRevision(expectedRevision)
+    setError('')
+    try {
+      const next = await api.setKitchenTvModality(modality)
+      setControlState(next)
+      const actualRevision = Number(next?.control?.revision)
+      setPendingRevision(Number.isSafeInteger(actualRevision) ? actualRevision : expectedRevision)
+      return true
+    } catch (cause) {
+      setPendingRevision(null)
+      const message = cause?.message || 'Não foi possível filtrar a TV.'
+      setError(message)
+      onFeedback?.(message)
+      return false
+    }
+  }
+
   const reconcileOrderVisibility = async () => {
     try {
       const next = await api.getKitchenTvControl()
@@ -277,8 +323,10 @@ function KitchenTvControlSurface({
     setActionError('')
   }
 
-  const offscreenCount = countKitchenTvOffscreen(queueModel.allActive, controlState, telemetryFresh)
-  const lateCount = queueModel.counts.late
+  const offscreenCount = countKitchenTvOffscreen(filteredEntries, controlState, telemetryFresh)
+  const preparingCount = filteredEntries.filter(({ phase }) => phase === 'preparing').length
+  const scheduledCount = filteredEntries.filter(({ phase }) => phase === 'scheduled').length
+  const lateCount = filteredEntries.filter(({ isLate }) => isLate).length
 
   const connectionLabel = !isOnline
     ? 'Sem conexão'
@@ -348,10 +396,29 @@ function KitchenTvControlSurface({
       ><span>Próxima</span><span aria-hidden="true">›</span></button>
     </section>
 
+    <section className="kitchen-tv-control-modality-filters" aria-label="Filtrar pedidos por modalidade">
+      {MODALITY_FILTERS.map((filter) => {
+        const selected = activeModality === filter.id
+        const count = modalityCounts[filter.id] || 0
+        return <button
+          key={filter.id}
+          type="button"
+          className={`kitchen-tv-control-modality-filter${selected ? ' is-active' : ''}`}
+          aria-pressed={selected}
+          disabled={!operationalControlsEnabled}
+          onClick={() => { void requestModality(filter.id) }}
+        >
+          <Icon name={filter.icon} size={18} />
+          <span>{filter.label}</span>
+          <strong className="kitchen-tv-control-modality-count">{count}</strong>
+        </button>
+      })}
+    </section>
+
     <section className="kitchen-tv-control-summary" aria-label="Resumo do controle da TV">
-      <SummaryTile label="Em preparo" value={queueModel.preparing.length} icon="preparation" tone="primary" />
+      <SummaryTile label="Em preparo" value={preparingCount} icon="preparation" tone="primary" />
       <SummaryTile label="Atrasados" value={lateCount} icon="alert" tone={lateCount ? 'danger' : 'neutral'} />
-      <SummaryTile label="Agendados" value={queueModel.counts.scheduled} icon="calendar" tone={queueModel.counts.scheduled ? 'info' : 'neutral'} />
+      <SummaryTile label="Agendados" value={scheduledCount} icon="calendar" tone={scheduledCount ? 'info' : 'neutral'} />
       <SummaryTile label="Fora da tela" value={offscreenCount === null ? '—' : offscreenCount} icon="eye-off" />
     </section>
 

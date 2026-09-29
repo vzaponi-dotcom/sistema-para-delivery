@@ -28,8 +28,10 @@ import {
   loadKitchenTvControl,
   reportKitchenTvDisplay,
   restoreKitchenTvOrder,
+  setKitchenTvRequestedModality,
   setKitchenTvRequestedPage,
 } from './kitchenTvControlRepository.js'
+import { KITCHEN_TV_MODALITIES } from '../shared/kitchenTvModality.js'
 import { apiError, assertSameOriginMutation, json, readJson } from './http.js'
 import { requireCapability } from './settingsAccess.js'
 
@@ -82,6 +84,7 @@ const controlPayload = (access, control, hiddenOrderIds) => ({
   control: {
     revision: control.revision,
     requestedPage: control.requestedPage,
+    requestedModality: control.requestedModality,
     updatedAt: control.updatedAt,
   },
   telemetry: control.telemetry,
@@ -102,6 +105,13 @@ const pageInput = (body) => {
     throw apiError(400, 'KITCHEN_TV_PAGE_INVALID', 'Informe uma página válida da TV.')
   }
   return body.page
+}
+
+const modalityInput = (body) => {
+  if (Object.keys(body).length !== 1 || !KITCHEN_TV_MODALITIES.includes(body.modality)) {
+    throw apiError(400, 'KITCHEN_TV_MODALITY_INVALID', 'Informe uma modalidade válida da TV.')
+  }
+  return body.modality
 }
 
 const REPORT_KEYS = new Set([
@@ -155,6 +165,18 @@ export async function handleKitchenTvAdminApi(request, env, context, url = new U
     const page = pageInput(await readJson(request))
     const access = await requirePairedKitchenTv(env.DB, context.businessId)
     const control = await setKitchenTvRequestedPage(env.DB, context.businessId, page, now)
+    return json(controlPayload(
+      access,
+      control,
+      await listKitchenTvHiddenOrderIds(env.DB, context.businessId),
+    ))
+  }
+  if (url.pathname === '/api/kitchen-tv/control/modality' && request.method === 'PATCH') {
+    requireCapability(context, 'orders.kitchen.control')
+    assertSameOriginMutation(request)
+    const modality = modalityInput(await readJson(request))
+    const access = await requirePairedKitchenTv(env.DB, context.businessId)
+    const control = await setKitchenTvRequestedModality(env.DB, context.businessId, modality, now)
     return json(controlPayload(
       access,
       control,
