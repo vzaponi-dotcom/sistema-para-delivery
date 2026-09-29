@@ -78,7 +78,7 @@ test('cancelling the order from the existing order surface closes its active res
   }, NOW)
 
   assert.equal(result.order.status, 'Cancelado')
-  assert.deepEqual(reservationRow(db), {
+  assert.deepEqual({ ...reservationRow(db) }, {
     status: 'cancelled',
     revision: 4,
     cancelled_at: NOW.toISOString(),
