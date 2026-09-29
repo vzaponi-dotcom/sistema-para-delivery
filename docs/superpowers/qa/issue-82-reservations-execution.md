@@ -915,3 +915,57 @@ Scope:
 - #282 Entrega 30/09 20:00: criado, visível só em Próximos dias, ausente da TV desktop que exibia toda a fila atual, cancelado.
 - Agendamento para horário passado 18:00 bloqueou avanço; 21:00 válido habilitou.
 - Jobs dos pedidos de teste cancelados saíram da fila; fila final zero. Matriz agora 44 PASS, 3 FAIL, 23 BLOCKED.
+
+## Post-homologation correction cycle — FAILs #15, #51 and #55
+
+Manual staging QA on `2b782595df218362751e3c74226451c4ad85f221` identified three application FAILs. A focused RED → GREEN correction cycle was executed without merge or production.
+
+### RED
+
+Characterization commits:
+- `b199e8daa81a2baff689f3316dfdabe687bc7a86` — reservation conflict retry must keep the same wizard draft, surface the authoritative conflict guidance and use a fresh idempotency key after the payload changes;
+- `0f70a0293415a8ceba7dbd325cb3d8d6517f3c26` — NewOrder must render the specific reservation-conflict guidance instead of the generic save failure;
+- `66cb59dcf98e55c524e8a3d53c339a8d324ec09d` — Comandas reservation cards must show service date + time on desktop/mobile summaries;
+- `e7c31c9e21be9d8e61875696fb5dfad99524b4b1` — Reporting Detail “Data” must use `order_date` rather than advance `created_at`.
+
+Validate #2696 / run `36642310206`: FAILURE as intended. The new tests independently reproduced:
+- missing reservation date in Comandas cards;
+- generic/non-recoverable create-reservation conflict behavior;
+- Reporting Detail showing the creation date instead of the service date.
+
+### GREEN
+
+Application fixes:
+- `c841dfd9c6f57a85c7e3c3044e686c977f4863c9` — draft controller can renew only the submit idempotency identity without remounting/clearing the live wizard;
+- `2d05c7b008bdd0ae9dbaf6ead1fbace486d04e90` + `a25781eff81c6b964e438891ec5ec0d64ae5fabb` — scheduled Local create conflicts return structured server guidance and renew the idempotency key for a corrected retry, while preserving the existing immediate-table retry contract and stale-edit contract;
+- `571f9dfa3b63cff52668e3fe14506c49558a8f08` — NewOrder displays the returned conflict guidance inline while keeping the draft;
+- `526de56caca5ccbdf43eacf0e43315f3250d370d` — Comandas reservation summaries now render full business date + time;
+- `46073db7a84f6581a67c4e2bd17a6d4e075c29a3` — Reporting Detail labels the column “Data do pedido” and renders the service `order_date`.
+
+Two preservation checks were exposed during GREEN hardening:
+- Validate #2700 showed that returning structured data for every 409 would regress the stale reservation-edit contract and that raw backend reservation error constants must not leak into frontend production source;
+- Validate #2701 showed that rotating idempotency for every create-time 409 would regress the established immediate table retry contract.
+
+Both were corrected by scoping the new retry behavior to **scheduled Local create** conflicts only, without raw `TABLE_RESERVATION_*` matching in frontend production code.
+
+Final application Validate #2702 / run `36642876397`: **SUCCESS**.
+- 8/8 test shards: PASS;
+- architecture: PASS;
+- lint: PASS;
+- build: PASS;
+- Worker production/staging dry-runs: PASS;
+- local D1 migrations: PASS;
+- D1 clean/upgrade gates: PASS.
+
+### Manual QA status
+
+The automated corrections do **not** convert manual FAILs to PASS by inference.
+
+Cases #15, #51 and #55 remain **PENDING RETEST IN STAGING** until observed in the browser on the new deployed SHA.
+
+The existing matrix remains the authoritative manual result until that retest:
+**44 PASS / 3 FAIL / 23 BLOCKED**.
+
+Production: NOT TOUCHED.
+Merge: NOT EXECUTED.
+PR #83 remains draft.
