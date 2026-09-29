@@ -13,6 +13,7 @@ const sourceCapability = Object.freeze({
 
 const hasTableRelationship = (order) => Boolean(
   order?.type === 'Local'
+  || order?.tableReservationId
   || order?.tableTabId
   || order?.customerIdentityType === 'table'
   || order?.table
