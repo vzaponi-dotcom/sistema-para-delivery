@@ -1,9 +1,9 @@
 # Issue #82 — Staging QA
 
-**Feature:** Agendamento multi-dia e reservas de mesa  
-**PR:** #83  
-**Status:** NOT STARTED  
-**Staging SHA:** —  
+**Feature:** Agendamento multi-dia e reservas de mesa
+**PR:** #83
+**Status:** NOT STARTED
+**Staging SHA:** —
 **Production:** BLOCKED
 
 No scenario is marked PASS until it is actually executed against the implementation.
