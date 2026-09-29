@@ -587,3 +587,49 @@ Staging deploy: NOT EXECUTED.
 Production deploy: NOT EXECUTED.
 
 Stopped before Task 15.
+
+## Task 15 evidence
+
+### RED
+
+- Behavioral test commit: `7dc06fd5c23a3617ed3291a92d7307bbade64f9d`.
+- Validate #2647 / run `36623021879`: FAILURE as intended.
+- The three focused failures proved:
+  - a schedule for the next operational day still remained in the current Kitchen `allActive/scheduled` population and therefore contaminated today's counters;
+  - no dedicated future-schedule projection existed for search/list rendering;
+  - Pedidos/Cozinha had no `Próximos dias` surface.
+
+### GREEN
+
+Implementation:
+- `95868feaf61344cf1ebd924d0e904749520ea70a` — App composition can load official reservation detail before opening the shared editor from Pedidos;
+- `ed5bfa00d95f9a03e0287b4bc73bbeab32ab0ad1` — first operational/future queue separation;
+- `c065e31fea70fec833f7420c2051db261427f137` — `Próximos dias` UI with full service date/time, detail/cancel and Local reservation edit;
+- `6ba8b0e6860e0b59020a0dbb45e36e4721660668` — minimal theme-safe future-list styling using existing Kitchen tokens;
+- `75bbd26270452b484894b5ca63dc9a1fc7b739b4` — preserved the existing Comandas reservation-edit source contract while keeping the new Pedidos entry point;
+- `107c4c4cfd8a7d90af663f6a6c4254377b0de59c` — dedicated future-schedule projection so Kitchen TV/public queue shape remains unchanged;
+- `56ab44d36c2f785fdddde5f1bda2210d40522a09` — Orders consumes the dedicated future projection without altering current counters;
+- `bdae80fb73df0652f63416989bca2a33d31396ac` — characterization alignment for the preserved Kitchen Display public contract.
+
+The first implementation validation exposed two compatibility regressions in source/public contracts rather than product behavior: the Task 14 Comandas wiring characterization expected its existing explicit edit composition, and Kitchen Display expected the exact historical `buildKitchenQueueModel` return shape. Both were preserved by splitting the future list into its own projection instead of widening the TV-facing model.
+
+Validate #2655 / run `36623885764`: SUCCESS.
+
+Delivered:
+- schedules still waiting whose service date is after the current operational business date are excluded from Kitchen `allActive`, `scheduled`, late indicators and today's operational counters;
+- same-day scheduled orders remain in the existing Agendados queue;
+- a cross-midnight preparation window becomes operational as soon as `operational_start_at` is reached, even when the scheduled service date is the next business day;
+- Local reservations use the same separation rule as other scheduled orders;
+- Pedidos/Cozinha now has a secondary `Próximos dias` list ordered by `scheduledFor ASC`;
+- future rows show full date and time in the operational timezone;
+- future orders keep the existing official order detail and cancellation flows;
+- only active Local reservations expose `Editar reserva`, which loads the official reservation detail and reuses the shared edit wizard;
+- Entrega/Retirada future schedules do not expose generic editing;
+- search filters the future list independently and never changes today's Kitchen counters;
+- the Kitchen Display public queue contract remains unchanged for Task 16 regression ownership;
+- no calendar page, new capability, global reservation collection or redesign was introduced.
+
+Staging deploy: NOT EXECUTED.  
+Production deploy: NOT EXECUTED.
+
+Stopped before Task 16.
