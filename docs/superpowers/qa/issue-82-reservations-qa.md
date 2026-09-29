@@ -18,16 +18,16 @@ No scenario is marked PASS until it is actually executed against the implementat
 | Checkout | PASS (through Task 5 scope) | Validate #2545 / run `36587697649`: Local reservation persists atomically without opening a comanda; overlap rollback/idempotency/HTTP effects pass. Printing timing remains Task 6. |
 | Printing | PASS (automated Task 6 scope) | Validate #2564 / run `36593459366`: availability matrix, copy context, canonical scheduled docs, ESC/POS/PDF and manual document reconstruction PASS. Physical printer checks remain PENDING for staging. |
 | Arrival conversion | PASS (automated Task 9 scope) | Validate #2579 / run `36597090286`: atomic conversion, guards, status preservation, retry idempotency and HTTP effects PASS. |
-| Edit reservation | PENDING | — |
+| Edit reservation | PASS (automated Task 10 scope) | Validate #2585 / run `36599062787`: edit cutoff, repricing, atomic replacement, conflict/revision rollback, print-job update/preservation and capabilities PASS. |
 | Cancel / no-show | PASS (automated Task 8 scope) | Validate #2575 / run `36596600847`: existing order cancel coupling, reservation cancel/no-show, revision guards and auth/origin PASS. |
 | Kitchen queue | PENDING | — |
 | Kitchen TV | PENDING | — |
 | Receivables | PENDING | — |
 | Reporting | PENDING | — |
-| Architecture | PASS (current code HEAD through Task 9) | Validate #2579 / run `36597090286` |
-| Full test suite | PASS (current code HEAD through Task 9) | All 8 test shards green in Validate #2579 / run `36597090286` |
-| Lint | PASS (current code HEAD through Task 9) | Validate #2579 / run `36597090286` |
-| Build | PASS (current code HEAD through Task 9) | Validate #2579 / run `36597090286` |
+| Architecture | PASS (current code HEAD through Task 12) | Validate #2612 / run `36610498170` |
+| Full test suite | PASS (current code HEAD through Task 12) | All 8 test shards + full validate green in Validate #2612 / run `36610498170` |
+| Lint | PASS (current code HEAD through Task 12) | Validate #2612 / run `36610498170` |
+| Build | PASS (current code HEAD through Task 12) | Validate #2612 / run `36610498170` |
 
 ## Manual staging blocks
 
@@ -118,3 +118,29 @@ No scenario is marked PASS until it is actually executed against the implementat
 - Arrival retry resolves to the same converted comanda: PASS.
 - nextReservation recalculates after conversion: PASS.
 - Manual staging verification for Comandas UI and real multi-device interaction: PENDING (frontend tasks not implemented yet).
+
+
+## Automated checkpoints after Task 12
+
+- Reservation backend edit only before operationalStartAt: PASS.
+- Reservation expectedRevision optimistic concurrency: PASS.
+- Edit table/date/time/client/items/notes/adjustments: PASS.
+- Repricing uses current active product catalog: PASS.
+- Conflict/product/policy races roll back without partial edits: PASS.
+- Pending automatic print job keeps identity/copies and updates document/availableAt: PASS.
+- Discarded automatic job is not revived: PASS.
+- Missing automatic job is not backfilled: PASS.
+- Manual-print-history flag reaches the reservation edit workflow: PASS.
+- Frontend reservation detail ignores stale/retired reads: PASS.
+- Frontend reservation commands enforce existing capabilities/writesBlocked: PASS.
+- Frontend 409 handling refreshes official reservation state once: PASS.
+- Table Service reservation public boundary passes architecture contract: PASS.
+- 90-day max date helper uses Sao Paulo business calendar: PASS.
+- Entrega/Retirada multiday scheduling in current New Order wizard: PASS.
+- Local Agora/Reservar schedule state: PASS.
+- Local future reservation can select an occupied-now table without joining its open comanda: PASS.
+- Existing-comanda Add order flow does not expose Reservar: PASS.
+- Local reservation payload omits expectedTableTabId: PASS.
+- Review exposes full reservation/scheduled date and time: PASS.
+- Desktop/mobile staging visual verification remains PENDING; Task 14 owns the final Comandas reservation UI.
+- Kitchen TV auth test fixture was stabilized after its hard-coded session timestamp crossed the real seven-day auth lifetime; no production TV code changed.
