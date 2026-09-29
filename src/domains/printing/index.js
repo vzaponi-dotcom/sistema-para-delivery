@@ -15,4 +15,3 @@ export {
   PrintingSettingsContent,
 } from './ui/printingSurfaces.js'
 export { DEFAULT_PRINT_QUEUE_QUERY } from './ui/printQueueQuery.js'
-export { getOrderPrintDocument } from './infrastructure/printingApi.js'

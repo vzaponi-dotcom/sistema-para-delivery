@@ -288,7 +288,7 @@ test('tapping Retirar da TV closes the action sheet and leaves restoration to Re
   assert.match(nodeText(sheet), /Ana/)
   assert.match(nodeText(sheet), /Remove apenas do painel da TV\. O pedido continua em preparo no sistema\./)
   assert.ok(buttonNamed(sheet, 'Retirar da TV'))
-  assert.ok(buttonNamed(sheet, 'Ver na Cozinha'))
+  assert.equal(buttonNamed(sheet, 'Ver na Cozinha'), undefined)
 
   await act(async () => buttonNamed(sheet, 'Retirar da TV').props.onClick())
   assert.deepEqual(mutations, [['hide', 'order-1']])
@@ -413,7 +413,9 @@ test('mobile TV control becomes an immersive app surface above top and bottom na
   assert.match(css, /@media \(max-width: 820px\)[\s\S]*\.kitchen-tv-control-page\s*\{[^}]*padding-bottom:\s*max\([^;]*safe-area-inset-bottom/s)
 })
 
-test('printing public entry exposes the order print document reader for the controller', async () => {
+test('TV control reads the canonical print document without widening the Printing public entry', async () => {
+  const apiSource = await readFile(new URL('./kitchenTvControlApi.js', import.meta.url), 'utf8')
   const printingIndex = await readFile(new URL('../../../domains/printing/index.js', import.meta.url), 'utf8')
-  assert.match(printingIndex, /getOrderPrintDocument/)
+  assert.match(apiSource, /\/api\/orders\/.*\/print-document/)
+  assert.doesNotMatch(printingIndex, /getOrderPrintDocument/)
 })

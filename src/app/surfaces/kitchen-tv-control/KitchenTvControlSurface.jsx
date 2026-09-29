@@ -17,10 +17,7 @@ import './kitchenTvControl.css'
 
 const CONTROL_POLL_MS = 2000
 
-const loadDefaultPrintDocument = async (orderId) => {
-  const { getOrderPrintDocument } = await import('../../../domains/printing/index.js')
-  return getOrderPrintDocument(orderId)
-}
+const loadDefaultPrintDocument = (orderId) => defaultApi.getKitchenTvOrderPrintDocument(orderId)
 
 const telemetryTime = (telemetry, now = new Date()) => {
   if (!telemetry?.reportedAt) return 'Sem telemetria recente'
