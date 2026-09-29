@@ -2,7 +2,7 @@
 
 > **Execution mode:** executar task por task, sempre RED → GREEN, com evidência por SHA exato. Nenhuma implementação começa antes da aprovação explícita deste plano.
 
-**Status:** DRAFT AUTO-REVIEWED — aguardando aprovação explícita para execução  
+**Status:** APPROVED FOR EXECUTION — aprovado pelo usuário em 2026-09-29; execução autorizada task por task, sem produção  
 **Feature:** Issue #82 — Agendamento multi-dia e reservas de mesa  
 **Spec aprovada:** `docs/superpowers/specs/2026-09-29-multiday-scheduling-table-reservations-design.md`  
 **Branch documental:** `docs/issue-82-multiday-reservations`  
