@@ -44,3 +44,21 @@ export const readKitchenDisplayState = (sessionTokenOrFetch = null, maybeFetch =
     ...(sessionToken ? { headers: { [KITCHEN_TV_SESSION_HEADER]: sessionToken } } : {}),
   }, fetchImpl)
 }
+
+
+export const reportKitchenDisplayState = (
+  report,
+  sessionTokenOrFetch = null,
+  maybeFetch = globalThis.fetch,
+) => {
+  const fetchImpl = typeof sessionTokenOrFetch === 'function' ? sessionTokenOrFetch : maybeFetch
+  const sessionToken = typeof sessionTokenOrFetch === 'string' ? sessionTokenOrFetch.trim() : ''
+  return requestJson('/api/kitchen-tv/report', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      ...(sessionToken ? { [KITCHEN_TV_SESSION_HEADER]: sessionToken } : {}),
+    },
+    body: JSON.stringify(report),
+  }, fetchImpl)
+}

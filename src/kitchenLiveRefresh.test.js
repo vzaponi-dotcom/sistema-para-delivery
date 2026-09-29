@@ -13,10 +13,10 @@ test('worker and Orders adapter expose an orders-only GET refresh path', () => {
   assert.equal(existsSync('src/api/client.js'), false)
 })
 
-test('App enables the orders runtime only for Cozinha while the runtime owns the two-second refresh and focus behavior', () => {
+test('App enables the orders runtime for Cozinha and Controle da TV while the runtime owns the two-second refresh and focus behavior', () => {
   const app = read('src/App.jsx')
   const runtime = read('src/app/runtime/data/useOperationalDataRuntime.js')
-  assert.match(app, /ordersSyncEnabled: activeTab === 'orders' && isOnline && authState === 'authenticated'/)
+  assert.match(app, /ordersSyncEnabled: \(activeTab === 'orders' \|\| activeTab === 'kitchen-tv-control'\) && isOnline && authState === 'authenticated'/)
   assert.match(runtime, /getOrders/)
   assert.match(runtime, /export const ORDER_SYNC_INTERVAL_MS = 2_000/)
   assert.match(runtime, /run: refreshOrders/)

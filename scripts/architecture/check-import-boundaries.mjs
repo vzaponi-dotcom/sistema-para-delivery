@@ -539,6 +539,12 @@ export const findArchitectureViolations = async ({ rootDir }) => {
       violations.push(`admin-router-kitchen-import: ${edge.from} -> ${edge.resolvedPath}`)
     }
 
+    const kitchenTvControlProduction = !isTestFile(edge.from)
+      && edge.from.startsWith('src/app/surfaces/kitchen-tv-control/')
+    if (kitchenTvControlProduction && edge.resolvedPath?.startsWith('worker/')) {
+      violations.push(`kitchen-tv-control-worker-import: ${edge.from} -> ${edge.resolvedPath}`)
+    }
+
     const kitchenTvProduction = !isTestFile(edge.from) && edge.from.startsWith('src/kitchen-display/')
     if (kitchenTvProduction) {
       if (edge.resolvedPath === 'src/App.jsx'

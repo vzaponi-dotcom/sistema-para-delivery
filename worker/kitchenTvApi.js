@@ -21,6 +21,17 @@ import {
   touchKitchenTvSession,
 } from './kitchenTvRepository.js'
 import { loadKitchenTvState } from './kitchenTvReadRepository.js'
+import {
+  getKitchenTvOrderControlEligibility,
+  hideKitchenTvOrder,
+  listKitchenTvHiddenOrderIds,
+  loadKitchenTvControl,
+  reportKitchenTvDisplay,
+  restoreKitchenTvOrder,
+  setKitchenTvRequestedModality,
+  setKitchenTvRequestedPage,
+} from './kitchenTvControlRepository.js'
+import { KITCHEN_TV_MODALITIES } from '../shared/kitchenTvModality.js'
 import { apiError, assertSameOriginMutation, json, readJson } from './http.js'
 import { requireCapability } from './settingsAccess.js'
 
@@ -60,7 +71,138 @@ async function pairingRequestToken(request) {
   }
 }
 
+const paired = (access) => Boolean(access?.sessionTokenHash && !access?.revokedAt)
+const requirePairedKitchenTv = async (db, businessId) => {
+  const access = await loadKitchenTvAccess(db, businessId)
+  if (!paired(access)) {
+    throw apiError(409, 'KITCHEN_TV_NOT_PAIRED', 'A TV da cozinha precisa estar conectada para receber comandos.')
+  }
+  return access
+}
+const controlPayload = (access, control, hiddenOrderIds) => ({
+  paired: paired(access),
+  control: {
+    revision: control.revision,
+    requestedPage: control.requestedPage,
+    requestedModality: control.requestedModality,
+    updatedAt: control.updatedAt,
+  },
+  telemetry: control.telemetry,
+  hiddenOrderIds,
+})
+
+async function loadControlState(db, businessId) {
+  const [access, control, hiddenOrderIds] = await Promise.all([
+    loadKitchenTvAccess(db, businessId),
+    loadKitchenTvControl(db, businessId),
+    listKitchenTvHiddenOrderIds(db, businessId),
+  ])
+  return controlPayload(access, control, hiddenOrderIds)
+}
+
+const pageInput = (body) => {
+  if (Object.keys(body).length !== 1 || !Number.isSafeInteger(body.page) || body.page < 1) {
+    throw apiError(400, 'KITCHEN_TV_PAGE_INVALID', 'Informe uma página válida da TV.')
+  }
+  return body.page
+}
+
+const modalityInput = (body) => {
+  if (Object.keys(body).length !== 1 || !KITCHEN_TV_MODALITIES.includes(body.modality)) {
+    throw apiError(400, 'KITCHEN_TV_MODALITY_INVALID', 'Informe uma modalidade válida da TV.')
+  }
+  return body.modality
+}
+
+const REPORT_KEYS = new Set([
+  'appliedRevision', 'currentPage', 'pageCount',
+  'viewportWidth', 'viewportHeight', 'visibleOrderIds',
+])
+
+const reportInput = (body) => {
+  const keys = Object.keys(body)
+  const ids = body.visibleOrderIds
+  const validIds = Array.isArray(ids)
+    && ids.length <= 100
+    && ids.every((id) => typeof id === 'string' && id.trim().length > 0 && id.length <= 128)
+    && new Set(ids).size === ids.length
+  const valid = keys.length === REPORT_KEYS.size
+    && keys.every((key) => REPORT_KEYS.has(key))
+    && Number.isSafeInteger(body.appliedRevision) && body.appliedRevision >= 0
+    && Number.isSafeInteger(body.currentPage) && body.currentPage >= 1
+    && Number.isSafeInteger(body.pageCount) && body.pageCount >= 1
+    && body.currentPage <= body.pageCount
+    && Number.isSafeInteger(body.viewportWidth) && body.viewportWidth >= 1 && body.viewportWidth <= 10_000
+    && Number.isSafeInteger(body.viewportHeight) && body.viewportHeight >= 1 && body.viewportHeight <= 10_000
+    && validIds
+  if (!valid) throw apiError(400, 'KITCHEN_TV_REPORT_INVALID', 'Estado renderizado da TV inválido.')
+  return {
+    appliedRevision: body.appliedRevision,
+    currentPage: body.currentPage,
+    pageCount: body.pageCount,
+    viewportWidth: body.viewportWidth,
+    viewportHeight: body.viewportHeight,
+    visibleOrderIds: ids,
+  }
+}
+
+async function authenticatedTv(request, env) {
+  const token = readKitchenTvSessionToken(request)
+  if (!token) throw unauthorized()
+  const access = await loadKitchenTvSessionByHash(env.DB, await hashKitchenTvToken(token))
+  if (!access) throw unauthorized()
+  return { token, access }
+}
+
 export async function handleKitchenTvAdminApi(request, env, context, url = new URL(request.url), now = new Date()) {
+  if (url.pathname === '/api/kitchen-tv/control' && request.method === 'GET') {
+    requireCapability(context, 'orders.view')
+    return json(await loadControlState(env.DB, context.businessId))
+  }
+  if (url.pathname === '/api/kitchen-tv/control/page' && request.method === 'PATCH') {
+    requireCapability(context, 'orders.kitchen.control')
+    assertSameOriginMutation(request)
+    const page = pageInput(await readJson(request))
+    const access = await requirePairedKitchenTv(env.DB, context.businessId)
+    const control = await setKitchenTvRequestedPage(env.DB, context.businessId, page, now)
+    return json(controlPayload(
+      access,
+      control,
+      await listKitchenTvHiddenOrderIds(env.DB, context.businessId),
+    ))
+  }
+  if (url.pathname === '/api/kitchen-tv/control/modality' && request.method === 'PATCH') {
+    requireCapability(context, 'orders.kitchen.control')
+    assertSameOriginMutation(request)
+    const modality = modalityInput(await readJson(request))
+    const access = await requirePairedKitchenTv(env.DB, context.businessId)
+    const control = await setKitchenTvRequestedModality(env.DB, context.businessId, modality, now)
+    return json(controlPayload(
+      access,
+      control,
+      await listKitchenTvHiddenOrderIds(env.DB, context.businessId),
+    ))
+  }
+  const hiddenMatch = url.pathname.match(/^\/api\/kitchen-tv\/control\/orders\/([^/]+)\/hidden$/)
+  if (hiddenMatch && request.method === 'PUT') {
+    requireCapability(context, 'orders.kitchen.control')
+    assertSameOriginMutation(request)
+    await requirePairedKitchenTv(env.DB, context.businessId)
+    const orderId = decodeURIComponent(hiddenMatch[1])
+    const eligibility = await getKitchenTvOrderControlEligibility(env.DB, context.businessId, orderId, now)
+    if (!eligibility.exists) throw apiError(404, 'ORDER_NOT_FOUND', 'Pedido não encontrado.')
+    if (!eligibility.eligible) throw apiError(409, 'KITCHEN_TV_ORDER_NOT_ELIGIBLE', 'Este pedido ainda não pode ser retirado da TV.')
+    await hideKitchenTvOrder(env.DB, context.businessId, orderId, now)
+    return json({ orderId, hidden: true })
+  }
+  if (hiddenMatch && request.method === 'DELETE') {
+    requireCapability(context, 'orders.kitchen.control')
+    assertSameOriginMutation(request)
+    await requirePairedKitchenTv(env.DB, context.businessId)
+    const orderId = decodeURIComponent(hiddenMatch[1])
+    await restoreKitchenTvOrder(env.DB, context.businessId, orderId)
+    return json({ orderId, hidden: false })
+  }
   if (url.pathname === '/api/kitchen-tv/settings' && request.method === 'GET') {
     requireCapability(context, 'orders.settings.view')
     return json(await loadSettingsState(env.DB, context.businessId, now))
@@ -132,11 +274,16 @@ export async function handleKitchenTvPublicApi(request, env, url = new URL(reque
       : { paired: true }, { headers })
   }
 
+  if (url.pathname === '/api/kitchen-tv/report' && request.method === 'POST') {
+    assertSameOriginMutation(request)
+    const { access } = await authenticatedTv(request, env)
+    const report = reportInput(await readJson(request))
+    await reportKitchenTvDisplay(env.DB, access.businessId, report, now)
+    return json({ reported: true })
+  }
+
   if (url.pathname === '/api/kitchen-tv/state' && request.method === 'GET') {
-    const token = readKitchenTvSessionToken(request)
-    if (!token) throw unauthorized()
-    const access = await loadKitchenTvSessionByHash(env.DB, await hashKitchenTvToken(token))
-    if (!access) throw unauthorized()
+    const { token, access } = await authenticatedTv(request, env)
     const state = await loadKitchenTvState(env.DB, access.businessId)
     const touched = await touchKitchenTvSession(env.DB, access.businessId, now, 300_000)
     return json({ serverNow: now.toISOString(), ...state }, touched

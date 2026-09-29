@@ -6,6 +6,7 @@ import {
   KitchenDisplayHttpError,
   readKitchenDisplayPairingStatus,
   readKitchenDisplayState,
+  reportKitchenDisplayState,
 } from './kitchenDisplayApi.js'
 
 test('pairing request, token-backed status and state stay on the narrow same-origin API', async () => {
@@ -75,4 +76,33 @@ test('legacy state transport can authenticate with the explicit TV session heade
   })
   assert.equal(captured.headers['x-kitchen-tv-session'], 'legacy-session-token')
   assert.equal(captured.credentials, 'same-origin')
+})
+
+
+test('render telemetry posts through the restricted TV transport with explicit legacy session support', async () => {
+  const calls = []
+  const payload = {
+    appliedRevision: 4,
+    currentPage: 2,
+    pageCount: 3,
+    viewportWidth: 960,
+    viewportHeight: 540,
+    visibleOrderIds: ['order-7', 'order-8'],
+  }
+
+  await reportKitchenDisplayState(payload, 'legacy-session-token', async (path, init) => {
+    calls.push({ path, init })
+    return new Response(JSON.stringify({ reported: true }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })
+  })
+
+  assert.equal(calls.length, 1)
+  assert.equal(calls[0].path, '/api/kitchen-tv/report')
+  assert.equal(calls[0].init.method, 'POST')
+  assert.equal(calls[0].init.credentials, 'same-origin')
+  assert.equal(calls[0].init.headers['content-type'], 'application/json')
+  assert.equal(calls[0].init.headers['x-kitchen-tv-session'], 'legacy-session-token')
+  assert.equal(calls[0].init.body, JSON.stringify(payload))
 })

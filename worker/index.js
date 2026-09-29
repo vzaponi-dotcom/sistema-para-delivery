@@ -6,7 +6,7 @@ import { cancelOrder, registerOrderRefund } from './orderCancellation.js'
 import { validateCheckoutInput } from './orderCheckout.js'
 import { handlePrintingApi } from './orderPrintingApi.js'
 import { handleSettingsApi } from './settingsApi.js'
-import { resolveSettingsAccess } from './settingsAccess.js'
+import { requireCapability, resolveSettingsAccess } from './settingsAccess.js'
 import { loadEffectiveBusinessConfig } from './effectiveBusinessConfig.js'
 import { createManualTableTabPrintJob, loadAutomaticPrintJobForOrder } from './orderPrintingRepository.js'
 import { listOrders } from './orderReadRepository.js'
@@ -193,7 +193,15 @@ const authenticatedApi = async (request, env) => {
     return json(response, { status: 201 })
   }
   const statusMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/status$/)
-  if (statusMatch && request.method === 'PATCH') { assertSameOriginMutation(request); const body = await readJson(request); if (body.status !== 'Finalizado') throw apiError(400, 'INVALID_STATUS', 'Transição de status inválida.'); const order = await updateOrderStatus(env.DB, session.businessId, decodeURIComponent(statusMatch[1])); if (!order) throw apiError(404, 'ORDER_NOT_FOUND', 'Pedido não encontrado.'); return json({ order }) }
+  if (statusMatch && request.method === 'PATCH') {
+    requireCapability(context, 'orders.finalize')
+    assertSameOriginMutation(request)
+    const body = await readJson(request)
+    if (body.status !== 'Finalizado') throw apiError(400, 'INVALID_STATUS', 'Transição de status inválida.')
+    const order = await updateOrderStatus(env.DB, session.businessId, decodeURIComponent(statusMatch[1]))
+    if (!order) throw apiError(404, 'ORDER_NOT_FOUND', 'Pedido não encontrado.')
+    return json({ order })
+  }
   const paymentMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/payment$/)
   if (paymentMatch && request.method === 'POST') {
     assertSameOriginMutation(request)

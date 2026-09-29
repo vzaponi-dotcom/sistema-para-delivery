@@ -55,6 +55,7 @@ test('returns only active kitchen-safe fields, future scheduled orders and curre
     immediateLateAfterMinutes: 21,
     immediateVeryLateAfterMinutes: 44,
   })
+  assert.deepEqual(state.control, { revision: 0, requestedPage: 1, requestedModality: 'all' })
   assert.deepEqual(state.orders, [
     {
       id: 'active-now', orderNumber: 1042, client: 'Ana Souza', type: 'Entrega', status: 'Em preparo',
@@ -77,4 +78,44 @@ test('serialized state never exposes contact, financial, refund, printing or cat
     'phone', 'address', 'subtotal', 'totalcents', 'deliveryfee', 'adjustment', 'payment',
     'movement', 'refund', 'printer', 'printjob', 'qz', 'productid', 'clientid',
   ]) assert.equal(serialized.includes(forbidden), false, `forbidden Kitchen TV field: ${forbidden}`)
+})
+
+
+test('TV-only hidden orders disappear from state and item rows while administrative order data stays untouched', async (t) => {
+  const repository = await repositoryPromise
+  const { db, sqlite } = setup(t)
+
+  sqlite.prepare('INSERT INTO kitchen_tv_hidden_orders (business_id, order_id, hidden_at) VALUES (?, ?, ?)')
+    .run(BUSINESS, 'active-now', '2026-09-22T18:00:00.000Z')
+
+  const state = await repository.loadKitchenTvState(db, BUSINESS)
+  assert.deepEqual(state.orders.map(({ id }) => id), ['active-scheduled'])
+  assert.equal(JSON.stringify(state).includes('Sem cebola'), false)
+
+  const official = sqlite.prepare('SELECT status, finished_at FROM orders WHERE business_id = ? AND id = ?')
+    .get(BUSINESS, 'active-now')
+  assert.deepEqual({ ...official }, { status: 'Em preparo', finished_at: null })
+
+  sqlite.prepare('DELETE FROM kitchen_tv_hidden_orders WHERE business_id = ? AND order_id = ?')
+    .run(BUSINESS, 'active-now')
+  const restored = await repository.loadKitchenTvState(db, BUSINESS)
+  assert.deepEqual(restored.orders.map(({ id }) => id), ['active-now', 'active-scheduled'])
+})
+
+test('Kitchen TV state exposes only revision and requested page, never administrative telemetry', async (t) => {
+  const repository = await repositoryPromise
+  const { db, sqlite } = setup(t)
+
+  sqlite.prepare(`INSERT INTO kitchen_tv_display_control (
+    business_id, revision, requested_page, updated_at,
+    reported_revision, reported_page, reported_page_count,
+    reported_viewport_width, reported_viewport_height,
+    reported_visible_order_ids_json, reported_at
+  ) VALUES (?, 7, 3, ?, 6, 2, 4, 960, 540, '["active-now"]', ?)`)
+    .run(BUSINESS, '2026-09-22T18:00:00.000Z', '2026-09-22T18:00:01.000Z')
+
+  const state = await repository.loadKitchenTvState(db, BUSINESS)
+  assert.deepEqual(state.control, { revision: 7, requestedPage: 3, requestedModality: 'all' })
+  assert.equal(Object.hasOwn(state.control, 'telemetry'), false)
+  assert.equal(JSON.stringify(state).includes('visibleOrderIds'), false)
 })

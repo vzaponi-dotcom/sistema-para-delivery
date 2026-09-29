@@ -6,6 +6,7 @@ test('mobile sections keep the approved navigation order for page transitions', 
   assert.deepEqual(MOBILE_SECTION_IDS, [
     'orders',
     'history',
+    'kitchen-tv-control',
     'comandas',
     'dashboard',
     'receivables',

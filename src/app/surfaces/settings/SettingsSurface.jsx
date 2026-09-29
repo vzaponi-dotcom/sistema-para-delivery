@@ -161,6 +161,7 @@ export function SettingsSurface({
   if (section === 'settings-kitchen-tv') return withActiveConflict(<KitchenTvSettings
     granted={granted}
     onNavigateHome={() => onNavigate?.('settings-home')}
+    onNavigateControl={() => onNavigate?.('kitchen-tv-control')}
   />)
   if (section === 'settings-device') return withActiveConflict(<DevicePreferences
     soundEnabled={soundEnabled}

@@ -16,7 +16,7 @@ const formatCode = (value) => {
   return digits.length > 3 ? `${digits.slice(0, 3)} ${digits.slice(3)}` : digits
 }
 
-function KitchenTvSettings({ granted, onNavigateHome, api = defaultApi }) {
+function KitchenTvSettings({ granted, onNavigateHome, onNavigateControl, api = defaultApi }) {
   const [status, setStatus] = useState(null)
   const [code, setCode] = useState('')
   const [loading, setLoading] = useState(true)
@@ -25,6 +25,7 @@ function KitchenTvSettings({ granted, onNavigateHome, api = defaultApi }) {
   const [message, setMessage] = useState('')
   const [confirmingRevoke, setConfirmingRevoke] = useState(false)
   const canManage = granted instanceof Set && granted.has('orders.settings.manage')
+  const canOpenControl = granted instanceof Set && granted.has('orders.view')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -103,8 +104,9 @@ function KitchenTvSettings({ granted, onNavigateHome, api = defaultApi }) {
           <div><dt>Pareada em</dt><dd>{formatDateTime(status.pairedAt)}</dd></div>
           <div><dt>Último acesso</dt><dd>{formatDateTime(status.lastSeenAt)}</dd></div>
         </dl>
-        {canManage && <div className="kitchen-tv-actions">
-          <Button type="button" variant="danger" disabled={busy} onClick={() => setConfirmingRevoke(true)}>Revogar acesso</Button>
+        {(canOpenControl || canManage) && <div className="kitchen-tv-actions">
+          {canOpenControl && <Button type="button" variant="secondary" disabled={busy} onClick={onNavigateControl}>Abrir controle da TV</Button>}
+          {canManage && <Button type="button" variant="danger" disabled={busy} onClick={() => setConfirmingRevoke(true)}>Revogar acesso</Button>}
         </div>}
       </> : status?.waitingPairing ? <>
         <div className="kitchen-tv-state-heading">

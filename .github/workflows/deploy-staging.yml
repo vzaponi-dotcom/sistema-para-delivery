@@ -10,6 +10,7 @@ on:
       - feature/issue-34-reporting-center
       - feature/release-reporting-center
       - feature/kitchen-tv-best-fit-layout
+      - feature/kitchen-tv-control-center
   workflow_dispatch:
 
 permissions:
@@ -155,9 +156,11 @@ jobs:
         run: |
           node --input-type=module <<'NODE'
           const baseUrl = process.env.STAGING_URL
+          const attempts = Number(process.env.STAGING_READY_ATTEMPTS)
           const paths = [
             '/pedidos',
             '/pedidos/historico',
+            '/pedidos/controle-da-tv',
             '/comandas',
             '/financeiro/a-receber',
             '/financeiro/movimentacoes',
@@ -167,52 +170,60 @@ jobs:
             '/cozinha-tv',
           ]
 
+          const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
           for (const path of paths) {
-            const pageUrl = `${baseUrl}${path}`
-            const response = await fetch(pageUrl, { redirect: 'manual' })
-            if (response.status !== 200) {
-              console.error(`Deep link ${path} failed with HTTP ${response.status}`)
-              process.exit(1)
-            }
-            const contentType = response.headers.get('content-type') || ''
-            if (!contentType.includes('text/html')) {
-              console.error(`Deep link ${path} returned unexpected content-type: ${contentType}`)
-              process.exit(1)
-            }
-            const body = await response.text()
-            if (!body.includes('id="root"')) {
-              console.error(`Deep link ${path} did not return the SPA shell`)
-              process.exit(1)
-            }
+            let ready = false
+            let lastError = 'unknown propagation error'
 
-            const assetRefs = [...body.matchAll(/(?:src|href)="([^"]+\.(?:js|css))"/g)].map((match) => match[1])
-            if (!assetRefs.length) {
-              console.error(`Deep link ${path} did not expose build assets`)
-              process.exit(1)
-            }
+            for (let attempt = 1; attempt <= attempts; attempt += 1) {
+              try {
+                const pageUrl = new URL(path, baseUrl)
+                pageUrl.searchParams.set('__staging_verify', `${Date.now()}-${attempt}`)
+                const response = await fetch(pageUrl, {
+                  redirect: 'manual',
+                  cache: 'no-store',
+                  headers: { 'cache-control': 'no-cache' },
+                })
+                if (response.status !== 200) throw new Error(`HTTP ${response.status}`)
 
-            for (const ref of assetRefs) {
-              const assetUrl = new URL(ref, pageUrl)
-              const expectedType = assetUrl.pathname.endsWith('.css') ? 'text/css' : 'javascript'
-              let assetReady = false
-
-              for (let attempt = 1; attempt <= Number(process.env.STAGING_READY_ATTEMPTS); attempt += 1) {
-                const assetResponse = await fetch(assetUrl)
-                const assetType = assetResponse.headers.get('content-type') || ''
-                if (assetResponse.ok && assetType.includes(expectedType)) {
-                  assetReady = true
-                  break
+                const contentType = response.headers.get('content-type') || ''
+                if (!contentType.includes('text/html')) {
+                  throw new Error(`unexpected content-type: ${contentType}`)
                 }
-                console.log(`Deep link ${path} asset ${assetUrl.pathname} propagation attempt ${attempt}/${process.env.STAGING_READY_ATTEMPTS}: HTTP ${assetResponse.status}, content-type ${assetType}`)
-                if (attempt < Number(process.env.STAGING_READY_ATTEMPTS)) {
-                  await new Promise((resolve) => setTimeout(resolve, 3000))
-                }
-              }
 
-              if (!assetReady) {
-                console.error(`Deep link ${path} asset ${assetUrl.pathname} did not become ready in the bounded propagation window`)
-                process.exit(1)
+                const body = await response.text()
+                if (!body.includes('id="root"')) throw new Error('SPA shell missing')
+
+                const assetRefs = [...body.matchAll(/(?:src|href)="([^"]+\.(?:js|css))"/g)].map((match) => match[1])
+                if (!assetRefs.length) throw new Error('build assets missing')
+
+                for (const ref of assetRefs) {
+                  const assetUrl = new URL(ref, pageUrl)
+                  assetUrl.searchParams.set('__staging_verify', `${Date.now()}-${attempt}`)
+                  const expectedType = assetUrl.pathname.endsWith('.css') ? 'text/css' : 'javascript'
+                  const assetResponse = await fetch(assetUrl, {
+                    cache: 'no-store',
+                    headers: { 'cache-control': 'no-cache' },
+                  })
+                  const assetType = assetResponse.headers.get('content-type') || ''
+                  if (!assetResponse.ok || !assetType.includes(expectedType)) {
+                    throw new Error(`asset ${assetUrl.pathname}: HTTP ${assetResponse.status}, content-type ${assetType}`)
+                  }
+                }
+
+                ready = true
+                break
+              } catch (error) {
+                lastError = error.message
+                console.log(`Deep link ${path} propagation attempt ${attempt}/${attempts}: ${lastError}`)
+                if (attempt < attempts) await sleep(3000)
               }
+            }
+
+            if (!ready) {
+              console.error(`Deep link ${path} did not become ready in the bounded propagation window: ${lastError}`)
+              process.exit(1)
             }
 
             console.log(`Deep link ${path}: HTTP 200 / SPA shell + assets OK`)

@@ -9,6 +9,7 @@ export const NAVIGATION_DESTINATIONS = Object.freeze([
   Object.freeze({ id: 'settings-kitchen-tv', path: '/configuracoes/tv-da-cozinha', area: 'settings', label: 'TV da Cozinha', mobileEntry: 'more', capability: 'orders.settings.view' }),
   Object.freeze({ id: 'orders', path: '/pedidos', area: 'orders', label: 'Cozinha', mobileEntry: 'orders', capability: 'orders.view' }),
   Object.freeze({ id: 'history', path: '/pedidos/historico', area: 'orders', label: 'Histórico', mobileEntry: 'orders', capability: 'orders.history' }),
+  Object.freeze({ id: 'kitchen-tv-control', path: '/pedidos/controle-da-tv', area: 'orders', label: 'Controle da TV', mobileEntry: 'orders', capability: 'orders.view' }),
   Object.freeze({ id: 'new-order', path: '/pedidos/novo', area: 'orders', label: 'Novo pedido', mobileEntry: null, capability: 'orders.create' }),
   Object.freeze({ id: 'comandas', path: '/comandas', area: 'comandas', label: 'Comandas', mobileEntry: 'comandas', capability: 'comandas.view' }),
   Object.freeze({ id: 'print-queue', path: '/fila-de-impressao', area: 'print-queue', label: 'Fila de impressão', mobileEntry: 'more', capability: 'printing.queue' }),
@@ -26,7 +27,7 @@ export const NAVIGATION_DESTINATIONS = Object.freeze([
 export const destinationById = new Map(NAVIGATION_DESTINATIONS.map((item) => [item.id, item]))
 
 export const AREA_DESTINATION_IDS = Object.freeze({
-  orders: Object.freeze(['orders', 'history']),
+  orders: Object.freeze(['orders', 'history', 'kitchen-tv-control']),
   finance: Object.freeze(['dashboard', 'reports', 'receivables', 'finance']),
   settings: Object.freeze(['settings-home', 'settings-business-profile', 'settings-operations', 'settings-modalities', 'settings-payments', 'settings-cancellations', 'settings-finance-categories', 'settings-kitchen-tv', 'settings-printing', 'settings-device']),
 })
@@ -55,6 +56,6 @@ export const MOBILE_MORE_ENTRIES = Object.freeze([
 ])
 
 export const MOBILE_SECTION_IDS = Object.freeze([
-  'orders', 'history', 'comandas', 'dashboard', 'receivables', 'finance',
+  'orders', 'history', 'kitchen-tv-control', 'comandas', 'dashboard', 'receivables', 'finance',
   'print-queue', 'clients', 'products', 'tables', 'settings-kitchen-tv', 'settings-printing', 'settings-device',
 ])

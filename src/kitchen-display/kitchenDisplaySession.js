@@ -2,6 +2,7 @@ import {
   createKitchenDisplayPairingRequest,
   readKitchenDisplayPairingStatus,
   readKitchenDisplayState,
+  reportKitchenDisplayState,
 } from './kitchenDisplayApi.js'
 
 export const KITCHEN_TV_PAIRING_STORAGE_KEY = 'kitchen-tv-pairing-request-token'
@@ -58,6 +59,13 @@ export async function readStoredKitchenDisplayState({
   readState = readKitchenDisplayState,
 } = {}) {
   return readState(sessionTokenGet(storage))
+}
+
+export async function reportStoredKitchenDisplayState(report, {
+  storage = globalThis.sessionStorage,
+  reportState = reportKitchenDisplayState,
+} = {}) {
+  return reportState(report, sessionTokenGet(storage))
 }
 
 export async function pollKitchenDisplayPairing({

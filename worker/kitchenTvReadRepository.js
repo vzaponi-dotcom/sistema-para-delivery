@@ -1,4 +1,5 @@
 import { loadOperations } from './operationSettingsRepository.js'
+import { loadKitchenTvControl } from './kitchenTvControlRepository.js'
 
 const rows = (result) => Array.isArray(result?.results) ? result.results : []
 
@@ -9,6 +10,11 @@ const ACTIVE_ORDERS_SELECT = `SELECT id, order_number, client_name_snapshot, typ
     AND status NOT IN ('Finalizado', 'Cancelado', 'Entregue', 'Despachado')
     AND finished_at IS NULL
     AND cancelled_at IS NULL
+    AND NOT EXISTS (
+      SELECT 1 FROM kitchen_tv_hidden_orders hidden
+      WHERE hidden.business_id = orders.business_id
+        AND hidden.order_id = orders.id
+    )
   ORDER BY created_at ASC, id ASC`
 
 const ACTIVE_ITEMS_SELECT = `SELECT i.order_id, i.quantity, i.name_snapshot, i.size_snapshot, i.note
@@ -18,11 +24,17 @@ const ACTIVE_ITEMS_SELECT = `SELECT i.order_id, i.quantity, i.name_snapshot, i.s
     AND o.status NOT IN ('Finalizado', 'Cancelado', 'Entregue', 'Despachado')
     AND o.finished_at IS NULL
     AND o.cancelled_at IS NULL
+    AND NOT EXISTS (
+      SELECT 1 FROM kitchen_tv_hidden_orders hidden
+      WHERE hidden.business_id = o.business_id
+        AND hidden.order_id = o.id
+    )
   ORDER BY i.created_at ASC, i.id ASC`
 
 export async function loadKitchenTvState(db, businessId) {
-  const [operations, ordersResult, itemsResult] = await Promise.all([
+  const [operations, control, ordersResult, itemsResult] = await Promise.all([
     loadOperations(db, businessId),
+    loadKitchenTvControl(db, businessId),
     db.prepare(ACTIVE_ORDERS_SELECT).bind(businessId).all(),
     db.prepare(ACTIVE_ITEMS_SELECT).bind(businessId).all(),
   ])
@@ -35,6 +47,11 @@ export async function loadKitchenTvState(db, businessId) {
 
   return {
     timing: { ...operations.data.timing },
+    control: {
+      revision: control.revision,
+      requestedPage: control.requestedPage,
+      requestedModality: control.requestedModality,
+    },
     orders: rows(ordersResult).map((row) => ({
       id: row.id,
       orderNumber: row.order_number,

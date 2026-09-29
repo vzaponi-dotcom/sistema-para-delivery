@@ -5,7 +5,7 @@ import { act } from 'react-test-renderer'
 import { buttonNamed, nodeText, renderWithNavigation, workspaceHarness } from './test-support/renderWorkspace.js'
 
 const implemented = new Set([
-  'orders', 'history', 'new-order', 'comandas', 'print-queue', 'dashboard',
+  'orders', 'history', 'kitchen-tv-control', 'new-order', 'comandas', 'print-queue', 'dashboard',
   'receivables', 'finance', 'clients', 'products', 'tables',
   'settings-kitchen-tv', 'settings-printing', 'settings-device',
 ])
@@ -178,7 +178,7 @@ test('AreaNavigation preserva labels, callbacks e aria-current de todos os desti
   const h = await workspaceHarness(t)
   const { default: AreaNavigation } = await h.load('/src/app/navigation/AreaNavigation.jsx')
   for (const [area, ariaLabel, destinations] of [
-    ['orders', 'Navegação de Pedidos', [['orders', 'Cozinha'], ['history', 'Histórico']]],
+    ['orders', 'Navegação de Pedidos', [['orders', 'Cozinha'], ['history', 'Histórico'], ['kitchen-tv-control', 'Controle da TV']]],
     ['finance', 'Navegação de Financeiro', [['dashboard', 'Visão geral'], ['receivables', 'A receber'], ['finance', 'Movimentações']]],
     ['settings', 'Navegação de Configurações', [['settings-kitchen-tv', 'TV da Cozinha'], ['settings-printing', 'Impressão'], ['settings-device', 'Preferências deste dispositivo']]],
   ]) {

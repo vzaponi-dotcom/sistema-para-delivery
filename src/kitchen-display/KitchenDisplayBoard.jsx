@@ -6,8 +6,21 @@ const dateFormatter = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_
 const timeFormatter = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
 const Counter = ({ label, value, tone }) => <div className={`kds-counter kds-counter--${tone}`}><span>{label}</span><strong>{value}</strong></div>
 
-export function KitchenDisplayBoard({ orders = [], timing, now = new Date(), highlightedIds = new Set(), stale = false, viewportWidth, viewportHeight }) {
-  const presentation = buildKitchenDisplayPresentation(orders, timing, now, highlightedIds, { viewportWidth, viewportHeight })
+export function KitchenDisplayBoard({
+  orders = [],
+  timing,
+  now = new Date(),
+  highlightedIds = new Set(),
+  stale = false,
+  viewportWidth,
+  viewportHeight,
+  presentation: suppliedPresentation,
+  pageNumber = 1,
+  pageCount = 1,
+  nextPageCount = 0,
+}) {
+  const presentation = suppliedPresentation
+    || buildKitchenDisplayPresentation(orders, timing, now, highlightedIds, { viewportWidth, viewportHeight })
   const boardStyle = {
     '--kds-columns': String(presentation.profile.columns),
     '--kds-grid-rows': String(presentation.profile.gridRows),
@@ -27,6 +40,8 @@ export function KitchenDisplayBoard({ orders = [], timing, now = new Date(), hig
     </header>
     {stale && <div className="kds-stale" role="status">Dados temporariamente desatualizados</div>}
     {presentation.cards.length ? <div className="kds-grid">{presentation.cards.map((entry) => <KitchenDisplayCard key={entry.order.id} entry={entry} now={now} />)}</div> : <div className="kds-empty"><Icon name="chef-hat" size={66} /><p>Nenhum pedido aguardando preparo.</p></div>}
-    {presentation.overflow > 0 && <div className="kds-overflow">+ {presentation.overflow} {presentation.overflow === 1 ? 'pedido' : 'pedidos'} fora da tela</div>}
+    {pageCount > 1
+      ? <div className="kds-overflow">Tela {pageNumber} de {pageCount}{nextPageCount > 0 ? ` · +${nextPageCount} ${nextPageCount === 1 ? 'pedido' : 'pedidos'} na próxima` : ''}</div>
+      : presentation.overflow > 0 && <div className="kds-overflow">+ {presentation.overflow} {presentation.overflow === 1 ? 'pedido' : 'pedidos'} fora da tela</div>}
   </section>
 }
