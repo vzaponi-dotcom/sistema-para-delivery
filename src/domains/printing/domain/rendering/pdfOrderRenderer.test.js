@@ -107,6 +107,6 @@ test('PDF prints scheduled reservation semantics and requested service time', ()
 
   const text = instance.writes.join('\n')
   assert.match(text, /RESERVA/)
-  assert.match(text, /Agendado: 04\/09\/2026 - 20:00/)
+  assert.match(text, /Reserva: 04\/09\/2026 - 20:00/)
   assert.match(text, /Mesa 4 · Hugo/)
 })
