@@ -3,7 +3,7 @@ export const reservationOwnerKey = (selection) => String(selection?.reservationI
 export const matchesReservationDetail = (reservationId, payload) => (
   Boolean(reservationId)
   && payload?.reservation?.id === reservationId
-  && payload?.order?.tableReservationId === reservationId
+  && (!payload?.order?.tableReservationId || payload.order.tableReservationId === reservationId)
 )
 
 export const reservationMutationNeedsDiscount = (payload) => (
