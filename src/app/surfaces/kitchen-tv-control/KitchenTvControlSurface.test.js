@@ -43,6 +43,16 @@ async function render(t, {
   isOnline = true,
   state = freshState,
   orderFixtures = orders,
+  loadPrintDocument = async (orderId) => ({
+    document: {
+      type: 'order',
+      order: { number: String(orderId).replace(/\D/g, '') || '501' },
+      items: [
+        { quantity: 2, name: 'X-Burger', presentation: 'Grande', note: 'Sem cebola' },
+        { quantity: 1, name: 'Batata', presentation: '', note: '' },
+      ],
+    },
+  }),
   apiOverrides = {},
 } = {}) {
   const h = await workspaceHarness(t, { mobile: true })
@@ -67,6 +77,7 @@ async function render(t, {
     granted,
     isOnline,
     api,
+    loadPrintDocument,
     onNavigate: (id) => calls.push(['navigate', id]),
     onFeedback: (message) => calls.push(['feedback', message]),
   })
@@ -366,21 +377,43 @@ test('stale TV state keeps order actions disabled and never queues a hidden muta
   assert.deepEqual(mutations, [])
 })
 
-test('Ver na Cozinha navigates to the official kitchen without mutating the order', async (t) => {
-  const mutations = []
-  const { screen, calls } = await render(t, {
-    apiOverrides: {
-      hideKitchenTvOrder: async (orderId) => { mutations.push(['hide', orderId]) },
-    },
+test('order action sheet shows print-document item snapshot and removes Ver na Cozinha', async (t) => {
+  const { screen } = await render(t)
+  const card = screen.root.findAllByType('button').find((node) => String(node.props['aria-label'] || '').startsWith('Pedido #501,'))
+  await act(async () => card.props.onClick())
+  await act(async () => {})
+
+  const sheet = screen.root.findByProps({ role: 'dialog' })
+  const text = nodeText(sheet)
+  assert.match(text, /Itens do pedido/)
+  assert.match(text, /Snapshot da impressão/)
+  assert.match(text, /2x X-Burger Grande/)
+  assert.match(text, /Obs: Sem cebola/)
+  assert.match(text, /1x Batata/)
+  assert.equal(buttonNamed(sheet, 'Ver na Cozinha'), undefined)
+})
+
+test('print snapshot failure keeps the order actions usable and exposes a compact retry-safe error', async (t) => {
+  const { screen } = await render(t, {
+    loadPrintDocument: async () => { throw new Error('Falha simulada no snapshot') },
   })
   const card = screen.root.findAllByType('button').find((node) => String(node.props['aria-label'] || '').startsWith('Pedido #501,'))
   await act(async () => card.props.onClick())
-  await act(async () => buttonNamed(screen.root, 'Ver na Cozinha').props.onClick())
-  assert.deepEqual(mutations, [])
-  assert.ok(calls.some(([kind, value]) => kind === 'navigate' && value === 'orders'))
+  await act(async () => {})
+
+  const sheet = screen.root.findByProps({ role: 'dialog' })
+  assert.match(nodeText(sheet), /Não foi possível carregar os itens do pedido/)
+  assert.ok(buttonNamed(sheet, 'Retirar da TV'))
 })
 
-test('App wires navigation into the operational TV control surface', async () => {
-  const appSource = await readFile(new URL('../../../App.jsx', import.meta.url), 'utf8')
-  assert.match(appSource, /KitchenTvControlSurface[^\n]*onNavigate=\{requestNavigation\}/)
+test('mobile TV control becomes an immersive app surface above top and bottom navigation', async () => {
+  const css = await readFile(new URL('./kitchenTvControl.css', import.meta.url), 'utf8')
+  assert.match(css, /@media \(max-width: 820px\)[\s\S]*\.kitchen-tv-control-page\s*\{[^}]*position:\s*fixed[^}]*inset:\s*0[^}]*z-index:\s*calc\(var\(--layer-mobile-nav\)\s*\+\s*20\)[^}]*height:\s*100dvh[^}]*overflow-y:\s*auto/s)
+  assert.match(css, /@media \(max-width: 820px\)[\s\S]*\.kitchen-tv-control-page\s*\{[^}]*padding-top:\s*max\([^;]*safe-area-inset-top/s)
+  assert.match(css, /@media \(max-width: 820px\)[\s\S]*\.kitchen-tv-control-page\s*\{[^}]*padding-bottom:\s*max\([^;]*safe-area-inset-bottom/s)
+})
+
+test('printing public entry exposes the order print document reader for the controller', async () => {
+  const printingIndex = await readFile(new URL('../../../domains/printing/index.js', import.meta.url), 'utf8')
+  assert.match(printingIndex, /getOrderPrintDocument/)
 })
