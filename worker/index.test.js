@@ -127,11 +127,11 @@ class FakeDb {
   }
 }
 
-const makeEnv = async ({ rateLimitSuccess = true } = {}) => ({
+const makeEnv = async ({ rateLimitSuccess = true, capabilities = [] } = {}) => ({
   DB: new FakeDb(await hashPin('4827', new Uint8Array(16).fill(7))),
   LOGIN_RATE_LIMITER: { limit: async ({ key }) => ({ success: key === 'amor-e-sabor:auth-login' && rateLimitSuccess }) },
   ASSETS: { fetch: async () => new Response('asset') },
-  resolveCapabilities: async () => new Set(),
+  resolveCapabilities: async () => new Set(capabilities),
 })
 
 const mutationHeaders = (extra = {}) => ({ origin: 'https://delivery.example', 'content-type': 'application/json', ...extra })
@@ -219,7 +219,7 @@ test('mutations reject a missing or cross-origin Origin header', async () => {
 })
 
 test('table transfer requires a non-empty string expectedTableTabId without mutating state', async () => {
-  const env = await makeEnv()
+  const env = await makeEnv({ capabilities: ['comandas.transfer'] })
   const loginResponse = await login(env)
   const headers = mutationHeaders({ cookie: loginResponse.headers.get('set-cookie').split(';')[0] })
   const before = [...env.DB.tableTabs.entries()]
@@ -241,7 +241,7 @@ test('table transfer requires a non-empty string expectedTableTabId without muta
 })
 
 test('table transfer rejects an expected identity that is not the open tab at the source', async () => {
-  const env = await makeEnv()
+  const env = await makeEnv({ capabilities: ['comandas.transfer'] })
   const loginResponse = await login(env)
   const response = await handleRequest(new Request('https://delivery.example/api/tables/source/transfer', {
     method: 'POST',
@@ -254,7 +254,7 @@ test('table transfer rejects an expected identity that is not the open tab at th
 })
 
 test('table transfer requires a non-empty destination identity', async () => {
-  const env = await makeEnv()
+  const env = await makeEnv({ capabilities: ['comandas.transfer'] })
   const loginResponse = await login(env)
   const headers = mutationHeaders({ cookie: loginResponse.headers.get('set-cookie').split(';')[0] })
 
@@ -329,7 +329,7 @@ test('authenticated bootstrap returns the shared clean business dataset', async 
 })
 
 test('authenticated client CRUD validates and uses the session business', async () => {
-  const env = await makeEnv()
+  const env = await makeEnv({ capabilities: ['clients.create', 'clients.update', 'clients.delete'] })
   const loginResponse = await login(env)
   const cookiePair = loginResponse.headers.get('set-cookie').split(';')[0]
   const headers = mutationHeaders({ cookie: cookiePair })
@@ -355,7 +355,7 @@ test('authenticated client CRUD validates and uses the session business', async 
 })
 
 test('authenticated product CRUD converts money to cents and soft deletes', async () => {
-  const env = await makeEnv()
+  const env = await makeEnv({ capabilities: ['products.manage'] })
   const loginResponse = await login(env)
   const cookiePair = loginResponse.headers.get('set-cookie').split(';')[0]
   const headers = mutationHeaders({ cookie: cookiePair })
@@ -376,7 +376,7 @@ test('authenticated product CRUD converts money to cents and soft deletes', asyn
 })
 
 test('client and product routes return 404 for records outside the session business', async () => {
-  const env = await makeEnv()
+  const env = await makeEnv({ capabilities: ['clients.update'] })
   env.DB.clients.set('other-client', { id: 'other-client', business_id: 'other', name: 'X' })
   const loginResponse = await login(env)
   const cookiePair = loginResponse.headers.get('set-cookie').split(';')[0]
@@ -396,7 +396,7 @@ const paymentPromiseOrder = (overrides = {}) => ({
 })
 
 test('payment-promise PATCH updates an in-business order and rejects invalid, past, and outside-business orders', async () => {
-  const env = await makeEnv()
+  const env = await makeEnv({ capabilities: ['finance.promises.manage'] })
   env.DB.orders.set('order-promise', paymentPromiseOrder())
   env.DB.orders.set('other-order', paymentPromiseOrder({ id: 'other-order', business_id: 'other-business' }))
   const loginResponse = await login(env)

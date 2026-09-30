@@ -3,7 +3,7 @@ import { loadAutomaticPrintJobForOrder } from './orderPrintingRepository.js'
 import { loadOrderById } from './repositories.js'
 import { cancelOrder } from './orderCancellation.js'
 import { listTables } from './tableRepository.js'
-import { requireCapability } from './settingsAccess.js'
+import { requireCapability, authorizeOrderCreate } from './access/authorization.js'
 import { confirmTableReservationArrival } from './tableReservationArrival.js'
 import { validateCheckoutInput } from './orderCheckout.js'
 import { updateTableReservation } from './tableReservationUpdate.js'
@@ -84,6 +84,7 @@ export const handleTableReservationApi = async (request, env, context, url = new
     requireCapability(context, 'orders.create')
     assertSameOriginMutation(request)
     const body = await readJson(request)
+    authorizeOrderCreate(context, body, env.now instanceof Date ? env.now : new Date())
     if (!Number.isInteger(body.expectedRevision) || body.expectedRevision < 1) {
       throw apiError(400, 'TABLE_RESERVATION_REVISION_REQUIRED', 'Atualize a reserva e tente novamente.')
     }
@@ -96,7 +97,6 @@ export const handleTableReservationApi = async (request, env, context, url = new
     if (validated.type !== 'Local' || validated.customerIdentity.type !== 'table' || !validated.scheduledFor) {
       throw apiError(400, 'TABLE_RESERVATION_UPDATE_INVALID', 'A edição da reserva precisa manter um pedido Local agendado.')
     }
-    if (validated.adjustment.type !== 'none') requireCapability(context, 'orders.discount')
     const result = await updateTableReservation(
       env.DB,
       context.businessId,
@@ -141,6 +141,7 @@ export const handleTableReservationApi = async (request, env, context, url = new
     requireCapability(context, 'orders.cancel')
     assertSameOriginMutation(request)
     const body = await readJson(request)
+    if (body.refundNow) requireCapability(context, 'payments.refund')
     if (!Number.isInteger(body.expectedRevision) || body.expectedRevision < 1) {
       throw apiError(400, 'TABLE_RESERVATION_REVISION_REQUIRED', 'Atualize a reserva e tente novamente.')
     }

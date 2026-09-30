@@ -11,7 +11,8 @@ import { cancelOrder, registerOrderRefund } from './orderCancellation.js'
 import { validateCheckoutInput } from './orderCheckout.js'
 import { handlePrintingApi } from './orderPrintingApi.js'
 import { handleSettingsApi } from './settingsApi.js'
-import { requireCapability, resolveSettingsAccess } from './settingsAccess.js'
+import { resolveSettingsAccess } from './settingsAccess.js'
+import { requireCapability, requireAnyCapability, authorizeOrderCreate } from './access/authorization.js'
 import { loadEffectiveBusinessConfig } from './effectiveBusinessConfig.js'
 import { createManualTableTabPrintJob, loadAutomaticPrintJobForOrder } from './orderPrintingRepository.js'
 import { listOrders } from './orderReadRepository.js'
@@ -205,17 +206,20 @@ const dispatchAuthenticatedApi = async (request, env, session, context, url) => 
     return json({ ...bootstrap, effectiveConfigVersion: effectiveBusinessConfig.version })
   }
   if (url.pathname === '/api/tables' && request.method === 'POST') {
+    requireCapability(context, 'tables.manage')
     assertSameOriginMutation(request)
     await createTable(env.DB, session.businessId, await readJson(request))
     return json({ tables: await listTables(env.DB, session.businessId) }, { status: 201 })
   }
   if (url.pathname === '/api/tables/order' && request.method === 'PUT') {
+    requireCapability(context, 'tables.manage')
     assertSameOriginMutation(request)
     const { tableIds } = await readJson(request)
     return json({ tables: await reorderTables(env.DB, session.businessId, tableIds) })
   }
   const tableTransferMatch = url.pathname.match(/^\/api\/tables\/([^/]+)\/transfer$/)
   if (tableTransferMatch && request.method === 'POST') {
+    requireCapability(context, 'comandas.transfer')
     assertSameOriginMutation(request)
     const { destinationTableId, expectedTableTabId } = await readJson(request)
     if (typeof expectedTableTabId !== 'string' || !expectedTableTabId.trim()) {
@@ -234,6 +238,7 @@ const dispatchAuthenticatedApi = async (request, env, session, context, url) => 
   }
   const tableMatch = url.pathname.match(/^\/api\/tables\/([^/]+)$/)
   if (tableMatch && request.method === 'PATCH') {
+    requireCapability(context, 'tables.manage')
     assertSameOriginMutation(request)
     const body = await readJson(request)
     const field = tablePatchInput(body)
@@ -244,13 +249,32 @@ const dispatchAuthenticatedApi = async (request, env, session, context, url) => 
     if (!table) throw apiError(404, 'TABLE_NOT_FOUND', 'Mesa não encontrada.')
     return json({ tables: await listTables(env.DB, session.businessId) })
   }
-  if (url.pathname === '/api/clients' && request.method === 'POST') { assertSameOriginMutation(request); const client = await createClient(env.DB, session.businessId, clientInput(await readJson(request))); return json({ client }, { status: 201 }) }
+  if (url.pathname === '/api/clients' && request.method === 'POST') {
+    requireCapability(context, 'clients.create')
+    assertSameOriginMutation(request)
+    const client = await createClient(env.DB, session.businessId, clientInput(await readJson(request)))
+    return json({ client }, { status: 201 })
+  }
   const clientMatch = url.pathname.match(/^\/api\/clients\/([^/]+)$/)
-  if (clientMatch && request.method === 'PATCH') { assertSameOriginMutation(request); const client = await updateClient(env.DB, session.businessId, decodeURIComponent(clientMatch[1]), clientInput(await readJson(request))); if (!client) throw apiError(404, 'CLIENT_NOT_FOUND', 'Cliente não encontrado.'); return json({ client }) }
-  if (clientMatch && request.method === 'DELETE') { assertSameOriginMutation(request); const deleted = await deleteClient(env.DB, session.businessId, decodeURIComponent(clientMatch[1])); if (!deleted) throw apiError(404, 'CLIENT_NOT_FOUND', 'Cliente não encontrado.'); return json({ deleted: true }) }
+  if (clientMatch && request.method === 'PATCH') {
+    requireCapability(context, 'clients.update')
+    assertSameOriginMutation(request)
+    const client = await updateClient(env.DB, session.businessId, decodeURIComponent(clientMatch[1]), clientInput(await readJson(request)))
+    if (!client) throw apiError(404, 'CLIENT_NOT_FOUND', 'Cliente não encontrado.')
+    return json({ client })
+  }
+  if (clientMatch && request.method === 'DELETE') {
+    requireCapability(context, 'clients.delete')
+    assertSameOriginMutation(request)
+    const deleted = await deleteClient(env.DB, session.businessId, decodeURIComponent(clientMatch[1]))
+    if (!deleted) throw apiError(404, 'CLIENT_NOT_FOUND', 'Cliente não encontrado.')
+    return json({ deleted: true })
+  }
 
   const clientReceivablesPaymentMatch = url.pathname.match(/^\/api\/clients\/([^/]+)\/receivables\/payment$/)
   if (clientReceivablesPaymentMatch && request.method === 'POST') {
+    requireCapability(context, 'payments.receive')
+    requireCapability(context, 'clients.view')
     assertSameOriginMutation(request)
     const { orderIds, allocations } = await readJson(request)
     const result = await registerClientOrdersPayment(
@@ -263,10 +287,16 @@ const dispatchAuthenticatedApi = async (request, env, session, context, url) => 
     return json(result, { status: 201 })
   }
 
-  if (url.pathname === '/api/orders' && request.method === 'GET') return json({ orders: await listOrders(env.DB, session.businessId) })
+  if (url.pathname === '/api/orders' && request.method === 'GET') {
+    requireAnyCapability(context, ['orders.view', 'orders.history'])
+    return json({ orders: await listOrders(env.DB, session.businessId) })
+  }
   if (url.pathname === '/api/orders' && request.method === 'POST') {
+    requireCapability(context, 'orders.create')
     assertSameOriginMutation(request)
-    const input = validateCheckoutInput(await readJson(request), request.headers.get('idempotency-key'))
+    const body = await readJson(request)
+    authorizeOrderCreate(context, body)
+    const input = validateCheckoutInput(body, request.headers.get('idempotency-key'))
     const order = await createOrder(env.DB, session.businessId, input)
     const movements = input.paymentAllocations
       ? await loadMovementsByOrderSource(env.DB, session.businessId, order.id, 'order-payment')
@@ -293,6 +323,7 @@ const dispatchAuthenticatedApi = async (request, env, session, context, url) => 
   }
   const paymentMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/payment$/)
   if (paymentMatch && request.method === 'POST') {
+    requireCapability(context, 'payments.receive')
     assertSameOriginMutation(request)
     const { allocations } = await readJson(request)
     const result = await registerOrderPayment(env.DB, session.businessId, decodeURIComponent(paymentMatch[1]), validatePaymentAllocations(allocations))
@@ -300,6 +331,7 @@ const dispatchAuthenticatedApi = async (request, env, session, context, url) => 
   }
   const paymentPromiseMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/payment-promise$/)
   if (paymentPromiseMatch && request.method === 'PATCH') {
+    requireCapability(context, 'finance.promises.manage')
     assertSameOriginMutation(request)
     const { promisedPaymentDate } = await readJson(request)
     const order = await updateOrderPaymentPromise(env.DB, session.businessId, decodeURIComponent(paymentPromiseMatch[1]), promisedPaymentDate)
@@ -307,12 +339,16 @@ const dispatchAuthenticatedApi = async (request, env, session, context, url) => 
   }
   const cancelMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/cancel$/)
   if (cancelMatch && request.method === 'POST') {
+    requireCapability(context, 'orders.cancel')
     assertSameOriginMutation(request)
-    const result = await cancelOrder(env.DB, session.businessId, decodeURIComponent(cancelMatch[1]), await readJson(request))
+    const body = await readJson(request)
+    if (body.refundNow) requireCapability(context, 'payments.refund')
+    const result = await cancelOrder(env.DB, session.businessId, decodeURIComponent(cancelMatch[1]), body)
     return json(result)
   }
   const refundMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/refund$/)
   if (refundMatch && request.method === 'POST') {
+    requireCapability(context, 'payments.refund')
     assertSameOriginMutation(request)
     const result = await registerOrderRefund(env.DB, session.businessId, decodeURIComponent(refundMatch[1]), await readJson(request))
     return json(result, { status: 201 })
@@ -339,12 +375,15 @@ const dispatchAuthenticatedApi = async (request, env, session, context, url) => 
   }
   const tableTabDetailMatch = url.pathname.match(/^\/api\/table-tabs\/([^/]+)$/)
   if (tableTabDetailMatch && request.method === 'GET') {
+    requireCapability(context, 'comandas.view')
     const tableTab = await loadOpenTableTabDetail(env.DB, session.businessId, decodeURIComponent(tableTabDetailMatch[1]))
     if (!tableTab) throw apiError(404, 'TABLE_TAB_NOT_FOUND', 'Comanda aberta n\u00e3o encontrada.')
     return json({ tableTab })
   }
   const tableTabPaymentMatch = url.pathname.match(/^\/api\/table-tabs\/([^/]+)\/payment$/)
   if (tableTabPaymentMatch && request.method === 'POST') {
+    requireCapability(context, 'payments.receive')
+    requireCapability(context, 'comandas.view')
     assertSameOriginMutation(request)
     const { allocations } = await readJson(request)
     const result = await registerTableTabPayment(
@@ -357,12 +396,14 @@ const dispatchAuthenticatedApi = async (request, env, session, context, url) => 
   }
 
   if (url.pathname === '/api/movements' && request.method === 'POST') {
+    requireCapability(context, 'finance.movements.manage')
     assertSameOriginMutation(request)
     const movement = await createManualMovement(env.DB, session.businessId, parseManualMovementInput(await readJson(request)))
     return json({ movement }, { status: 201 })
   }
   const movementMatch = url.pathname.match(/^\/api\/movements\/([^/]+)$/)
   if (movementMatch && request.method === 'PATCH') {
+    requireCapability(context, 'finance.movements.manage')
     assertSameOriginMutation(request)
     const id = decodeURIComponent(movementMatch[1])
     const movement = await updateManualMovement(env.DB, session.businessId, id, parseManualMovementInput(await readJson(request)))
@@ -370,6 +411,7 @@ const dispatchAuthenticatedApi = async (request, env, session, context, url) => 
     return json({ movement })
   }
   if (movementMatch && request.method === 'DELETE') {
+    requireCapability(context, 'finance.movements.manage')
     assertSameOriginMutation(request)
     const id = decodeURIComponent(movementMatch[1])
     const deletedMovementId = await softDeleteManualMovement(env.DB, session.businessId, id)
@@ -377,15 +419,33 @@ const dispatchAuthenticatedApi = async (request, env, session, context, url) => 
     return json({ deletedMovementId })
   }
   if (url.pathname === '/api/finance-settings' && request.method === 'PUT') {
+    requireCapability(context, 'finance.movements.manage')
     assertSameOriginMutation(request)
     const financeSettings = await upsertFinanceSettings(env.DB, session.businessId, parseFinanceSettingsInput(await readJson(request)))
     return json({ financeSettings })
   }
 
-  if (url.pathname === '/api/products' && request.method === 'POST') { assertSameOriginMutation(request); const product = await createProduct(env.DB, session.businessId, productInput(await readJson(request))); return json({ product }, { status: 201 }) }
+  if (url.pathname === '/api/products' && request.method === 'POST') {
+    requireCapability(context, 'products.manage')
+    assertSameOriginMutation(request)
+    const product = await createProduct(env.DB, session.businessId, productInput(await readJson(request)))
+    return json({ product }, { status: 201 })
+  }
   const productMatch = url.pathname.match(/^\/api\/products\/([^/]+)$/)
-  if (productMatch && request.method === 'PATCH') { assertSameOriginMutation(request); const product = await updateProduct(env.DB, session.businessId, decodeURIComponent(productMatch[1]), productInput(await readJson(request))); if (!product) throw apiError(404, 'PRODUCT_NOT_FOUND', 'Produto não encontrado.'); return json({ product }) }
-  if (productMatch && request.method === 'DELETE') { assertSameOriginMutation(request); const deleted = await deleteProduct(env.DB, session.businessId, decodeURIComponent(productMatch[1])); if (!deleted) throw apiError(404, 'PRODUCT_NOT_FOUND', 'Produto não encontrado.'); return json({ deleted: true }) }
+  if (productMatch && request.method === 'PATCH') {
+    requireCapability(context, 'products.manage')
+    assertSameOriginMutation(request)
+    const product = await updateProduct(env.DB, session.businessId, decodeURIComponent(productMatch[1]), productInput(await readJson(request)))
+    if (!product) throw apiError(404, 'PRODUCT_NOT_FOUND', 'Produto não encontrado.')
+    return json({ product })
+  }
+  if (productMatch && request.method === 'DELETE') {
+    requireCapability(context, 'products.manage')
+    assertSameOriginMutation(request)
+    const deleted = await deleteProduct(env.DB, session.businessId, decodeURIComponent(productMatch[1]))
+    if (!deleted) throw apiError(404, 'PRODUCT_NOT_FOUND', 'Produto não encontrado.')
+    return json({ deleted: true })
+  }
   throw apiError(404, 'NOT_FOUND', 'Rota de API não encontrada.')
 }
 
