@@ -1,3 +1,4 @@
+import { businessEvent } from './access/audit.js'
 import { getBusinessDate } from '../shared/finance.js'
 import { mapMovementRow } from './financeRepository.js'
 import { closeTableTabIfSettled } from './repositories.js'
@@ -258,7 +259,7 @@ export const cancelOrder = async (db, businessId, orderId, input = {}, now = new
         deletePendingAutomaticPrint, refund.statement,
         clearSettingsAssertions(db, txId),
         ...(reservationCleanup ? [reservationCleanup] : []),
-        ...timingCleanup, clearSettingsAssertions(db, paymentTxId)])
+        ...timingCleanup, clearSettingsAssertions(db, paymentTxId),businessEvent(db,businessId,{action:'order.cancelled',resourceType:'order',resourceId:orderId,now}),businessEvent(db,businessId,{action:'payment.refunded',resourceType:'order',resourceId:orderId,now})])
     } catch (error) {
       await classifyCommitFailure(error)
     }
@@ -271,7 +272,7 @@ export const cancelOrder = async (db, businessId, orderId, input = {}, now = new
         deletePendingAutomaticPrint,
         clearSettingsAssertions(db, txId),
         ...(reservationCleanup ? [reservationCleanup] : []),
-        ...timingCleanup])
+        ...timingCleanup,businessEvent(db,businessId,{action:'order.cancelled',resourceType:'order',resourceId:orderId,now})])
     } catch (error) {
       await classifyCommitFailure(error)
     }
@@ -300,7 +301,7 @@ export const registerOrderRefund = async (db, businessId, orderId, input = {}, n
   const refund = createRefundStatement(db, businessId, existing, refundMethod, now)
   try {
     await db.batch([...preparePolicyGuards(db, businessId, { paymentMethods: paymentExpectation }, paymentTxId),
-      refund.statement, clearSettingsAssertions(db, paymentTxId)])
+      refund.statement, clearSettingsAssertions(db, paymentTxId),businessEvent(db,businessId,{action:'payment.refunded',resourceType:'order',resourceId:orderId,now})])
   } catch (error) {
     const refreshed = await readContext(db, businessId, orderId)
     if (refreshed?.refund_movement_id) throw domainError(409, 'ORDER_ALREADY_REFUNDED', 'Este pedido já foi estornado.')

@@ -1,3 +1,4 @@
+import { createSettingsDb } from './test-support/settingsDb.js'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { parsePromisedPaymentDate, updateOrderPaymentPromise } from './orderPaymentPromise.js'
@@ -29,14 +30,17 @@ test('promise parser accepts null/current/future and rejects malformed or past d
   assert.throws(() => parsePromisedPaymentDate('2026-09-05', '2026-09-06'), (error) => error.code === 'PROMISED_PAYMENT_DATE_IN_PAST')
 })
 
-test('mutation is business scoped, updates only promise, and creates no financial effects', async () => {
-  const db = new PromiseDb(orderRow())
-  const updated = await updateOrderPaymentPromise(db, 'amor-e-sabor', 'o1', '2026-09-11', new Date('2026-09-06T15:00:00.000Z'))
-  assert.equal(updated.promisedPaymentDate, '2026-09-11')
-  assert.equal(db.row.order_date, '2026-09-06')
-  assert.equal(db.row.status, 'Finalizado')
-  assert.equal(db.writes.some((sql) => /INSERT INTO payments|INSERT INTO movements/i.test(sql)), false)
-  await assert.rejects(() => updateOrderPaymentPromise(new PromiseDb(orderRow()), 'other-business', 'o1', '2026-09-11'), (error) => error.code === 'ORDER_NOT_FOUND')
+test('mutation is business scoped, updates only promise, and creates no financial effects', async t => {
+  const {db,sqlite,close}=createSettingsDb();t.after(close)
+  sqlite.exec("INSERT INTO orders(id,business_id,client_name_snapshot,type,order_date,status,subtotal_cents,total_cents,created_at,order_number) VALUES('o1','amor-e-sabor','Maria','Entrega','2026-09-06','Finalizado',5000,5000,'2026-09-06T12:00:00.000Z',1)")
+  const updated=await updateOrderPaymentPromise(db,'amor-e-sabor','o1','2026-09-11',new Date('2026-09-06T15:00:00.000Z'))
+  assert.equal(updated.promisedPaymentDate,'2026-09-11')
+  const row=sqlite.prepare("SELECT order_date,status FROM orders WHERE id='o1'").get()
+  assert.equal(row.order_date,'2026-09-06');assert.equal(row.status,'Finalizado')
+  assert.equal(sqlite.prepare('SELECT count(*) n FROM payments').get().n,0)
+  assert.equal(sqlite.prepare('SELECT count(*) n FROM movements').get().n,0)
+  assert.equal(sqlite.prepare("SELECT count(*) n FROM audit_events WHERE action='order.payment-promise.updated'").get().n,1)
+  await assert.rejects(updateOrderPaymentPromise(db,'other-business','o1','2026-09-11'),{code:'ORDER_NOT_FOUND'})
 })
 
 test('paid and cancelled orders cannot receive a payment promise', async () => {

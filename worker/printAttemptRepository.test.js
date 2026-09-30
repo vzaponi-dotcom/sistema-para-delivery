@@ -1,3 +1,4 @@
+import { installAuditSchema } from './test-support/auditSchema.js'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { DatabaseSync } from 'node:sqlite'
@@ -74,6 +75,7 @@ class D1Sqlite {
         UNIQUE (job_id, copy_number, attempt_number)
       );
     `)
+    installAuditSchema(this.sqlite)
   }
 
   prepare(sql) {
@@ -83,9 +85,9 @@ class D1Sqlite {
         return {
           async first() { return database.prepare(sql).get(...values) ?? null },
           async all() { return { results: database.prepare(sql).all(...values) } },
-          async run() {
-            const result = database.prepare(sql).run(...values)
-            return { success: true, meta: { changes: Number(result.changes || 0) } }
+          run() {
+            const results = database.prepare(sql).all(...values)
+            return { success: true, results, meta: { changes: /^\s*(INSERT|UPDATE|DELETE)\b/i.test(sql) ? Number(database.prepare('SELECT changes() n').get().n) : 0 } }
           },
         }
       },
@@ -96,7 +98,7 @@ class D1Sqlite {
     this.sqlite.exec('BEGIN')
     try {
       const results = []
-      for (const statement of statements) results.push(await statement.run())
+      for (const statement of statements) results.push(statement.run())
       this.sqlite.exec('COMMIT')
       return results
     } catch (error) {

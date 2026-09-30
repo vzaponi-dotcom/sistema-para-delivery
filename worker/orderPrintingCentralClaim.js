@@ -1,3 +1,5 @@
+import { prepareAuditSelection, withAuditContext, auditContext } from './access/audit.js'
+import { printingActor } from './access/printingAuthorization.js'
 import { loadPrintJob, resolvePrintStationHealth } from './orderPrintingRepository.js'
 import { printDocumentEligibilitySql } from './access/printingAuthorization.js'
 
@@ -45,7 +47,7 @@ export const claimNextPrintJob = async (db, businessId, stationId, now = new Dat
   if (station.recoveryState !== 'normal') return null
   const at = timestamp(now)
   const automaticEnabled = station.autoPrintEnabled ? 1 : 0
-  const row = await db.prepare(`UPDATE print_jobs SET
+  const update = db.prepare(`UPDATE print_jobs SET
       status = 'processing', station_id = ?, processing_started_at = ?, processed_at = NULL,
       last_error_code = NULL, last_error_message = NULL
     WHERE id = (
@@ -65,7 +67,24 @@ export const claimNextPrintJob = async (db, businessId, stationId, now = new Dat
         priority DESC, COALESCE(available_at, created_at) ASC, created_at ASC, id ASC LIMIT 1
     ) AND business_id = ? AND type IN ('order', 'table-tab') AND status = 'pending'
     RETURNING id`)
-    .bind(stationId, at, businessId, at, automaticEnabled, businessId).first()
+    .bind(stationId, at, businessId, at, automaticEnabled, businessId)
+  const automaticDb=withAuditContext(db,printingActor(auditContext(db,businessId),{automatic:true,stationId}))
+  const audit=prepareAuditSelection(automaticDb,businessId,{action:'printing.claimed',resourceType:'print-job',now},`SELECT id FROM print_jobs
+      WHERE business_id = ? AND type IN ('order', 'table-tab') AND status = 'pending' AND available_at <= ?
+        AND ${printDocumentEligibilitySql(granted)}
+        AND (
+          (type = 'table-tab' AND trigger = 'manual')
+          OR (type = 'order' AND (
+            (copies_requested = 2 AND copies_printed = 1 AND second_copy_requested_at IS NOT NULL AND second_copy_skipped_at IS NULL)
+            OR trigger = 'manual'
+            OR last_error_code = 'FORCE_PRINT_AUTHORIZED'
+            OR (trigger = 'automatic' AND ? = 1 AND ${AUTOMATIC_ORDER_ELIGIBLE_SQL})
+          ))
+        )
+      ORDER BY CASE WHEN second_copy_requested_at IS NOT NULL AND copies_requested = 2 AND copies_printed = 1 THEN 1 ELSE 0 END DESC,
+        priority DESC, COALESCE(available_at, created_at) ASC, created_at ASC, id ASC LIMIT 1`,[businessId,at,automaticEnabled])
+  const [,claimed]=await db.batch([audit,update])
+  const row=claimed.results?.[0] || null
 
   if (!row?.id) return null
   return loadPrintJob(db, businessId, row.id)

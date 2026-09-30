@@ -1,3 +1,4 @@
+import { businessEvent } from './access/audit.js'
 import { nativeCancellationReasons, parseCatalog } from '../shared/settingsCatalogs.js'
 import { clearSettingsAssertions, hashSettingsPayload, prepareSettingsAssertion, readSettingsReceipt, settingsError } from './settingsTransactions.js'
 
@@ -200,8 +201,8 @@ export async function saveCancellationReasons(db, businessId, input, now = new D
   statements.push(clearSettingsAssertions(db, txId), db.prepare(SELECT_CANCELLATION_REASONS).bind(businessId))
 
   try {
-    const results = await db.batch(statements)
-    return { resource: decode(results.at(-1).results[0]),
+    const results = await db.batch([...statements,businessEvent(db,businessId,{action:'settings.cancellation-reasons.updated',resourceType:'settings',resourceId:'cancellation-reasons',now})])
+    return { resource: decode(results[statements.length - 1].results[0]),
       receipt: { mutationId, committedRevision, committedAt, replayed: false } }
   } catch (cause) {
     const receipt = await readSettingsReceipt(db, businessId, RESOURCE, mutationId, now)

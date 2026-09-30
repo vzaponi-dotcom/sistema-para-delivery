@@ -39,7 +39,7 @@ test('manager creates a normalized invited account and list exposes roles and sa
   await assert.rejects(createUser(db,context,{displayName:'Duplicate',identifier:' joana ',roleId:`${businessId}:operator`},now),{status:409,code:'IDENTIFIER_CONFLICT'})
   await consumeAccessInvite(db,{token:result.invite.token,password,businessId,now})
   assert.equal((await listUsers(db,context,now)).users.find(u=>u.id===result.user.id).credentialState,'active')
-  assert.equal(sqlite.prepare('SELECT count(*) n FROM audit_events').get().n,1)
+  assert.deepEqual(sqlite.prepare('SELECT action,resource_id FROM audit_events ORDER BY action').all().map(row=>({...row})),[{action:'access.invitation.accepted',resource_id:result.user.id},{action:'access.user.created',resource_id:result.user.id}])
 })
 
 test('operators cannot administer users and tenant-scoped targets and roles return 404',async(t)=>{

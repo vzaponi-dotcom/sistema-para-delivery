@@ -1,3 +1,4 @@
+import { auditedMutation } from './access/audit.js'
 const encoder = new TextEncoder()
 const PIN_ALGORITHM = 'pbkdf2-sha256'
 // Cloudflare Workers Web Crypto rejects PBKDF2 iteration counts above 100,000.
@@ -133,9 +134,11 @@ export const revokeSession = async (request, env, now = new Date()) => {
   if (!token) return
 
   const tokenHash = await sha256Hex(token)
-  await env.DB.prepare(
+  const statement = env.DB.prepare(
     `UPDATE sessions SET revoked_at = ? WHERE token_hash = ? AND revoked_at IS NULL`,
-  ).bind(now.toISOString(), tokenHash).run()
+  ).bind(now.toISOString(), tokenHash)
+  if (env.DB.auditContext) await auditedMutation(env.DB,env.DB.auditContext.businessId,statement,{action:'session.revoked',resourceType:'user',resourceId:env.DB.auditContext.userId||null,now}).run()
+  else await statement.run()
 }
 
 export const SESSION_MAX_AGE = SESSION_MAX_AGE_SECONDS

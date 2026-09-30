@@ -4,7 +4,7 @@ import { normalizeLogin, loadRoleGrants } from './roles.js'
 import { hashHumanPassword, verifyHumanPassword } from './credentials.js'
 import { prepareAccessInvite } from './invitations.js'
 import { prepareUserSession, prepareUserSessionRevocation } from './sessions.js'
-import { prepareSecurityEvent } from './audit.js'
+import { prepareAuditEvent } from './audit.js'
 
 const notFound = () => apiError(404, 'USER_NOT_FOUND', 'Usuário não encontrado.')
 const roleNotFound = () => apiError(404, 'ROLE_NOT_FOUND', 'Perfil não encontrado.')
@@ -39,8 +39,8 @@ async function loadUser(db, businessId, userId, now) {
 async function checkRole(db,businessId,roleId) {
   if (typeof roleId !== 'string' || !await db.prepare('SELECT id FROM roles WHERE business_id=? AND id=? AND active=1').bind(businessId,roleId).first()) throw roleNotFound()
 }
-function event(db,context,action,now) {
-  return prepareSecurityEvent(db,{businessId:context.businessId,context,action,result:'success',now})
+function event(db,context,action,now,userId) {
+  return prepareAuditEvent(db,context,{action,resourceType:'user',resourceId:userId,outcome:'success',now})
 }
 async function commit(db,statements) {
   try { return await db.batch(statements) }
@@ -89,7 +89,7 @@ export async function createUser(db,context,input,now=new Date()) {
   const invite=await prepareAccessInvite(db,{businessId,userId,purpose:'activation',issuedBy:context.userId,now})
   await commit(db,[db.prepare(`INSERT INTO users(id,business_id,display_name,login_normalized,role_id,created_at,updated_at)
     VALUES (?,?,?,?,(SELECT id FROM roles WHERE business_id=? AND id=? AND active=1),?,?)`)
-    .bind(userId,businessId,displayName,identifier,businessId,input.roleId,timestamp,timestamp),...invite.statements,event(db,context,'access.user.created',now)])
+    .bind(userId,businessId,displayName,identifier,businessId,input.roleId,timestamp,timestamp),...invite.statements,event(db,context,'access.user.created',now,userId)])
   return {user:await loadUser(db,businessId,userId,now),invite:{token:invite.token,expiresAt:invite.expiresAt}}
 }
 export async function updateUser(db,context,userId,input,now=new Date()) {
@@ -110,8 +110,11 @@ export async function updateUser(db,context,userId,input,now=new Date()) {
   }
   fields.push('updated_at=?');values.push(now.toISOString(),businessId,userId)
   const statements=[lastManagerGuard(db,businessId,userId,guard),db.prepare(`UPDATE users SET ${fields.join(',')} WHERE business_id=? AND id=?`).bind(...values)]
-  if(Object.hasOwn(input,'roleId') || Object.hasOwn(input,'active')) statements.push(prepareUserSessionRevocation(db,businessId,userId,now))
-  statements.push(event(db,context,'access.user.updated',now))
+  if(Object.hasOwn(input,'roleId') || Object.hasOwn(input,'active')) statements.push(prepareUserSessionRevocation(db,businessId,userId,now),
+    prepareAuditEvent(db,context,{action:'session.revoked',resourceType:'user',resourceId:userId,now,onlyIfChanged:true}))
+  if(Object.hasOwn(input,'roleId')) statements.push(event(db,context,'access.user.role-changed',now,userId))
+  if(Object.hasOwn(input,'active')) statements.push(event(db,context,input.active?'access.user.activated':'access.user.deactivated',now,userId))
+  if(Object.hasOwn(input,'displayName')) statements.push(event(db,context,'access.user.updated',now,userId))
   await commit(db,statements)
   return {user:await loadUser(db,businessId,userId,now)}
 }
@@ -121,7 +124,9 @@ export async function requestCredentialReset(db,context,userId,now=new Date()) {
   await loadUser(db,businessId,userId,now)
   if(userId===context.userId) throw apiError(403,'OWN_RESET_FORBIDDEN','Para mudar sua senha, informe a senha atual em Minha conta.')
   const invite=await prepareAccessInvite(db,{businessId,userId,purpose:'reset',issuedBy:context.userId,now})
-  await commit(db,[lastManagerGuard(db,businessId,userId,{reset:true}),...invite.statements,event(db,context,'access.password.reset',now)])
+  // Reset preparation places the session UPDATE immediately before invite INSERT.
+  invite.statements.splice(invite.statements.length-1,0,prepareAuditEvent(db,context,{action:'session.revoked',resourceType:'user',resourceId:userId,now,onlyIfChanged:true}))
+  await commit(db,[lastManagerGuard(db,businessId,userId,{reset:true}),...invite.statements,event(db,context,'access.password.reset',now,userId)])
   return {user:await loadUser(db,businessId,userId,now),invite:{token:invite.token,expiresAt:invite.expiresAt}}
 }
 export async function changeOwnPassword(db,context,input,now=new Date()) {
@@ -137,8 +142,9 @@ export async function changeOwnPassword(db,context,input,now=new Date()) {
         (SELECT 1 FROM sessions WHERE business_id=? AND id=? AND user_id=? AND revoked_at IS NULL AND expires_at>?)
         THEN ? ELSE NULL END,password_changed_at=?,updated_at=? WHERE business_id=? AND user_id=?`)
         .bind(credential.password_verifier,businessId,context.sessionId,userId,timestamp,verifier,timestamp,timestamp,businessId,userId),
-      prepareUserSessionRevocation(db,businessId,userId,now),session.statement,
-      event(db,{...context,sessionId:session.sessionId},'access.password.changed',now),
+      prepareUserSessionRevocation(db,businessId,userId,now),
+      prepareAuditEvent(db,context,{action:'session.revoked',resourceType:'user',resourceId:userId,now,onlyIfChanged:true}),session.statement,
+      event(db,{...context,sessionId:session.sessionId},'access.password.changed',now,userId),
     ])
   } catch(error) {
     if(String(error?.message).includes('NOT NULL constraint failed: user_credentials.password_verifier') || String(error?.message).includes('FOREIGN KEY constraint failed')) throw credentialChanged()

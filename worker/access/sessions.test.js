@@ -94,21 +94,15 @@ test('human login is non-enumerating, ignores browser business and logs secret-f
 test('revocation while a mutation is in flight prevents its response without replaying accepted effects', async (t) => {
   const { db, sqlite } = await setup(t)
   const { token } = await createUserSession({ DB: db }, { businessId, userId: 'user' })
-  const intercept = { ...db, prepare(sql) {
-    const statement = db.prepare(sql)
-    if (!sql.includes('INSERT INTO clients')) return statement
-    return { bind(...values) {
-      const bound = statement.bind(...values)
-      return { ...bound, async run() {
-        const result = await bound.run()
-        await revokeUserSessions(db, businessId, 'user')
-        return result
-      } }
-    } }
+  const intercept = { ...db, async batch(statements) {
+    const result = await db.batch(statements)
+    await revokeUserSessions(db, businessId, 'user')
+    return result
   } }
   const response = await handleRequest(req(token,'/api/clients','POST',{name:'Accepted'}), { DB: intercept })
   assert.equal(response.status,401)
   assert.equal(sqlite.prepare("SELECT count(*) n FROM clients WHERE name='Accepted'").get().n,1)
+  assert.equal(sqlite.prepare("SELECT count(*) n FROM audit_events WHERE action='client.created'").get().n,1)
 })
 
 test('prepared revocation rolls back with failed official writes and password verifier races cannot issue sessions', async (t) => {

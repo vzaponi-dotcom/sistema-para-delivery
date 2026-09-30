@@ -1,5 +1,6 @@
 import { apiError, assertSameOriginMutation, json, readJson } from '../http.js'
 import { hashHumanPassword } from './credentials.js'
+import { prepareAuditEvent } from './audit.js'
 
 const digestToken = async (token) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))),
   (byte) => byte.toString(16).padStart(2, '0')).join('')
@@ -52,6 +53,9 @@ export async function consumeAccessInvite(db, { token, password, now = new Date(
   const tokenHash = await digestToken(token)
   const timestamp = now.toISOString()
   const verifier = await hashHumanPassword(password)
+  const invite = await db.prepare('SELECT business_id,user_id FROM access_invites WHERE token_hash=? AND (? IS NULL OR business_id=?)')
+    .bind(tokenHash,businessId,businessId).first()
+  if (!invite) throw invalidInvitation()
   const eligible = `token_hash = ? AND consumed_at IS NULL AND revoked_at IS NULL AND expires_at > ?
     AND (? IS NULL OR business_id = ?)
     AND EXISTS (SELECT 1 FROM users u JOIN roles r ON r.business_id = u.business_id AND r.id = u.role_id
@@ -69,6 +73,9 @@ export async function consumeAccessInvite(db, { token, password, now = new Date(
     ).bind(verifier, timestamp, timestamp, timestamp, tokenHash, timestamp, businessId, businessId),
     db.prepare(`UPDATE access_invites SET consumed_at = ? WHERE ${eligible} AND changes() = 1 RETURNING user_id`
     ).bind(timestamp, tokenHash, timestamp, businessId, businessId),
+    // Credential UPSERT and consume UPDATE above must stay adjacent.
+    prepareAuditEvent(db,{businessId:invite.business_id,actorType:'system'},
+      {action:'access.invitation.accepted',resourceType:'user',resourceId:invite.user_id,now,onlyIfChanged:true}),
   ])
   const userId = consumed.results?.[0]?.user_id
   if (!userId) throw invalidInvitation()

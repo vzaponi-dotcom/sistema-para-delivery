@@ -1,3 +1,4 @@
+import { businessEvent } from './access/audit.js'
 import { EMPTY_BUSINESS_PROFILE, parseBusinessProfile } from '../shared/businessProfile.js'
 import {
   clearSettingsAssertions,
@@ -436,8 +437,8 @@ export async function saveBusinessProfile(db, businessId, input, resolvedLogoVal
   )
 
   try {
-    const results = await db.batch(statements)
-    const decoded = decode(results.at(-1).results[0])
+    const results = await db.batch([...statements,businessEvent(db,businessId,{action:'settings.business-profile.updated',resourceType:'settings',resourceId:'business-profile',now})])
+    const decoded = decode(results[statements.length - 1].results[0])
     return {
       resource: decoded.resource,
       receipt: {

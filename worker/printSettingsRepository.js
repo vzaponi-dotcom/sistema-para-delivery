@@ -1,3 +1,4 @@
+import { businessEvent } from './access/audit.js'
 import { parsePrintingPolicy } from '../shared/businessPolicies.js'
 import { clearSettingsAssertions, hashSettingsPayload, prepareSettingsAssertion, readSettingsReceipt, settingsError } from './settingsTransactions.js'
 
@@ -98,8 +99,8 @@ export async function savePrintingPolicy(db, businessId, input, now = new Date()
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(businessId, resourceKey, mutationId, payloadHash, committedRevision, committedAt, createdAt, updatedAt))
   statements.push(clearSettingsAssertions(db, txId), db.prepare(SELECT_POLICY).bind(businessId))
   try {
-    const results = await db.batch(statements)
-    return { resource: decodePolicy(results.at(-1).results[0]), receipt: { mutationId, committedRevision, committedAt, replayed: false } }
+    const results = await db.batch([...statements,businessEvent(db,businessId,{action:'settings.printing.updated',resourceType:'settings',resourceId:resourceKey,now})])
+    return { resource: decodePolicy(results[statements.length - 1].results[0]), receipt: { mutationId, committedRevision, committedAt, replayed: false } }
   } catch (cause) { return failedBatch(db, businessId, resourceKey, mutationId, payloadHash, makeResource, now, cause) }
 }
 
@@ -177,8 +178,8 @@ export async function saveStationConfiguration(db, businessId, stationId, input,
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(businessId, resourceKey, mutationId, payloadHash, committedRevision, committedAt, createdAt, updatedAt))
   statements.push(clearSettingsAssertions(db, txId), db.prepare(SELECT_STATION).bind(resourceKey, stationId, businessId))
   try {
-    const results = await db.batch(statements)
-    return { resource: decodeStation(results.at(-1).results[0], stationId), receipt: { mutationId, committedRevision, committedAt, replayed: false } }
+    const results = await db.batch([...statements,businessEvent(db,businessId,{action:'settings.printing.updated',resourceType:'settings',resourceId:resourceKey,now})])
+    return { resource: decodeStation(results[statements.length - 1].results[0], stationId), receipt: { mutationId, committedRevision, committedAt, replayed: false } }
   } catch (cause) { return failedBatch(db, businessId, resourceKey, mutationId, payloadHash, makeResource, now, cause) }
 }
 
@@ -255,7 +256,7 @@ export async function saveStationPrimary(db, businessId, input, now = new Date()
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(businessId, resourceKey, mutationId, payloadHash, committedRevision, committedAt, createdAt, updatedAt))
   statements.push(clearSettingsAssertions(db, txId), db.prepare(SELECT_PRIMARY).bind(businessId))
   try {
-    const results = await db.batch(statements)
-    return { resource: decodePrimary(results.at(-1).results[0]), receipt: { mutationId, committedRevision, committedAt, replayed: false } }
+    const results = await db.batch([...statements,businessEvent(db,businessId,{action:'settings.printing.updated',resourceType:'settings',resourceId:resourceKey,now})])
+    return { resource: decodePrimary(results[statements.length - 1].results[0]), receipt: { mutationId, committedRevision, committedAt, replayed: false } }
   } catch (cause) { return failedBatch(db, businessId, resourceKey, mutationId, payloadHash, makeResource, now, cause) }
 }

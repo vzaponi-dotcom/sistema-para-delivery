@@ -1,3 +1,4 @@
+import { businessEvent } from './access/audit.js'
 import { nativeFinanceCategories, parseCatalog } from '../shared/settingsCatalogs.js'
 import { clearSettingsAssertions, hashSettingsPayload, prepareSettingsAssertion, readSettingsReceipt, settingsError } from './settingsTransactions.js'
 
@@ -194,8 +195,8 @@ export async function saveFinanceCategories(db, businessId, input, now = new Dat
   statements.push(clearSettingsAssertions(db, txId), db.prepare(SELECT_FINANCE_CATEGORIES).bind(businessId))
 
   try {
-    const results = await db.batch(statements)
-    return { resource: decode(results.at(-1).results[0]),
+    const results = await db.batch([...statements,businessEvent(db,businessId,{action:'settings.finance-categories.updated',resourceType:'settings',resourceId:'finance-categories',now})])
+    return { resource: decode(results[statements.length - 1].results[0]),
       receipt: { mutationId, committedRevision, committedAt, replayed: false } }
   } catch (cause) {
     const receipt = await readSettingsReceipt(db, businessId, RESOURCE, mutationId, now)

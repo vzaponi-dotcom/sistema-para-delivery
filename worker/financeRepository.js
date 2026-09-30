@@ -1,3 +1,4 @@
+import { businessEvent, auditedMutation } from './access/audit.js'
 import { getMovementCategoryLabel, normalizeMovementCategory } from '../shared/finance.js'
 import { loadFinanceCategories, prepareFinanceCategoryUse } from './financeCategoryRepository.js'
 import { clearSettingsAssertions, prepareSettingsAssertion } from './settingsTransactions.js'
@@ -94,7 +95,7 @@ export const createManualMovement = async (db, businessId, input, now = new Date
   const select = db.prepare(`SELECT ${MOVEMENT_COLUMNS} FROM movements
     WHERE id = ? AND business_id = ? AND deleted_at IS NULL`).bind(id, businessId)
   return commitMovement(db, [...preparePolicyGuards(db, businessId, { paymentMethods: paymentExpectation }, paymentTxId),
-    ...categoryPolicyStatements, insert, clearSettingsAssertions(db, txId), clearSettingsAssertions(db, paymentTxId), select])
+    ...categoryPolicyStatements, insert, clearSettingsAssertions(db, txId), clearSettingsAssertions(db, paymentTxId), businessEvent(db,businessId,{action:'finance.movement.created',resourceType:'movement',resourceId:id,now}), select])
 }
 
 export const updateManualMovement = async (db, businessId, id, input, now = new Date()) => {
@@ -135,6 +136,7 @@ export const updateManualMovement = async (db, businessId, id, input, now = new 
     statements = [...paymentGuards, ...categoryPolicyStatements, stateGuard, update, clearSettingsAssertions(db, txId),
       ...(paymentGuards.length ? [clearSettingsAssertions(db, paymentTxId)] : []), select]
   }
+  statements.splice(statements.length-1,0,businessEvent(db,businessId,{action:'finance.movement.updated',resourceType:'movement',resourceId:id,now}))
   return commitMovement(db, statements)
 }
 
@@ -143,18 +145,18 @@ export const softDeleteManualMovement = async (db, businessId, id, now = new Dat
   if (!current) return null
   assertManualMovement(current)
   const timestamp = now.toISOString()
-  await db.prepare(`UPDATE movements SET deleted_at = ?, updated_at = ?
-    WHERE id = ? AND business_id = ? AND deleted_at IS NULL`).bind(timestamp, timestamp, id, businessId).run()
+  await auditedMutation(db, businessId, db.prepare(`UPDATE movements SET deleted_at = ?, updated_at = ?
+    WHERE id = ? AND business_id = ? AND deleted_at IS NULL`).bind(timestamp, timestamp, id, businessId), {action:'finance.movement.deleted',resourceType:'movement',resourceId:id,now}).run()
   return id
 }
 
 export const upsertFinanceSettings = async (db, businessId, input, now = new Date()) => {
   const timestamp = now.toISOString()
-  await db.prepare(`INSERT INTO finance_settings (business_id, opening_balance_cents, opening_date, created_at, updated_at)
+  await auditedMutation(db, businessId, db.prepare(`INSERT INTO finance_settings (business_id, opening_balance_cents, opening_date, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?)
     ON CONFLICT(business_id) DO UPDATE SET opening_balance_cents = excluded.opening_balance_cents,
       opening_date = excluded.opening_date, updated_at = excluded.updated_at`).bind(
     businessId, input.openingBalanceCents, input.openingDate, timestamp, timestamp,
-  ).run()
+  ), {action:'settings.finance.updated',resourceType:'settings',resourceId:'finance',now}).run()
   return loadFinanceSettings(db, businessId)
 }

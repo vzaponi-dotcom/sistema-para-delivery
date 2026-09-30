@@ -3,9 +3,14 @@ import { sessionCookie } from '../auth.js'
 import { requireCapability } from '../settingsAccess.js'
 import { SESSION_DURATIONS } from './sessions.js'
 import { listUsers, createUser, updateUser, requestCredentialReset, changeOwnPassword } from './users.js'
+import { listActivity } from './audit.js'
 
 const response=(data,init={})=>json(data,{...init,headers:{'cache-control':'no-store',...init.headers}})
 export async function handleAccessApi(request,env,context,url) {
+  if(url.pathname==='/api/access/activity' && request.method==='GET') {
+    requireCapability(context,'access.audit.view')
+    return response(await listActivity(env.DB,context.businessId,Object.fromEntries(url.searchParams)))
+  }
   if(url.pathname==='/api/access/users') {
     if(request.method==='GET') return response(await listUsers(env.DB,context))
     if(request.method==='POST') {

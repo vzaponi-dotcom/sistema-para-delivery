@@ -3,7 +3,8 @@ import { authenticateHumanRequest, createUserSession, loadAuthMode, SESSION_DURA
 import { normalizeLogin } from './access/roles.js'
 import { verifyHumanPassword } from './access/credentials.js'
 import { checkLoginThrottle, completeLoginAttempt } from './access/loginThrottle.js'
-import { recordSecurityEvent } from './access/audit.js'
+import { recordSecurityEvent, withAuditContext } from './access/audit.js'
+import { attachOperationalAttributions } from './access/attribution.js'
 import { createManualMovement, softDeleteManualMovement, updateManualMovement, upsertFinanceSettings } from './financeRepository.js'
 import { parseFinanceSettingsInput, parseManualMovementInput } from './financeValidation.js'
 import { apiError, assertSameOriginMutation, handleError, json, readJson } from './http.js'
@@ -107,7 +108,7 @@ const login = async (request, env) => {
   return validateResponseSession(sessionRequest, env, context, authJson({ authenticated: true, businessId: BUSINESS_ID }, { headers: { 'set-cookie': sessionCookie(token, SESSION_MAX_AGE) } }))
 }
 
-const logout = async (request, env) => { assertSameOriginMutation(request); await revokeSession(request, env); return authJson({ authenticated: false }, { headers: { 'set-cookie': clearSessionCookie() } }) }
+const logout = async (request, env) => { assertSameOriginMutation(request); const context = await authenticateHumanRequest(request, env); await revokeSession(request, context ? {...env,DB:withAuditContext(env.DB,context)} : env); return authJson({ authenticated: false }, { headers: { 'set-cookie': clearSessionCookie() } }) }
 const resolveRequestContext = async (env, session) => resolveSettingsAccess(session,
   session.legacy && typeof env.resolveCapabilities === 'function' ? await env.resolveCapabilities(session) : session.granted)
 
@@ -165,17 +166,29 @@ const authenticatedApi = async (request, env) => {
   const url = new URL(request.url)
   const context = await resolveRequestContext(env, session)
   if (session.userId && session.authMode === 'enrollment' && !url.pathname.startsWith('/api/access/')) {
+    await recordSecurityEvent(env.DB,{businessId:context.businessId,context,action:'access.denied',result:'denied'})
     throw apiError(403, 'ENROLLMENT_ONLY', 'Durante a preparação, use somente a administração de acesso.')
   }
   let response, failure
-  try { response = await dispatchAuthenticatedApi(request, env, session, context, url) } catch (error) { failure = error }
-  await validateResponseSession(request, env, session, response)
-  if (failure) throw failure
+  try { response = await dispatchAuthenticatedApi(request, env, session, context, url) } catch (error) {
+    failure = error
+    if (error.status === 403) await recordSecurityEvent(env.DB,{businessId:context.businessId,context,action:'access.denied',result:'denied'})
+  }
+  if (failure) { await validateResponseSession(request, env, session, response); throw failure }
+  if (response.ok && response.headers.get('content-type')?.includes('application/json')) {
+    const payload = await response.json()
+    response = new Response(JSON.stringify(await attachOperationalAttributions(env.DB,context.businessId,payload,{reportOrder:/^\/api\/reporting\/orders\/[^/]+$/.test(url.pathname)})), {status:response.status,headers:response.headers})
+  }
+  try { await validateResponseSession(request, env, session, response) } catch(error) {
+    if(error.status===403) await recordSecurityEvent(env.DB,{businessId:context.businessId,context,action:'access.denied',result:'denied'})
+    throw error
+  }
   response.headers.set('cache-control', 'no-store')
   return response
 }
 
 const dispatchAuthenticatedApi = async (request, env, session, context, url) => {
+  env = { ...env, DB: withAuditContext(env.DB, context) }
   const effectsJson = (payload, init) => json(projectMutationEffects(payload, context.granted), init)
 
   const accessResponse = await handleAccessApi(request, env, context, url)

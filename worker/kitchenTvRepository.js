@@ -1,3 +1,4 @@
+import { businessEvent } from './access/audit.js'
 const SELECT_ACCESS = `SELECT business_id, pairing_token_hash, pairing_expires_at,
   session_token_hash, session_issued_at, paired_at, last_seen_at, revoked_at,
   created_at, updated_at
@@ -72,7 +73,7 @@ export async function approveKitchenTvPairingCode(db, code, businessId, now = ne
         AND consumed_at IS NULL AND expires_at > ?
       RETURNING request_token_hash, pairing_code, approved_business_id,
         expires_at, created_at, approved_at, consumed_at`)
-      .bind(businessId, approvedAt, code, approvedAt),
+      .bind(businessId, approvedAt, code, approvedAt),businessEvent(db,businessId,{action:'settings.kitchen-tv.approved',resourceType:'settings',resourceId:'kitchen-tv',now,onlyIfChanged:true}),
   ])
   return mapPairingRequest(results?.[1]?.results?.[0])
 }
@@ -141,7 +142,7 @@ export async function revokeKitchenTvAccess(db, businessId, now = new Date()) {
         revoked_at = ?,
         updated_at = ?
       WHERE business_id = ?`)
-      .bind(revokedAt, revokedAt, businessId),
+      .bind(revokedAt, revokedAt, businessId),businessEvent(db,businessId,{action:'settings.kitchen-tv.revoked',resourceType:'settings',resourceId:'kitchen-tv',now,onlyIfChanged:true}),
     db.prepare(`UPDATE kitchen_tv_pairing_requests
       SET consumed_at = ?
       WHERE approved_business_id = ? AND consumed_at IS NULL`)
