@@ -232,3 +232,113 @@ for (const [method,path] of [['GET','/api/table-tabs/foreign/print-document'],['
     assert.equal(response.status, grants.length===2?404:403)
   }
 })
+
+const humanRequest = async (env, path, method, grants, body = {}) => {
+  env.resolveCapabilities = async () => new Set(grants)
+  const session = await createSession(env, 'amor-e-sabor')
+  return handleRequest(new Request(`https://delivery.example${path}`, {
+    method, headers: { origin: 'https://delivery.example', cookie: `amor_session=${session.token}`, 'content-type': 'application/json' },
+    ...(method === 'GET' ? {} : { body: JSON.stringify(body) }),
+  }), env)
+}
+
+test('direct document HTTP read rechecks current status after initial authorization', async () => {
+  for (const [initial, terminal, grant] of [['Em preparo','Finalizado','orders.view'],['Finalizado','Em preparo','orders.history']]) {
+    const env = await makeEnv()
+    env.DB.sqlite.prepare("UPDATE orders SET status=?,client_address_snapshot='SECRET_DOCUMENT' WHERE id='o1'").run(initial)
+    let reads = 0
+    const prepare = env.DB.prepare.bind(env.DB)
+    env.DB.prepare = sql => {
+      const statement = prepare(sql)
+      if (!sql.startsWith('SELECT status FROM orders')) return statement
+      return { bind(...args) {
+        const bound = statement.bind(...args)
+        return { ...bound, async first() {
+          const row = await bound.first()
+          if (++reads === 2) env.DB.sqlite.prepare("UPDATE orders SET status=? WHERE id='o1'").run(terminal)
+          return row
+        } }
+      } }
+    }
+    const response = await humanRequest(env,'/api/orders/o1/print-document','GET',['printing.execute',grant])
+    assert.equal(response.status,403,`${initial} -> ${terminal}`)
+    assert.equal((await response.text()).includes('SECRET_DOCUMENT'),false)
+    assert.equal(env.DB.sqlite.prepare("SELECT status FROM orders WHERE id='o1'").get().status,terminal)
+  }
+})
+
+// Model a concurrent D1 request: independent writes may run between calls but
+// cannot execute between statements inside a transactional batch.
+const afterRecoveryLock = (env, mutate) => {
+  const prepare = env.DB.prepare.bind(env.DB)
+  const batch = env.DB.batch.bind(env.DB)
+  let inBatch = false
+  let pending = false
+  let fired = false
+  const afterLock = () => { if (fired) return; fired = true; if (inBatch) pending = true; else mutate() }
+  env.DB.batch = async statements => {
+    inBatch = true
+    try { return await batch(statements) }
+    finally { inBatch = false; if (pending) { pending = false; mutate() } }
+  }
+  env.DB.prepare = sql => {
+    const statement = prepare(sql)
+    if (!sql.startsWith("UPDATE print_stations SET recovery_state = 'deferred'")) return statement
+    return { bind(...args) {
+      const bound = statement.bind(...args)
+      return { ...bound,
+        async first() { const row = await bound.first(); if (row) afterLock(); return row },
+        async run() { const result = await bound.run(); if (result.meta.changes === 1) afterLock(); return result },
+      }
+    } }
+  }
+  return () => fired
+}
+
+for (const existing of [false,true]) test(`HTTP recovery status interleaving preserves claim and station consistency (${existing ? 'existing lock' : 'new candidate'})`, async () => {
+  const env = await makeEnv(); seedStation(env,'active'); seedJob(env)
+  if (existing) env.DB.exec("UPDATE print_stations SET recovery_job_id='job1' WHERE id='s1'")
+  const fired = afterRecoveryLock(env, () => env.DB.exec("UPDATE orders SET status='Finalizado' WHERE id='o1'"))
+  const response = await humanRequest(env,'/api/printing/jobs/claim-recovery-next','POST',['printing.execute','orders.view'],{stationId:'s1'})
+  assert.equal(response.status,200)
+  const raw = await response.text()
+  assert.equal(fired(),true)
+  assert.equal(raw.includes('SECRET_DOCUMENT'),false)
+  const station = env.DB.sqlite.prepare("SELECT recovery_state,recovery_job_id FROM print_stations WHERE id='s1'").get()
+  const job = env.DB.sqlite.prepare("SELECT status,copies_printed FROM print_jobs WHERE id='job1'").get()
+  assert.equal(station.recovery_state === 'deferred' && job.status === 'pending',false,'no stranded reservation')
+  assert.equal(job.copies_printed,0)
+})
+
+for (const existing of [false,true]) test(`recovery transaction rolls back station when job update fails (${existing ? 'existing lock' : 'new candidate'})`, async () => {
+  const env=await makeEnv(); seedStation(env,'active'); seedJob(env)
+  if (existing) env.DB.exec("UPDATE print_stations SET recovery_job_id='job1' WHERE id='s1'")
+  env.DB.exec("CREATE TRIGGER reject_claim BEFORE UPDATE ON print_jobs WHEN NEW.status='processing' BEGIN SELECT RAISE(ABORT,'test recovery claim failure'); END")
+  const response=await call(env,'/api/printing/jobs/claim-recovery-next','POST',['printing.execute','orders.view'],{stationId:'s1'})
+  assert.equal(response.status,500)
+  const station=env.DB.sqlite.prepare("SELECT recovery_state,recovery_job_id FROM print_stations WHERE id='s1'").get()
+  assert.equal(station.recovery_state,'active')
+  assert.equal(station.recovery_job_id,existing?'job1':null)
+  assert.equal(env.DB.sqlite.prepare("SELECT status FROM print_jobs WHERE id='job1'").get().status,'pending')
+})
+
+for (const competingState of ['deferred','active']) test(`HTTP recovery cannot claim another request's ${competingState} reservation`, async () => {
+  const env=await makeEnv(); seedStation(env,'active'); seedJob(env)
+  const prepare=env.DB.prepare.bind(env.DB)
+  let competed=false
+  env.DB.prepare=sql=>{
+    const statement=prepare(sql)
+    if (!sql.startsWith('SELECT id FROM print_jobs')) return statement
+    return {bind(...args){const bound=statement.bind(...args);return {...bound,async first(){
+      const row=await bound.first()
+      if (row) {competed=true;env.DB.sqlite.prepare("UPDATE print_stations SET recovery_state=?,recovery_job_id='other-job' WHERE id='s1'").run(competingState)}
+      return row
+    }}}}
+  }
+  const response=await humanRequest(env,'/api/printing/jobs/claim-recovery-next','POST',['printing.execute','orders.view'],{stationId:'s1'})
+  assert.equal(response.status,200)
+  assert.equal(competed,true)
+  assert.equal((await response.json()).job,null)
+  assert.equal(env.DB.sqlite.prepare("SELECT recovery_job_id FROM print_stations WHERE id='s1'").get().recovery_job_id,'other-job')
+  assert.equal(env.DB.sqlite.prepare("SELECT status FROM print_jobs WHERE id='job1'").get().status,'pending')
+})

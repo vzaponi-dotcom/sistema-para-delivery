@@ -106,8 +106,8 @@ export class D1Sqlite {
     return { bind(...values) { return {
       async first() { return database.prepare(sql).get(...values) ?? null },
       async all() { return { results: database.prepare(sql).all(...values) } },
-      async run() { const statement = database.prepare(sql); if (statement.reader) return { success: true, results: statement.all(...values) }
-        const result = statement.run(...values); return { success: true, meta: { changes: Number(result.changes || 0) } } },
+      async run() { const results = database.prepare(sql).all(...values)
+        return { success: true, results, meta: { changes: /^\s*(INSERT|UPDATE|DELETE)\b/i.test(sql) ? Number(database.prepare('SELECT changes() AS n').get().n) : 0 } } },
     } } }
   }
   async batch(statements) {

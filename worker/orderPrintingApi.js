@@ -423,6 +423,7 @@ export const handlePrintingApi = async (request, env, context, url) => {
     await requirePrintJobRead(env.DB, context, { type: 'order', orderId: decodeURIComponent(documentMatch[1]) })
     const document = await loadOrderPrintDocument(env.DB, businessId, decodeURIComponent(documentMatch[1]))
     if (!document) throw apiError(404, 'ORDER_NOT_FOUND', 'Pedido não encontrado.')
+    await requirePrintJobRead(env.DB, context, { type: 'order', orderId: decodeURIComponent(documentMatch[1]) })
     return printingJson({ document })
   }
 

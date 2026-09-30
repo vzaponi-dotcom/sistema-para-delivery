@@ -66,8 +66,8 @@ class D1Sqlite {
           async first() { return database.prepare(sql).get(...values) ?? null },
           async all() { return { results: database.prepare(sql).all(...values) } },
           async run() {
-            const result = database.prepare(sql).run(...values)
-            return { success: true, meta: { changes: Number(result.changes || 0) } }
+            const results = database.prepare(sql).all(...values)
+            return { success: true, results, meta: { changes: /^\s*(INSERT|UPDATE|DELETE)\b/i.test(sql) ? Number(database.prepare('SELECT changes() AS n').get().n) : 0 } }
           },
         }
       },
@@ -75,9 +75,16 @@ class D1Sqlite {
   }
 
   async batch(statements) {
-    const results = []
-    for (const statement of statements) results.push(await statement.run())
-    return results
+    this.sqlite.exec('BEGIN')
+    try {
+      const results = []
+      for (const statement of statements) results.push(await statement.run())
+      this.sqlite.exec('COMMIT')
+      return results
+    } catch (error) {
+      this.sqlite.exec('ROLLBACK')
+      throw error
+    }
   }
 }
 

@@ -837,25 +837,27 @@ export const claimNextRecoveryPrintJob = async (db, businessId, stationId, now =
     if (recoveryJob && !isPrintQueueTerminal(recoveryJob.status)) {
       if (recoveryJob.status !== 'pending') return null
       const at = timestamp(now)
-      const lock = await db.prepare(`UPDATE print_stations SET recovery_state = 'deferred', updated_at = ?
+      const lock = db.prepare(`UPDATE print_stations SET recovery_state = 'deferred', updated_at = ?
         WHERE id = ? AND business_id = ? AND recovery_state = 'active' AND recovery_job_id = ?
-          AND EXISTS (SELECT 1 FROM print_jobs WHERE print_jobs.id = print_stations.recovery_job_id AND print_jobs.business_id = print_stations.business_id AND ${printDocumentEligibilitySql(granted)}) RETURNING id`)
-        .bind(at, stationId, businessId, recoveryJob.id).first()
-      if (!lock) return null
-      const row = await db.prepare(`UPDATE print_jobs SET
+          AND EXISTS (SELECT 1 FROM print_jobs WHERE print_jobs.id = print_stations.recovery_job_id AND print_jobs.business_id = print_stations.business_id
+            AND status = 'pending' AND (available_at IS NULL OR available_at <= ?) AND ${printDocumentEligibilitySql(granted)}) RETURNING id`)
+        .bind(at, stationId, businessId, recoveryJob.id, at)
+      const claim = db.prepare(`UPDATE print_jobs SET
           status = 'processing', station_id = ?, processing_started_at = ?, last_error_code = NULL, last_error_message = NULL
-        WHERE id = ? AND business_id = ? AND status = 'pending' AND (available_at IS NULL OR available_at <= ?)
+        WHERE changes() = 1 AND id = ? AND business_id = ? AND status = 'pending' AND (available_at IS NULL OR available_at <= ?)
           AND ${printDocumentEligibilitySql(granted)}
-        RETURNING *`).bind(stationId, at, recoveryJob.id, businessId, at).first()
-      return mapJobRow(row)
+        RETURNING *`).bind(stationId, at, recoveryJob.id, businessId, at)
+      // Keep CAS and claim adjacent: changes() refers to that station UPDATE.
+      // D1 batch prevents other requests from changing eligibility between them.
+      const result = await db.batch([lock, claim])
+      return mapJobRow(rows(result[1])[0])
     }
     await db.prepare(`UPDATE print_stations SET recovery_job_id = NULL, updated_at = ?
       WHERE id = ? AND business_id = ? AND recovery_job_id = ?`)
       .bind(timestamp(now), stationId, businessId, station.recoveryJobId).run()
   }
   const at = timestamp(now)
-  const candidate = await db.prepare(`SELECT id FROM print_jobs
-    WHERE business_id = ? AND type IN ('order', 'table-tab') AND status = 'pending' AND copies_printed = 0 AND available_at <= ?
+  const eligibleCandidateSql = `print_jobs.type IN ('order', 'table-tab') AND print_jobs.status = 'pending' AND print_jobs.copies_printed = 0 AND print_jobs.available_at <= ?
       AND ${printDocumentEligibilitySql(granted)}
       AND NOT EXISTS (
         SELECT 1 FROM print_job_attempts
@@ -864,32 +866,26 @@ export const claimNextRecoveryPrintJob = async (db, businessId, stationId, now =
           AND print_job_attempts.submission_started_at IS NOT NULL
       )
       AND ((type = 'table-tab' AND trigger = 'manual')
-        OR (type = 'order' AND (trigger = 'manual' OR last_error_code = 'FORCE_PRINT_AUTHORIZED' OR ${AUTOMATIC_ORDER_ELIGIBLE_SQL})))
+        OR (type = 'order' AND (trigger = 'manual' OR last_error_code = 'FORCE_PRINT_AUTHORIZED' OR ${AUTOMATIC_ORDER_ELIGIBLE_SQL})))`
+  const candidate = await db.prepare(`SELECT id FROM print_jobs
+    WHERE business_id = ? AND ${eligibleCandidateSql}
     ORDER BY priority DESC, COALESCE(available_at, created_at) ASC, created_at ASC, id ASC LIMIT 1`)
     .bind(businessId, at).first()
   if (!candidate?.id) return null
 
-  const lock = await db.prepare(`UPDATE print_stations SET recovery_state = 'deferred', recovery_job_id = ?, updated_at = ?
-    WHERE id = ? AND business_id = ? AND recovery_state = 'active'
-      AND EXISTS (SELECT 1 FROM print_jobs WHERE print_jobs.id = ? AND print_jobs.business_id = print_stations.business_id AND ${printDocumentEligibilitySql(granted)}) RETURNING id`)
-    .bind(candidate.id, at, stationId, businessId, candidate.id).first()
-  if (!lock) return null
+  const lock = db.prepare(`UPDATE print_stations SET recovery_state = 'deferred', recovery_job_id = ?, updated_at = ?
+    WHERE id = ? AND business_id = ? AND recovery_state = 'active' AND recovery_job_id IS NULL
+      AND EXISTS (SELECT 1 FROM print_jobs WHERE print_jobs.id = ? AND print_jobs.business_id = print_stations.business_id AND ${eligibleCandidateSql}) RETURNING id`)
+    .bind(candidate.id, at, stationId, businessId, candidate.id, at)
 
-  const row = await db.prepare(`UPDATE print_jobs SET
+  const claim = db.prepare(`UPDATE print_jobs SET
       status = 'processing', station_id = ?, processing_started_at = ?, processed_at = NULL,
       last_error_code = NULL, last_error_message = NULL
-    WHERE id = ? AND business_id = ? AND type IN ('order', 'table-tab') AND status = 'pending' AND copies_printed = 0 AND available_at <= ?
-      AND ${printDocumentEligibilitySql(granted)}
-      AND NOT EXISTS (
-        SELECT 1 FROM print_job_attempts
-        WHERE print_job_attempts.business_id = print_jobs.business_id
-          AND print_job_attempts.job_id = print_jobs.id
-          AND print_job_attempts.submission_started_at IS NOT NULL
-      )
-      AND ((type = 'table-tab' AND trigger = 'manual')
-        OR (type = 'order' AND (trigger = 'manual' OR last_error_code = 'FORCE_PRINT_AUTHORIZED' OR ${AUTOMATIC_ORDER_ELIGIBLE_SQL})))
-    RETURNING *`).bind(stationId, at, candidate.id, businessId, at).first()
-  return mapJobRow(row)
+    WHERE changes() = 1 AND id = ? AND business_id = ? AND ${eligibleCandidateSql}
+    RETURNING *`).bind(stationId, at, candidate.id, businessId, at)
+  // Keep CAS and claim adjacent; no audit writer may precede the claim in this batch.
+  const result = await db.batch([lock, claim])
+  return mapJobRow(rows(result[1])[0])
 }
 
 export const prioritizePrintJob = async (db, businessId, jobId, now = new Date(), actorLabel = 'Sistema') => {
