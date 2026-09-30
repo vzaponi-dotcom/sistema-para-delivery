@@ -59,6 +59,15 @@ test('grant loading ignores unknown grants and denies missing, inactive and othe
   assert.deepEqual([...await loadRoleGrants(db, BUSINESS, id)], [])
 })
 
+test('retired clients.manage is never seeded and persisted old rows confer no permission', async t => {
+  const { db, sqlite } = setup(t)
+  await seedBuiltinRoles(db, BUSINESS, NOW)
+  assert.equal(sqlite.prepare("SELECT count(*) AS n FROM role_capabilities WHERE capability='clients.manage'").get().n, 0)
+  const id = roleId(sqlite, BUSINESS, 'operator')
+  sqlite.prepare('INSERT INTO role_capabilities (business_id,role_id,capability) VALUES (?,?,?)').run(BUSINESS, id, 'clients.manage')
+  assert.equal((await loadRoleGrants(db, BUSINESS, id)).has('clients.manage'), false)
+})
+
 test('built-in roles and grants stay isolated when seeding multiple businesses', async (t) => {
   const { db, sqlite } = setup(t)
   sqlite.prepare('INSERT INTO businesses (id, slug, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)').run('other', 'other', 'Other', NOW.toISOString(), NOW.toISOString())

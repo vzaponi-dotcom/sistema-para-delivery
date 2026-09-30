@@ -14,7 +14,7 @@ import { useOrderPaymentPromise } from '../../../domains/orders/application/useO
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 for (const [name, hook, command, method, response, options] of [
   ['order', useOrderCommands, 'finalizeOrder', 'updateOrderStatus', { order: { id: 'o' } }, { orders: [{ id: 'o' }], canFinalizeOrders: true }],
-  ['customer', useCustomerCommands, 'createClient', 'createClient', { client: { id: 'c' } }, { canManageClients: true }],
+  ['customer', useCustomerCommands, 'createClient', 'createClient', { client: { id: 'c' } }, { canCreateClients: true, canUpdateClients: true, canDeleteClients: true }],
   ['catalog', useCatalogCommands, 'createProduct', 'createProduct', { product: { id: 'p' } }, { canManageProducts: true }],
   ['finance', useFinanceCommands, 'saveMovement', 'createMovement', { movement: { id: 'm' } }, { canManageMovements: true }],
   ['table', useTableServiceCommands, 'createTable', 'createTable', { tables: [] }, { canManageTables: true }],

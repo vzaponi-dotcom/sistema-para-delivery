@@ -30,7 +30,7 @@ function NewOrderCustomerStep({
   quickClient,
   quickClientError,
   disabled,
-  canManageClients = true,
+  canCreateClients = true,
   canContinue,
   onTypeChange,
   onOrderDateChange,
@@ -92,8 +92,8 @@ function NewOrderCustomerStep({
 
       <>
           <div className="form-field new-order-client-picker" onBlur={onClientBlur}>
-            <div className="new-order-client-label"><span>{type === 'Local' ? 'Vincular cliente cadastrado — opcional' : 'Cliente'}</span>          {canManageClients && (
-            <button type="button" className="new-order-quick-client-toggle" onClick={() => { if (canManageClients) onQuickClientToggle?.() }} disabled={disabled}>
+            <div className="new-order-client-label"><span>{type === 'Local' ? 'Vincular cliente cadastrado — opcional' : 'Cliente'}</span>          {canCreateClients && (
+            <button type="button" className="new-order-quick-client-toggle" onClick={() => { if (canCreateClients) onQuickClientToggle?.() }} disabled={disabled}>
               + Novo cliente
             </button>
           )}</div>
@@ -134,8 +134,8 @@ function NewOrderCustomerStep({
 
 
 
-          {canManageClients && quickClient.open && (
-            <form className="new-order-quick-client" onSubmit={(event) => { if (!canManageClients) { event.preventDefault(); return }; onQuickClientSubmit?.(event) }}>
+          {canCreateClients && quickClient.open && (
+            <form className="new-order-quick-client" onSubmit={(event) => { if (!canCreateClients) { event.preventDefault(); return }; onQuickClientSubmit?.(event) }}>
               {quickClientError && <div className="new-order-error" role="alert">{quickClientError}</div>}
               <label className="form-field">
                 <span>Nome</span>

@@ -10,6 +10,9 @@ import './App.css'
 import './central-data.css'
 import AppShell from './app/shell/AppShell.jsx'
 import AppRoot from './app/shell/AppRoot.jsx'
+import { useLocation, useNavigate } from 'react-router'
+import AccessSurface from './domains/access/ui/AccessSurface.jsx'
+import InvitationAccept from './domains/access/ui/InvitationAccept.jsx'
 import Button from './shared/ui/Button'
 import Modal from './shared/ui/Modal'
 import RegisterRefundDialog from './app/workflows/refunds/RegisterRefundDialog.jsx'
@@ -22,6 +25,7 @@ import {
   getOrderRefundState,
   NewOrderRoute,
   OrderHistory,
+  OrderDetail,
   Orders,
   ordersApi,
   toLocalDateValue,
@@ -46,6 +50,7 @@ import KitchenTvControlSurface from './app/surfaces/kitchen-tv-control/KitchenTv
 import { ReportingWorkspace } from './domains/reporting/index.js'
 import SettingsPolicyBoundary from './app/surfaces/settings/SettingsPolicyBoundary.jsx'
 import SettingsSurface from './app/surfaces/settings/SettingsSurface.jsx'
+import SettingsHome from './app/surfaces/settings/SettingsHome.jsx'
 import TableServiceExternalActions from './app/surfaces/table-service/TableServiceExternalActions.jsx'
 import ReceivablesSurface from './app/surfaces/finance/ReceivablesSurface.jsx'
 import OrderPaymentDialog from './app/workflows/payments/order/OrderPaymentDialog.jsx'
@@ -82,8 +87,9 @@ import { getSessionStorage } from './infrastructure/storage/sessionStorage.js'
 const IMPLEMENTED_DESTINATIONS = new Set(['orders', 'history', 'kitchen-tv-control', 'new-order', 'comandas', 'print-queue', 'dashboard', 'reports', 'receivables', 'finance', 'clients', 'products', 'tables', 'settings-home', 'settings-business-profile', 'settings-operations', 'settings-modalities', 'settings-payments', 'settings-cancellations', 'settings-finance-categories', 'settings-kitchen-tv', 'settings-printing', 'settings-device', 'my-account', 'access-team', 'access-activity'])
 const currency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 
-function App({ capabilities, renderAccessSurface } = {}) {
+function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <AccessSurface {...props} /> } = {}) {
   const [requestKey, setRequestKey] = useState(null)
+  const [activityDetail, setActivityDetail] = useState(null)
   const [kitchenSoundEnabled, setKitchenSoundEnabled] = useState(readKitchenSoundPreference)
   const [kitchenSoundProfile, setKitchenSoundProfile] = useState(readKitchenSoundProfilePreference)
   const [kitchenSoundVolume, setKitchenSoundVolume] = useState(readKitchenSoundVolumePreference)
@@ -161,7 +167,7 @@ function App({ capabilities, renderAccessSurface } = {}) {
     onClearApplicationState: clearApplicationStateForSession,
   })
 
-  const granted = useMemo(
+  const trustedGrants = useMemo(
     () => capabilities === undefined
       ? (Array.isArray(sessionContext?.capabilities)
           ? new Set(sessionContext.capabilities)
@@ -169,6 +175,9 @@ function App({ capabilities, renderAccessSurface } = {}) {
       : capabilities,
     [authState, capabilities, sessionContext],
   )
+  const granted = useMemo(() => !operationalAccess && sessionContext?.user?.id
+    ? new Set([...trustedGrants].filter(capability => capability.startsWith('access.')))
+    : trustedGrants, [operationalAccess, sessionContext, trustedGrants])
   const accessContextId = useMemo(() => authState === 'authenticated' ? JSON.stringify([sessionContext?.businessId, sessionContext?.user?.id || 'legacy', sessionContext?.settingsContextId, [...granted].sort(), sessionGeneration]) : null, [authState, sessionContext, granted, sessionGeneration])
   sessionOwnerRef.current = accessContextId
   const { query, patchQuery, resetQueries } = useQueryContext()
@@ -292,7 +301,9 @@ function App({ capabilities, renderAccessSurface } = {}) {
   const canReceivePayments = hasCapability(granted, 'payments.receive')
   const canRefundPayments = hasCapability(granted, 'payments.refund')
   const canTransferComanda = hasCapability(granted, 'comandas.transfer')
-  const canManageClients = hasCapability(granted, 'clients.manage')
+  const canCreateClients = hasCapability(granted, 'clients.create')
+  const canUpdateClients = hasCapability(granted, 'clients.update')
+  const canDeleteClients = hasCapability(granted, 'clients.delete')
   const canManageProducts = hasCapability(granted, 'products.manage')
   const canManageTables = hasCapability(granted, 'tables.manage')
   const canManageMovements = hasCapability(granted, 'finance.movements.manage')
@@ -342,7 +353,7 @@ function App({ capabilities, renderAccessSurface } = {}) {
   })
   const quickCreateCustomer = useQuickCreateCustomerCommand({
     writesBlocked,
-    canManageClients,
+    canCreateClients,
     applyOfficialEffects,
     setRequestKey,
     onError: showApiError,
@@ -599,6 +610,18 @@ function App({ capabilities, renderAccessSurface } = {}) {
     return selectComanda(identity, currentTables)
   }
   const activeMobileEntry = activeTab === 'new-order' ? newOrderDraft.context?.returnDestination : undefined
+  const resolveActivityOrder = (item) => {
+    if (!operationalAccess || item.resourceType !== 'order') return null
+    const order = orders.find(candidate => String(candidate.id) === String(item.resourceId))
+    if (!order) return null
+    return hasCapability(granted, ['Finalizado', 'Cancelado'].includes(order.status) ? 'orders.history' : 'orders.view') ? order : null
+  }
+  const accessProps = { section: activeTab, sessionContext, refreshSession, onApiError: showApiError, writesBlocked,
+    canOpenResource: (item) => Boolean(resolveActivityOrder(item)),
+    onOpenResource: (item) => { const order = resolveActivityOrder(item); if (order) setActivityDetail({ owner: accessContextId, orderId: order.id }) },
+  }
+  const activityOrder = activityDetail?.owner === accessContextId && activeTab === 'access-activity'
+    ? resolveActivityOrder({ resourceType: 'order', resourceId: activityDetail.orderId }) : null
 
   return (
     <AppRoot
@@ -618,8 +641,9 @@ function App({ capabilities, renderAccessSurface } = {}) {
       {!operationalAccess ? (
         <NavigationProvider activeTab={activeTab} granted={granted} authenticated={authState === 'authenticated' && Boolean(sessionContext?.user?.id)} implemented={IMPLEMENTED_DESTINATIONS} moreOpen={moreOpen} requestNavigation={requestNavigation} openMore={openMore} closeMore={closeMore}>
           <AppShell user={sessionContext?.user} onSwitchUser={handleSwitchUser} onLogout={handleLogout} logoutDisabled={writesBlocked}>
-            {renderAccessSurface
-              ? renderAccessSurface({ section: activeTab, sessionContext, refreshSession, onApiError: showApiError, writesBlocked })
+            <p>Sua conta está ativa; o acesso operacional aguarda liberação.</p>
+            {activeTab === 'settings-home' ? <SettingsHome granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} /> : renderAccessSurface
+              ? renderAccessSurface(accessProps)
               : <section><h1>{activeTab === 'access-team' ? 'Equipe e acessos' : 'Minha conta'}</h1><p>Sua conta está ativa; o acesso operacional aguarda liberação.</p></section>}
           </AppShell>
         </NavigationProvider>
@@ -639,14 +663,15 @@ function App({ capabilities, renderAccessSurface } = {}) {
       >
       <NavigationProvider authenticated={authState === 'authenticated' && Boolean(sessionContext?.user?.id)} activeTab={activeTab} activeMobileEntry={activeMobileEntry} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} moreOpen={moreOpen} requestNavigation={requestNavigation} openMore={openMore} closeMore={closeMore}>
       <AppShell user={sessionContext?.user} onSwitchUser={handleSwitchUser} businessId={sessionContext?.businessId} businessName={business?.name} businessHasLogo={business?.hasLogo} businessLogoVersion={business?.logoVersion} navigationBadges={{ orders: operationalOrderCount, comandas: openComandaCount, 'print-queue': printing.activeJobCount }} onLogout={handleLogout} logoutDisabled={writesBlocked}>
-        {['my-account', 'access-team', 'access-activity'].includes(activeTab) && (renderAccessSurface ? renderAccessSurface({ section: activeTab, sessionContext, refreshSession, onApiError: showApiError, writesBlocked }) : <section><h1>{activeTab === 'my-account' ? 'Minha conta' : activeTab === 'access-team' ? 'Equipe e acessos' : 'Atividades'}</h1></section>)}
+        {['my-account', 'access-team', 'access-activity'].includes(activeTab) && renderAccessSurface(accessProps)}
+        {activityOrder && <OrderDetail order={activityOrder} currency={currency} onClose={() => setActivityDetail(null)} canExecutePrinting={false} canCancelOrders={false} />}
         {activeTab === 'dashboard' && <DashboardSurface orders={orders} movements={movements} currency={currency} queryState={query.dashboard} onQueryChange={(patch) => patchQuery('dashboard', patch)} />}
         {activeTab === 'reports' && <ReportingWorkspace granted={granted} onOpenClient={canViewClients ? (client) => { patchQuery('clients', { search: client?.name || '' }); requestNavigation('clients') } : null} />}
         {activeTab === 'orders' && <Orders orders={orders} officialOrders={orders} now={kitchenNow} currentTiming={currentTiming} search={query.orders.search} onSearchChange={(search) => patchQuery('orders', { search })} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={orderCommands.finalizeOrder} onCancelOrder={orderCommands.cancelOrder} onRegisterPayment={orderPayment.open} paymentDisabled={writesBlocked} paymentOptions={paymentOptions} cancellationOptions={cancellationOptions} cancellationRevision={cancellationRevision} onNavigatePrintQueue={() => requestNavigation('print-queue')} printQueueActiveCount={printing.activeJobCount} granted={granted} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} printing={printing} onToast={setToastMessage} canCreateOrders={canCreateOrders} canFinalizeOrders={canFinalizeOrders} canCancelOrders={canCancelOrders} canRefundPayments={canRefundPayments} canUseLocalPreferences={canUseLocalPreferences} canViewPrintQueue={canViewPrintQueue} canForcePrinting={canForcePrinting} canExecutePrinting={canExecutePrinting} onEditReservation={handleEditFutureReservation} />}
         {activeTab === 'history' && <OrderHistory orders={orders} currentTiming={currentTiming} currency={currency} onCancelOrder={orderCommands.cancelOrder} onRegisterPayment={orderPayment.open} paymentDisabled={writesBlocked} paymentOptions={paymentOptions} cancellationOptions={cancellationOptions} cancellationRevision={cancellationRevision} actionKey={orderCommands.actionKey} printing={printing} onToast={setToastMessage} queryState={query.history} onQueryChange={(patch) => patchQuery('history', patch)} granted={granted} canViewAnalysis={canViewOperationalAnalysis} canCancelOrders={canCancelOrders} canRefundPayments={canRefundPayments} canForcePrinting={canForcePrinting} canExecutePrinting={canExecutePrinting} />}
         {activeTab === 'kitchen-tv-control' && <KitchenTvControlSurface orders={orders} now={kitchenNow} currentTiming={currentTiming} granted={granted} isOnline={isOnline} onNavigate={requestNavigation} onFeedback={setToastMessage} />}
-        {activeTab === 'new-order' && <NewOrderRoute key={newOrderDraft.renderKey ?? 'new-order'} clients={clients} products={products} tables={tables} mode={newOrderDraft.context?.mode || 'create'} reservationContext={newOrderDraft.context?.reservationContext || null} initialDraft={newOrderDraft.context?.initialDraft || null} initialTableId={newOrderDraft.context?.tableId || ''} expectedTableTabId={newOrderDraft.context?.expectedTableTabId || ''} currency={currency} disabled={writesBlocked} renderPaymentComposition={(props) => <CheckoutPaymentComposition {...props} paymentOptions={paymentOptions} defaultPaymentMethod={defaultPaymentMethod} />} modalityOptions={modalityOptions} defaultModality={defaultModality} onPolicyChanged={effectiveConfig.refresh} onCancel={() => requestNavigation(newOrderDraft.context?.returnDestination || 'orders')} onCreateClient={quickCreateCustomer} onSubmit={newOrderDraft.submit} onDraftDirtyChange={newOrderDraft.setDirty} canManageClients={canManageClients} canAdjustOrders={canAdjustOrders} />}
-        {activeTab === 'clients' && <CustomersWorkspace clients={clients} search={query.clients.search} sort={query.clients.sort} onSearchChange={(search) => patchQuery('clients', { search })} onSortChange={(sort) => patchQuery('clients', { sort })} writesBlocked={writesBlocked} canManageClients={canManageClients} applyOfficialEffects={applyOfficialEffects} setRequestKey={setRequestKey} onSuccess={showSuccessMessage} onError={showApiError} onDuplicatePhone={setToastMessage} />}
+        {activeTab === 'new-order' && <NewOrderRoute key={newOrderDraft.renderKey ?? 'new-order'} clients={clients} products={products} tables={tables} mode={newOrderDraft.context?.mode || 'create'} reservationContext={newOrderDraft.context?.reservationContext || null} initialDraft={newOrderDraft.context?.initialDraft || null} initialTableId={newOrderDraft.context?.tableId || ''} expectedTableTabId={newOrderDraft.context?.expectedTableTabId || ''} currency={currency} disabled={writesBlocked} renderPaymentComposition={(props) => <CheckoutPaymentComposition {...props} paymentOptions={paymentOptions} defaultPaymentMethod={defaultPaymentMethod} />} modalityOptions={modalityOptions} defaultModality={defaultModality} onPolicyChanged={effectiveConfig.refresh} onCancel={() => requestNavigation(newOrderDraft.context?.returnDestination || 'orders')} onCreateClient={quickCreateCustomer} onSubmit={newOrderDraft.submit} onDraftDirtyChange={newOrderDraft.setDirty} canCreateClients={canCreateClients} canAdjustOrders={canAdjustOrders} />}
+        {activeTab === 'clients' && <CustomersWorkspace clients={clients} search={query.clients.search} sort={query.clients.sort} onSearchChange={(search) => patchQuery('clients', { search })} onSortChange={(sort) => patchQuery('clients', { sort })} writesBlocked={writesBlocked} canCreateClients={canCreateClients} canUpdateClients={canUpdateClients} canDeleteClients={canDeleteClients} applyOfficialEffects={applyOfficialEffects} setRequestKey={setRequestKey} onSuccess={showSuccessMessage} onError={showApiError} onDuplicatePhone={setToastMessage} />}
         <CatalogWorkspace visible={activeTab === 'products'} products={products} search={query.products.search} queryState={query.products} onSearchChange={(search) => patchQuery('products', { search })} onQueryChange={(patch) => patchQuery('products', patch)} currency={currency} writesBlocked={writesBlocked} canManageProducts={canManageProducts} applyOfficialEffects={applyOfficialEffects} setRequestKey={setRequestKey} onSuccess={showSuccessMessage} onError={showApiError} />
         {activeTab === 'print-queue' && <PrintQueue orders={orders} printing={printing} onOpenPrintingSettings={() => requestNavigation('settings-printing')} onToast={setToastMessage} queryState={query.printQueue} onQueryChange={(patch) => patchQuery('printQueue', patch)} canExecutePrinting={canExecutePrinting} canForcePrinting={canForcePrinting} canDiscardPrinting={canDiscardPrinting} isOnline={isOnline} />}
         {activeTab === 'receivables' && <ReceivablesSurface orders={orders} movements={movements} currency={currency} disabled={writesBlocked} onRegisterPayment={orderPayment.open} onRegisterClientOrdersPayment={clientOrdersPayment.open} onOpenClient={canViewClients ? (client) => { patchQuery('clients', { search: client?.name || '' }); requestNavigation('clients') } : null} queryState={query.receivables} onQueryChange={(patch) => patchQuery('receivables', patch)} canReceivePayments={canReceivePayments} canManagePaymentPromises={canManagePaymentPromises} canExecutePrinting={canExecutePrinting} applyOfficialEffects={applyOfficialEffects} setRequestKey={setRequestKey} onSuccess={showSuccessMessage} onError={showApiError} />}
@@ -738,4 +763,9 @@ function App({ capabilities, renderAccessSurface } = {}) {
   )
 }
 
-export default App
+export default function App(props) {
+  const location = useLocation()
+  const navigate = useNavigate()
+  if (location.pathname === '/ativar-conta') return <InvitationAccept onLogin={() => navigate('/', { replace: true })} />
+  return <ApplicationRuntime {...props} />
+}

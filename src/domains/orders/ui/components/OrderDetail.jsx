@@ -5,6 +5,7 @@ import Modal from '../../../../shared/ui/Modal'
 import OrderDetailTiming from './OrderDetailTiming.jsx'
 import { OrderTicketPreview, PrintStatusBadge } from '../../../printing/index.js'
 import PaymentBadge from '../PaymentBadge.jsx'
+import { actorLabel } from '../../../../shared/actorLabel.js'
 import StatusBadge from '../../../../shared/ui/StatusBadge'
 import { getOrderItemDisplayName, getOrderItems } from '../../domain/orderCart.js'
 import { formatOrderDate, formatOrderTime } from '../../domain/orderWorkflow.js'
@@ -140,6 +141,9 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
               <div><span>Tipo</span><strong>{order.type}</strong></div>
               <div><span>Data</span><strong>{formatOrderDate(order.orderDate)}</strong></div>
               <div><span>Horário</span><strong>{formatOrderTime(order.createdAt) || '—'}</strong></div>
+              <div><span>Criado por</span><strong>{actorLabel(order.attribution?.createdBy)}</strong></div>
+              {order.status === 'Finalizado' && <div><span>Finalizado por</span><strong>{actorLabel(order.attribution?.finalizedBy)}</strong></div>}
+              {order.paymentStatus === 'Pago' && <div><span>Recebido por</span><strong>{actorLabel(order.attribution?.paidBy)}</strong></div>}
               <div><span>Forma de pagamento</span><strong>{order.paymentStatus === 'Pago' ? formatPaymentSummary(order.paymentAllocations, order.paymentMethod) : 'Pendente'}</strong></div>
               {order.status === 'Cancelado' && <div><span>Motivo do cancelamento</span><strong>{order.cancelReasonLabel || order.cancelReason || 'Não informado'}{order.cancelReasonNote ? ` · ${order.cancelReasonNote}` : ''}</strong></div>}
               {order.clientPhone && <div><span>Telefone</span><strong>{order.clientPhone}</strong></div>}

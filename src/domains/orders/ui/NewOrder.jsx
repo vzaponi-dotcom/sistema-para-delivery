@@ -62,7 +62,7 @@ function NewOrder({
   expectedTableTabId = '',
   currency,
   disabled,
-  canManageClients = true,
+  canCreateClients = true,
   canAdjustOrders = true,
   renderPaymentComposition,
   modalityOptions,
@@ -337,7 +337,7 @@ function NewOrder({
   }
 
   const createQuickClient = async () => {
-    if (!canManageClients) return false
+    if (!canCreateClients) return false
     const client = await onCreateClient({ name: quickClient.name, phone: quickClient.phone })
     if (!client) return false
     finishQuickClient(client)
@@ -346,7 +346,7 @@ function NewOrder({
 
   const handleQuickClientSubmit = async (event) => {
     event.preventDefault()
-    if (!canManageClients || disabled || !quickClient.name.trim()) return false
+    if (!canCreateClients || disabled || !quickClient.name.trim()) return false
     setQuickClientError('')
 
     const duplicate = findClientDuplicates(clients, quickClient)
@@ -368,13 +368,13 @@ function NewOrder({
   }
 
   const handleConfirmDuplicate = async () => {
-    if (!canManageClients) return false
+    if (!canCreateClients) return false
     setDuplicateClient(null)
     return createQuickClient()
   }
 
   const toggleQuickClient = () => {
-    if (!canManageClients) return false
+    if (!canCreateClients) return false
     if (quickClient.open) {
       closeQuickClient()
       return true
@@ -515,7 +515,7 @@ function NewOrder({
             quickClient={quickClient}
             quickClientError={quickClientError}
             disabled={disabled}
-            canManageClients={canManageClients}
+            canCreateClients={canCreateClients}
             canContinue={canContinueCustomer}
             onTypeChange={changeType}
             onOrderDateChange={changeOrderDate}
@@ -590,7 +590,7 @@ function NewOrder({
         )}
       </div>
 
-      {canManageClients && duplicateClient && (
+      {canCreateClients && duplicateClient && (
         <ClientDuplicateModal
           client={duplicateClient}
           onCancel={() => setDuplicateClient(null)}

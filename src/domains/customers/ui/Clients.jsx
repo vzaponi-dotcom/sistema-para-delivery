@@ -11,7 +11,7 @@ const SORT_OPTIONS = [
   { value: 'name-desc', label: 'Nome Z–A' },
 ]
 
-function Clients({ clients, search, sort, onSearchChange, onSortChange, onAdd, onEdit, onDelete, canManageClients = true }) {
+function Clients({ clients, search, sort, onSearchChange, onSortChange, onAdd, onEdit, onDelete, canCreateClients = false, canUpdateClients = false, canDeleteClients = false }) {
   const [pendingId, setPendingId] = useState(null)
   const [selectedClient, setSelectedClient] = useState(null)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
@@ -30,7 +30,7 @@ function Clients({ clients, search, sort, onSearchChange, onSortChange, onAdd, o
   }
 
   const handleDelete = async (clientId) => {
-    if (!canManageClients || actionsDisabled) return false
+    if (!canDeleteClients || actionsDisabled) return false
     setPendingId(clientId)
     try {
       await onDelete(clientId)
@@ -40,14 +40,14 @@ function Clients({ clients, search, sort, onSearchChange, onSortChange, onAdd, o
   }
 
   const handleEditSelected = () => {
-    if (!canManageClients || !selectedClient || actionsDisabled) return false
+    if (!canUpdateClients || !selectedClient || actionsDisabled) return false
     const client = selectedClient
     closeActionSheet()
     onEdit(client)
   }
 
   const handleConfirmedDelete = async () => {
-    if (!canManageClients || !selectedClient || actionsDisabled) return false
+    if (!canDeleteClients || !selectedClient || actionsDisabled) return false
     const clientId = selectedClient.id
     await handleDelete(clientId)
     closeActionSheet()
@@ -59,7 +59,7 @@ function Clients({ clients, search, sort, onSearchChange, onSortChange, onAdd, o
         eyebrow="Relacionamento"
         title="Clientes"
         description="Organize seus contatos e encontre rapidamente quem já compra com você."
-        actions={canManageClients ? <Button icon="plus" onClick={() => { if (canManageClients) onAdd?.() }} disabled={actionsDisabled}>Novo cliente</Button> : null}
+        actions={canCreateClients ? <Button icon="plus" onClick={() => { if (canCreateClients) onAdd?.() }} disabled={actionsDisabled}>Novo cliente</Button> : null}
       />
 
       <section className="surface-card">
@@ -118,10 +118,10 @@ function Clients({ clients, search, sort, onSearchChange, onSortChange, onAdd, o
               <small>{selectedClient.address || 'Sem endereço'}</small>
             </div>
 
-            {canManageClients && (!deleteConfirm ? (
+            {(canUpdateClients || canDeleteClients) && (!deleteConfirm ? (
               <div className="client-action-buttons">
-                <Button type="button" variant="secondary" icon="edit" onClick={handleEditSelected} disabled={actionsDisabled}>Editar cliente</Button>
-                <Button type="button" variant="danger" icon="trash" onClick={() => setDeleteConfirm(true)} disabled={actionsDisabled}>Excluir cliente</Button>
+                {canUpdateClients && <Button type="button" variant="secondary" icon="edit" onClick={handleEditSelected} disabled={actionsDisabled}>Editar cliente</Button>}
+                {canDeleteClients && <Button type="button" variant="danger" icon="trash" onClick={() => { if (canDeleteClients) setDeleteConfirm(true) }} disabled={actionsDisabled}>Excluir cliente</Button>}
               </div>
             ) : (
               <div className="client-delete-confirm">
@@ -129,7 +129,7 @@ function Clients({ clients, search, sort, onSearchChange, onSortChange, onAdd, o
                 <p>Tem certeza que deseja excluir {selectedClient.name}? Esta ação não pode ser desfeita.</p>
                 <div className="client-delete-confirm-actions">
                   <Button type="button" variant="secondary" onClick={() => setDeleteConfirm(false)} disabled={actionsDisabled}>Cancelar</Button>
-                  <Button type="button" variant="danger" onClick={handleConfirmedDelete} disabled={actionsDisabled}>Excluir cliente</Button>
+                  {canDeleteClients && <Button type="button" variant="danger" onClick={handleConfirmedDelete} disabled={actionsDisabled}>Excluir cliente</Button>}
                 </div>
               </div>
             ))}

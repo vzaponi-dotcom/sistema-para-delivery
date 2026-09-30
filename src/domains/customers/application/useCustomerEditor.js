@@ -5,7 +5,8 @@ const emptyDraft = () => ({ name: '', phone: '', address: '' })
 
 export function useCustomerEditor({
   clients = [],
-  canManageClients = false,
+  canCreateClients = false,
+  canUpdateClients = false,
   writesBlocked = false,
   createClient = async () => null,
   updateClient = async () => null,
@@ -25,22 +26,22 @@ export function useCustomerEditor({
   }, [])
 
   const openNewClient = useCallback(() => {
-    if (!canManageClients || writesBlocked) return false
+    if (!canCreateClients || writesBlocked) return false
     setDuplicateDialog(null)
     setEditingClientId(null)
     setDraft(emptyDraft())
     setIsOpen(true)
     return true
-  }, [canManageClients, writesBlocked])
+  }, [canCreateClients, writesBlocked])
 
   const editClient = useCallback((client) => {
-    if (!canManageClients || writesBlocked || !client) return false
+    if (!canUpdateClients || writesBlocked || !client) return false
     setDuplicateDialog(null)
     setEditingClientId(client.id)
     setDraft({ name: client.name, phone: client.phone, address: client.address })
     setIsOpen(true)
     return true
-  }, [canManageClients, writesBlocked])
+  }, [canUpdateClients, writesBlocked])
 
   const updateDraft = useCallback((patch) => {
     setDraft((current) => ({ ...current, ...patch }))
@@ -53,7 +54,7 @@ export function useCustomerEditor({
   }), [draft])
 
   const persist = useCallback(async (action) => {
-    if (!canManageClients || writesBlocked || !draft.name.trim()) return false
+    if (!(action === 'update' ? canUpdateClients : canCreateClients) || writesBlocked || !draft.name.trim()) return false
     const nextPayload = payload()
     const client = action === 'update'
       ? await updateClient(editingClientId, nextPayload)
@@ -61,11 +62,11 @@ export function useCustomerEditor({
     if (!client) return false
     reset()
     return true
-  }, [canManageClients, createClient, draft.name, editingClientId, payload, reset, updateClient, writesBlocked])
+  }, [canCreateClients, canUpdateClients, createClient, draft.name, editingClientId, payload, reset, updateClient, writesBlocked])
 
   const submit = useCallback(async () => {
-    if (!canManageClients || writesBlocked || !draft.name.trim()) return false
     const action = editingClientId !== null ? 'update' : 'create'
+    if (!(action === 'update' ? canUpdateClients : canCreateClients) || writesBlocked || !draft.name.trim()) return false
     const duplicate = findClientDuplicates(clients, draft, editingClientId)
 
     if (duplicate.phone) {
@@ -77,7 +78,7 @@ export function useCustomerEditor({
       return false
     }
     return persist(action)
-  }, [canManageClients, clients, draft, editingClientId, onDuplicatePhone, persist, writesBlocked])
+  }, [canCreateClients, canUpdateClients, clients, draft, editingClientId, onDuplicatePhone, persist, writesBlocked])
 
   const dismissDuplicate = useCallback(() => {
     setDuplicateDialog(null)

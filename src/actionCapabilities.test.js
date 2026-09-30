@@ -98,6 +98,15 @@ const navigate = async (h, id) => act(async () => {
 })
 const mutations = (requests) => requests.filter(({ method }) => method !== 'GET')
 
+test('operator specific client grants expose new/edit actions and hide deletion in actual App', async t => {
+  const { h, renderer } = await appWorkspace(t, new Set(['orders.view', 'clients.view', 'clients.create', 'clients.update']))
+  await navigate(h, 'clients')
+  assert.ok(buttonNamed(renderer.root, 'Novo cliente'))
+  await act(async () => buttonNamed(renderer.root, 'Abrir ações de Ana Souza').props.onClick())
+  assert.ok(buttonNamed(renderer.root, 'Editar cliente'))
+  assert.equal(buttonNamed(renderer.root, 'Excluir cliente'), undefined)
+})
+
 describe('A8 action capabilities', { concurrency: false }, () => {
 
 test('1. orders.view consulta a Cozinha sem oferecer ou iniciar novo pedido', async (t) => {
@@ -214,7 +223,7 @@ test('9. montar pedido consulta produtos sem products.manage e nÃ£o injeta aju
   ])
   const renderer = await h.render(NewOrder, {
     clients: [client], products: [product], tables, initialTableId: 'occupied', currency, disabled: false,
-    canManageClients: false, canAdjustOrders: false, onCancel() {}, onCreateClient: async () => client, onSubmit: async () => true, onDraftDirtyChange() {},
+    canCreateClients: false, canAdjustOrders: false, onCancel() {}, onCreateClient: async () => client, onSubmit: async () => true, onDraftDirtyChange() {},
   })
   let productsStep = renderer.root.findByType(NewOrderProductsStep)
   assert.deepEqual(productsStep.props.products.map((item) => item.id), [product.id])

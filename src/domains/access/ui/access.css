@@ -1,0 +1,14 @@
+.access-page { display: grid; gap: 1rem; }
+.access-section { padding: 1.25rem; }
+.access-form { display: grid; gap: 1rem; max-width: 42rem; }
+.access-form label, .access-section > label { display: grid; gap: .4rem; }
+.access-form input, .access-form select, .access-section > label input, .access-section > label select { width: 100%; box-sizing: border-box; padding: .7rem; border: 1px solid var(--border); border-radius: .5rem; color: inherit; background: var(--surface); font: inherit; }
+.access-user { padding: 1rem 0; border-bottom: 1px solid var(--border); }
+.access-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .75rem; }
+.access-token { white-space: pre-wrap; overflow-wrap: anywhere; user-select: all; }
+.access-activity { padding-left: 1.25rem; }
+.access-activity li { padding: .75rem 0; }
+.access-activity small { display: block; }
+.access-activation { width: min(100%, 32rem); box-sizing: border-box; }
+.access-section :focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+@media (max-width: 600px) { .access-section { padding: 1rem; } .access-actions { display: grid; } }

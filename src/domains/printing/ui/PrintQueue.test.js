@@ -306,7 +306,7 @@ test('print job details include available timestamps, attention, error, reprint 
     processingStartedAt: '2026-09-08T10:02:00.000Z',
     processedAt: null,
     discardedAt: null,
-    actionActorLabel: 'Victor',
+    actionActorLabel: 'Untrusted old label', attribution: { requestedBy: { type: 'user', displayName: 'Victor' }, lastActionBy: { type: 'user', displayName: 'Victor' } },
     actionAt: '2026-09-08T10:03:00.000Z',
     document: { customer: { name: 'Ana' }, tableIdentifier: 'Mesa 3' },
   }, { order: { id: 'order-1', orderNumber: 42 }, stationReady: true })

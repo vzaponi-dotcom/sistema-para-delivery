@@ -1,0 +1,37 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { setup, manager, users, roles, response, fill, submit, act, nodeText, buttonNamed } from '../../../test-support/accessUi.js'
+test('activity sends exact filters and opaque pagination; changes reset pagination', async t => {
+  const requests = []
+  const { screen } = await setup(t, 'ActivityLog', { sessionContext: manager }, async url => {
+    requests.push(url)
+    return response(url === '/api/access/users' ? { users, roles } : { items: [{ id: 'e1', actor: { type: 'legacy', displayName: 'bogus' }, action: 'order.created', occurredAt: '2026-09-30T12:00:00Z', outcome: 'success' }], nextCursor: 'opaque+/=' })
+  })
+  await act(async () => screen.root.findAllByType('select').find(n => n.props.name === 'userId').props.onChange({ target: { value: 'o' } }))
+  await fill(screen, 'from', '2026-09-29'); await fill(screen, 'to', '2026-09-30')
+  await act(async () => screen.root.findAllByType('select').find(n => n.props.name === 'type').props.onChange({ target: { value: 'order.created' } }))
+  await submit(screen)
+  let query = new URL(requests.at(-1), 'http://localhost').searchParams
+  assert.equal(query.get('userId'), 'o'); assert.equal(query.get('type'), 'order.created'); assert.equal(query.get('from'), '2026-09-29T00:00:00-03:00'); assert.equal(query.get('to'), '2026-09-30T23:59:59.999-03:00'); assert.equal(query.has('cursor'), false)
+  await act(async () => buttonNamed(screen.root, 'Próxima página').props.onClick())
+  query = new URL(requests.at(-1), 'http://localhost').searchParams
+  assert.equal(query.get('cursor'), 'opaque+/=')
+  assert.match(nodeText(screen.root), /Acesso legado/)
+  await submit(screen)
+  assert.equal(new URL(requests.at(-1), 'http://localhost').searchParams.has('cursor'), false)
+})
+test('activity refuses operators without requests', async t => {
+  const { screen } = await setup(t, 'ActivityLog', { sessionContext: { user: { id: 'o' }, capabilities: [] } }, () => assert.fail('private request'))
+  assert.match(nodeText(screen.root), /Acesso negado/)
+})
+test('activity offers details only for a resolvable permitted resource', async t => {
+  const opened = []
+  const { screen } = await setup(t, 'ActivityLog', { sessionContext: manager, canOpenResource: item => item.resourceId === 'allowed', onOpenResource: item => opened.push(item.resourceId) }, async url => response(url === '/api/access/users' ? { users, roles } : { items: [
+    { id: 'one', actor: { type: 'system' }, action: 'order.created', resourceType: 'order', resourceId: 'allowed' },
+    { id: 'two', actor: { type: 'system' }, action: 'order.created', resourceType: 'order', resourceId: 'missing' },
+  ], nextCursor: null }))
+  const details = screen.root.findAllByType('button').filter(node => nodeText(node) === 'Abrir detalhe')
+  assert.equal(details.length, 1)
+  await act(async () => details[0].props.onClick())
+  assert.deepEqual(opened, ['allowed'])
+})

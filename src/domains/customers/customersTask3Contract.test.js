@@ -34,7 +34,6 @@ test('moved Clients UI preserves phonebook action-sheet and delete-confirmation 
   assert.match(source, /deleteConfirm/)
   assert.match(source, /Confirmar exclusão/)
   assert.match(source, /writeDisabled/)
-  assert.match(source, /canManageClients/)
   assert.doesNotMatch(source, /entity-avatar/)
   assert.doesNotMatch(source, /className="entity-actions"/)
 })

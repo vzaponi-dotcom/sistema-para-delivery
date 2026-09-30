@@ -5,7 +5,7 @@ export function useQuickCreateCustomerCommand({
   api,
   applyOfficialEffects = () => {},
   writesBlocked = false,
-  canManageClients = false,
+  canCreateClients = false,
   setRequestKey = () => {},
   onError = () => {},
 } = {}) {
@@ -13,17 +13,17 @@ export function useQuickCreateCustomerCommand({
     api,
     applyOfficialEffects,
     writesBlocked,
-    canManageClients,
+    canCreateClients,
     setRequestKey,
     onError,
   })
 
   return useCallback(async ({ name, phone } = {}) => {
-    if (!canManageClients || writesBlocked || typeof name !== 'string' || !name.trim()) return null
+    if (!canCreateClients || writesBlocked || typeof name !== 'string' || !name.trim()) return null
     return quickCreateClient({
       name: name.trim(),
       phone: phone || '',
       address: '',
     })
-  }, [canManageClients, quickCreateClient, writesBlocked])
+  }, [canCreateClients, quickCreateClient, writesBlocked])
 }

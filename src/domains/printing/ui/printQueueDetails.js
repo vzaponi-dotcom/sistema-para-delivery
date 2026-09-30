@@ -68,11 +68,13 @@ export const getPrintJobDetails = (job, { order, stations = [], stationReady = t
       at: formatDateTime(job.secondCopySkippedAt),
     } : null,
     reprintOf: presentText(job?.parentJobId) ? 'Reimpressão de trabalho anterior' : null,
-    audit: job?.actionAt || job?.actionActorLabel ? {
+    requestedBy: actorLabel(job?.attribution?.requestedBy),
+    audit: {
       action: 'Última ação registrada',
-      at: formatDateTime(job.actionAt),
-      actor: presentText(job.actionActorLabel),
-    } : null,
+      at: formatDateTime(job?.actionAt),
+      actor: actorLabel(job?.attribution?.lastActionBy),
+    },
     actions: getPrintJobActions(job, { order }),
   }
 }
+import { actorLabel } from '../../../shared/actorLabel.js'
