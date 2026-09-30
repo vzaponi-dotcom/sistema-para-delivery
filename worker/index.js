@@ -24,6 +24,7 @@ import { handleKitchenTvAdminApi, handleKitchenTvPublicApi } from './kitchenTvAp
 import { handleBusinessProfileApi } from './businessProfileApi.js'
 import { handleReportingApi } from './reporting/api.js'
 import { handleTableReservationApi } from './tableReservationApi.js'
+import { acceptAccessInvitation } from './access/invitations.js'
 
 const BUSINESS_ID = 'amor-e-sabor'
 const LOGIN_RATE_LIMIT_KEY = 'amor-e-sabor:auth-login'
@@ -310,6 +311,7 @@ const authenticatedApi = async (request, env) => {
 export const handleRequest = async (request, env) => {
   try {
     const url = new URL(request.url)
+    if (url.pathname === '/api/access/invitations/accept' && request.method === 'POST') return await acceptAccessInvitation(request, env, BUSINESS_ID)
     if (url.pathname === '/api/auth/login' && request.method === 'POST') return await login(request, env)
     if (url.pathname === '/api/auth/logout' && request.method === 'POST') return await logout(request, env)
     if (url.pathname === '/api/auth/session' && request.method === 'GET') return await sessionStatus(request, env)
