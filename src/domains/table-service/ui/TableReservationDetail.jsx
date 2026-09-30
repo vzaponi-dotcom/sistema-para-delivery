@@ -114,6 +114,7 @@ function ReservationClosureDialog({
 
 function TableReservationDetail({
   detail,
+  tableOccupied,
   currency,
   disabled = false,
   actionKey = null,
@@ -165,12 +166,14 @@ function TableReservationDetail({
             <span className="reservation-status-chip"><span aria-hidden="true" />Reservada</span>
             {reservation.clientName && <span className="reservation-client-chip"><Icon name="user" size={18} />{reservation.clientName}</span>}
           </div>
-          <time dateTime={reservation.scheduledFor}>
-            <Icon name="clock" size={18} />
-            {formatServiceDate(reservation.scheduledFor)} · {formatServiceTime(reservation.scheduledFor)}
-          </time>
         </div>
       </div>
+
+      <time className="reservation-schedule" dateTime={reservation.scheduledFor}>
+        <span><small>Data da reserva</small><strong>{formatServiceDate(reservation.scheduledFor)}</strong></span>
+        <span><small>Horário</small><strong>{formatServiceTime(reservation.scheduledFor)}</strong></span>
+      </time>
+      {typeof tableOccupied === 'boolean' && <p className="reservation-occupancy-note">{tableOccupied ? 'Esta mesa está ocupada. O consumo da comanda atual é separado desta reserva.' : 'Esta mesa está livre agora. A reserva só ocupa a mesa após a confirmação da chegada.'}</p>}
 
       <div className="reservation-detail-order-summary">
         <Icon name="meal" size={22} />

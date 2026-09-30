@@ -1,0 +1,124 @@
+/* Approved salon layout; keep these rules scoped away from dialogs and other pages. */
+.comandas-page { gap: 22px; }
+.comandas-overview { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.6fr); gap: 0; margin: 0; padding: 18px 0; border-block: 1px solid var(--border); }
+.comandas-overview > div { min-width: 0; padding: 0 22px; border-right: 1px solid var(--border); }
+.comandas-overview > div:first-child { padding-left: 0; }
+.comandas-overview > div:last-child { border: 0; }
+.comandas-overview dt { margin-bottom: 6px; color: var(--muted); font-size: .74rem; }
+.comandas-overview dd { margin: 0; color: var(--text); font-size: 1.65rem; font-weight: 650; letter-spacing: -.04em; overflow-wrap: anywhere; }
+.comandas-overview small { color: var(--muted); }
+.comandas-page .comandas-workspace { grid-template-columns: minmax(0, .85fr) minmax(0, 1.4fr); align-items: start; gap: 22px; }
+.comandas-list-card { min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+.comandas-list-toolbar { padding: 20px 18px 0; }
+.comandas-list-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 18px; }
+.comandas-list-heading h2 { margin: 0; font-size: .95rem; font-weight: 650; }
+.comandas-list-heading > span { color: var(--muted); font-size: .7rem; }
+.comandas-search { display: flex; align-items: center; gap: 9px; min-height: 42px; padding: 0 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-soft); color: var(--muted); }
+.comandas-search svg { flex-shrink: 0; }
+.comandas-search:focus-within { outline: 2px solid var(--focus-ring, var(--primary)); outline-offset: 2px; }
+.comandas-search input { min-width: 0; width: 100%; padding: 10px 0; border: 0; border-radius: 0; background: transparent; color: var(--text); font: inherit; font-size: .76rem; outline: none; box-shadow: none; }
+.comandas-search input::placeholder { color: var(--muted); opacity: 1; }
+.comandas-filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px; margin-top: 14px; padding: 3px; border-radius: 8px; background: var(--surface-soft); }
+.comandas-filters button { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 5px; min-width: 0; min-height: 38px; padding: 6px 3px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--muted); font: inherit; font-size: .7rem; cursor: pointer; }
+.comandas-filters button[aria-pressed='true'] { border-color: var(--border); background: var(--surface); color: var(--text); box-shadow: 0 1px 3px #00000008; font-weight: 650; }
+.comandas-filters button > span { font-size: .62rem; opacity: .8; }
+.comandas-filters button:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.comandas-results { min-height: 16px; margin: 10px 0; color: var(--muted); font-size: .68rem; line-height: 1.5; }
+.comandas-page .comandas-list-panel { display: grid; gap: 0; max-height: 560px; padding: 0; border: 0; border-radius: 0; background: transparent; scrollbar-gutter: auto; }
+.comandas-page .comanda-table-card { gap: 0; padding: 0 14px; border-top: 1px solid var(--border); }
+.comandas-page .comanda-table-card:has([aria-pressed='true']) { background: color-mix(in srgb, var(--text) 4%, var(--surface)); box-shadow: inset 3px 0 var(--text); }
+.comandas-page .comanda-table-button { grid-template-columns: 42px minmax(0, 1fr) auto; grid-template-areas: 'icon copy total'; gap: 12px; min-height: 96px; padding: 16px 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.comandas-page .comanda-table-button:hover:not(:disabled) { background: color-mix(in srgb, var(--text) 3%, transparent); box-shadow: none; transform: none; }
+.comandas-page .comanda-table-button:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; border-radius: 6px; }
+.comandas-page .comanda-table-icon { width: 42px; height: 42px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-soft); color: var(--text); font-size: 1.08rem; font-weight: 650; }
+.comandas-page .comanda-table-copy { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 0; }
+.comandas-page .comanda-table-name { font-size: .85rem; font-weight: 650; line-height: 1.4; }
+.comandas-page .comanda-table-copy > .comanda-status { position: static; justify-self: start; grid-row: 2; }
+.comandas-page .comanda-status { grid-area: auto; min-height: 0; padding: 3px 6px; border: 0; border-radius: 4px; font-size: .61rem; font-weight: 600; line-height: 1.4; white-space: normal; }
+.comandas-page .comanda-status.occupied, .comandas-page .comanda-detail-status-chip { background: var(--warning-soft); color: var(--warning); }
+.comandas-page .comanda-status.free { background: var(--success-soft); color: var(--success); }
+.comandas-page .comanda-table-tab, .comandas-page .comanda-table-items, .comandas-page .comanda-table-hint { color: var(--muted); font-size: .7rem; font-weight: 400; line-height: 1.4; }
+.comandas-page .comanda-table-total { align-self: center; padding: 0; margin: 0; font-size: .85rem; font-weight: 650; color: var(--text); }
+.comandas-page .comanda-reservation-button { grid-template-columns: auto minmax(0, 1fr); gap: 5px 8px; min-height: 44px; margin: 0 0 12px; padding: 9px 10px; border: 0; border-left: 3px solid var(--info); border-radius: 0 6px 6px 0; background: color-mix(in srgb, var(--info-soft) 65%, var(--surface)); font: inherit; font-size: .7rem; cursor: pointer; }
+.comandas-page .comanda-reservation-button .comanda-status { padding: 0; background: transparent; }
+.comandas-page .comanda-reservation-button time { grid-column: 2; font-size: .68rem; white-space: normal; }
+.comandas-page .comanda-reservation-button[aria-pressed='true'] { background: var(--info-soft); }
+.comandas-page .comandas-detail-panel { min-width: 0; padding: 26px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); box-shadow: 0 3px 14px #102f4d04; }
+.comandas-page .comanda-detail, .comandas-page .reservation-detail { gap: 20px; }
+.comandas-page .comanda-detail-hero, .comandas-page .reservation-detail-hero { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.comandas-page .comanda-detail-identity, .comandas-page .reservation-detail-identity { flex: 1 1 120px; justify-items: start; gap: 8px; padding: 0; border: 0; text-align: left; }
+.comandas-page .comanda-detail-eyebrow { color: var(--muted); font-size: .72rem; font-weight: 500; letter-spacing: .02em; }
+.comandas-page .comanda-detail-identity h2, .comandas-page .reservation-detail-identity h2 { margin: 0; font-size: 1.7rem; font-weight: 650; letter-spacing: -.035em; line-height: 1.2; overflow-wrap: anywhere; }
+.comandas-page .comanda-detail-hero-info, .comandas-page .reservation-detail-hero-info { gap: 10px; justify-items: end; text-align: right; }
+.comandas-page .comanda-detail-hero-chips, .comandas-page .reservation-detail-chips { justify-content: flex-end; }
+.comandas-page .comanda-detail-status-chip, .comandas-page .reservation-status-chip { min-height: 26px; padding: 5px 9px; border: 0; border-radius: 5px; font-size: .68rem; font-weight: 600; }
+.comandas-page .comanda-detail-status-chip.is-closed { background: var(--surface-soft); color: var(--muted); }
+.comandas-page .comanda-detail-hero time { justify-content: flex-end; font-size: .67rem; }
+.comandas-page .comanda-detail-order-summary, .comandas-page .reservation-detail-order-summary { gap: 8px; min-height: 0; padding: 0 0 18px; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; color: var(--muted); }
+.comandas-page .comanda-detail-order-summary strong, .comandas-page .reservation-detail-order-summary strong { font-size: .73rem; font-weight: 450; }
+.comandas-page .comanda-detail-order-summary svg, .comandas-page .reservation-detail-order-summary svg { width: 17px; color: var(--muted); }
+.comandas-page .comanda-detail-items-section, .comandas-page .reservation-detail-items-section { gap: 18px; min-width: 0; padding: 0; border: 0; background: transparent; box-shadow: none; }
+.comandas-page .comanda-detail-section-title, .comandas-page .reservation-detail-section-title { gap: 8px; }
+.comandas-page .comanda-detail-section-title strong, .comandas-page .reservation-detail-section-title strong { font-size: .8rem; font-weight: 650; }
+.comandas-page .comanda-detail-section-title svg, .comandas-page .reservation-detail-section-title svg { width: 17px; color: var(--muted); }
+.comandas-page .comanda-detail-section-heading > span:last-child, .comandas-page .reservation-detail-section-heading > span:last-child { font-size: .7rem; }
+.comandas-page .comanda-detail-items, .comandas-page .reservation-detail-items { gap: 0; }
+.comandas-page .comanda-detail-items li, .comandas-page .reservation-detail-items li { grid-template-columns: 34px minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 15px 0; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; }
+.comandas-page .comanda-detail-quantity, .comandas-page .reservation-detail-quantity { align-self: start; min-height: 32px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-soft); color: var(--text-soft); font-size: .76rem; font-weight: 600; }
+.comandas-page .comanda-detail-item-copy, .comandas-page .reservation-detail-item-copy { gap: 5px; }
+.comandas-page .comanda-detail-item-copy > strong, .comandas-page .reservation-detail-item-copy > strong { font-size: .84rem; font-weight: 600; }
+.comandas-page .comanda-detail-item-copy > span, .comandas-page .reservation-detail-item-copy > span { font-size: .72rem; line-height: 1.5; overflow-wrap: anywhere; }
+.comandas-page .comanda-detail-note, .comandas-page .reservation-detail-note { font-style: normal; }
+.comandas-page .comanda-detail-subtotal { grid-column: auto; display: grid; padding: 0; border: 0; text-align: right; }
+.comandas-page .comanda-detail-subtotal span { font-size: .62rem; }
+.comandas-page .comanda-detail-subtotal strong, .comandas-page .reservation-detail-items li > strong:last-child { grid-column: auto; color: var(--text); font-size: .82rem; font-weight: 600; }
+.comandas-page .comanda-detail-total, .comandas-page .reservation-detail-total { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 18px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-soft); }
+.comandas-page .comanda-detail-total-icon { display: none; }
+.comandas-page .comanda-detail-total-copy > strong, .comandas-page .reservation-detail-total > span > strong { font-size: .8rem; font-weight: 500; }
+.comandas-page .comanda-detail-total-copy small, .comandas-page .reservation-detail-total small { font-size: .66rem; }
+.comandas-page .comanda-detail-total-value, .comandas-page .reservation-detail-total > strong { margin-left: auto; padding: 0; border: 0; color: var(--text); font-size: 1.8rem; font-weight: 650; letter-spacing: -.04em; }
+.comandas-page .comanda-detail-actions, .comandas-page .reservation-detail-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.comandas-page .comanda-detail-actions .button, .comandas-page .reservation-detail-actions .button { min-height: 44px; padding: 10px; border-radius: 8px; font-size: .74rem; font-weight: 600; }
+.comandas-page .comanda-action-primary { border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); }
+.comandas-page .comanda-action-primary:hover:not(:disabled) { background: var(--surface-soft); border-color: var(--text-soft); }
+.comandas-page .comanda-action-payment { border: 1px solid var(--primary-fill); background: var(--primary-fill); color: var(--primary-contrast); }
+.comandas-page .comanda-action-payment svg { color: inherit; }
+.comandas-page .comanda-action-payment:hover:not(:disabled) { background: var(--primary-fill-hover); }
+.comandas-page .comanda-detail-secondary-actions, .comandas-page .reservation-detail-secondary-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; padding-top: 10px; border-top: 1px solid var(--border); }
+.comandas-page .comanda-detail-secondary-actions .button, .comandas-page .reservation-detail-secondary-actions .button { width: auto; min-height: 38px; padding: 6px 0; border: 0; background: transparent; color: var(--muted); font-size: .65rem; box-shadow: none; }
+.comandas-page .reservation-detail-secondary-actions .button-danger { color: var(--danger); }
+.comandas-page .comanda-detail-secondary-actions .button:hover:not(:disabled), .comandas-page .reservation-detail-secondary-actions .button:hover:not(:disabled) { color: var(--text); text-decoration: underline; }
+.comandas-page .reservation-detail-hero { padding-left: 16px; border-left: 3px solid var(--info); }
+.comandas-page .reservation-detail-eyebrow { font-size: .64rem; font-weight: 600; }
+.comandas-page .reservation-client-chip { min-height: 26px; padding: 0; border: 0; background: transparent; font-size: .8rem; overflow-wrap: anywhere; }
+.reservation-schedule { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.reservation-schedule > span { display: grid; gap: 7px; padding: 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-soft); }
+.reservation-schedule small { color: var(--muted); font-size: .7rem; }
+.reservation-schedule strong { font-size: 1rem; font-weight: 600; }
+.reservation-occupancy-note { margin: 0; padding: 12px 14px; border-left: 3px solid var(--info); background: var(--info-soft); color: var(--text-soft); font-size: .75rem; line-height: 1.65; }
+.comandas-page .reservation-detail-note-card { padding: 0; border: 0; background: transparent; font-size: .72rem; line-height: 1.6; }
+@media (min-width: 821px) and (max-width: 1100px) {
+  .comandas-page .comandas-workspace { grid-template-columns: minmax(0, 1fr); }
+  .comandas-page .comandas-list-panel { max-height: 380px; }
+}
+@container (max-width: 390px) {
+  .comandas-page .comanda-detail-hero-info { justify-items: start; text-align: left; }
+  .comandas-page .comanda-detail-items li, .comandas-page .reservation-detail-items li { gap: 8px; grid-template-columns: 30px minmax(0, 1fr) auto; }
+  .comandas-page .comanda-detail-actions, .comandas-page .reservation-detail-actions { grid-template-columns: minmax(0, 1fr); }
+  .comandas-page .comanda-detail-total-value { font-size: 1.6rem; }
+}
+@media (max-width: 820px) {
+  .comandas-page { gap: 18px; }
+  .comandas-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 0; padding: 16px 0; }
+  .comandas-overview > div { padding-inline: 14px; }
+  .comandas-overview > div:nth-child(odd) { padding-left: 0; }
+  .comandas-overview > div:nth-child(even) { border-right: 0; }
+  .comandas-overview dt { font-size: .67rem; }
+  .comandas-overview dd { font-size: 1.4rem; }
+  .comandas-page.has-mobile-detail .comandas-list-card, .comandas-page.has-mobile-detail .comandas-overview { display: none; }
+  .comandas-page .comandas-list-toolbar { padding: 16px 14px 0; }
+  .comandas-page .comandas-list-panel { max-height: 540px; }
+  .comandas-page .comandas-detail-panel { padding: 18px; }
+  .comandas-page .comandas-mobile-back { font-size: .76rem; }
+  .comandas-page .comanda-detail-identity h2, .comandas-page .reservation-detail-identity h2 { font-size: 1.6rem; }
+}

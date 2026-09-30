@@ -20,7 +20,8 @@ test('consolidated detail renders official payable total, quantities, unit price
   for (const row of itemRows) assert.match(nodeText(row), /X-Bacon/)
 
   const hero = r.root.findByProps({ className: 'comanda-detail-hero' })
-  assert.match(nodeText(hero), /COMANDA.*42.*Mesa 7.*Ocupada.*Abertura/)
+  assert.match(nodeText(hero), /Comanda 42.*Mesa 7.*Ocupada.*Abertura/)
+  assert.equal(nodeText(hero.findByType('h2')), 'Mesa 7')
   assert.ok(r.root.findByProps({ className: 'comanda-detail-order-summary' }))
   assert.ok(r.root.findByProps({ className: 'comanda-detail-items-section' }))
   assert.ok(r.root.findByProps({ className: 'comanda-detail-total' }))

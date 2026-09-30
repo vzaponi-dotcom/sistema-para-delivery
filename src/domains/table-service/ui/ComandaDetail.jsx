@@ -13,15 +13,13 @@ function ComandaDetail({ detail, currency, disabled = false, busyAction = false,
     <section className="comanda-detail" aria-labelledby={titleId}>
       <div className="comanda-detail-hero">
         <div className="comanda-detail-identity">
-          <span className="comanda-detail-eyebrow">COMANDA</span>
+          <span className="comanda-detail-eyebrow">Comanda {detail.number}</span>
           <h2 id={titleId} ref={headingRef} tabIndex={headingRef ? -1 : undefined}>
-            <span className="comanda-visually-hidden">Comanda </span>
-            <span className="comanda-detail-number">{detail.number}</span>
+            {detail.table.name}
           </h2>
         </div>
         <div className="comanda-detail-hero-info">
           <div className="comanda-detail-hero-chips">
-            <span className="comanda-detail-table-chip"><Icon name="table" size={20} /><strong>{detail.table.name}</strong></span>
             <span className={`comanda-detail-status-chip${closed ? ' is-closed' : ''}`}><span className="comanda-detail-status-dot" aria-hidden="true" />{closed ? 'Encerrada' : 'Ocupada'}</span>
           </div>
           <time dateTime={detail.openedAt}><Icon name="clock" size={18} />Abertura: {new Date(detail.openedAt).toLocaleString('pt-BR')}</time>
@@ -35,7 +33,7 @@ function ComandaDetail({ detail, currency, disabled = false, busyAction = false,
 
       <section className="comanda-detail-items-section" aria-labelledby="comanda-items-heading">
         <header className="comanda-detail-section-heading">
-          <span className="comanda-detail-section-title"><Icon name="receipt" size={22} /><strong id="comanda-items-heading">Resumo do pedido</strong></span>
+          <span className="comanda-detail-section-title"><Icon name="receipt" size={22} /><strong id="comanda-items-heading">Consumo da mesa</strong></span>
           <span>{itemLabel}</span>
         </header>
         <ul className="comanda-detail-items">
@@ -66,8 +64,8 @@ function ComandaDetail({ detail, currency, disabled = false, busyAction = false,
         {disabled && <p className="comanda-detail-readonly" role="status">Somente consulta. As alterações estão indisponíveis.</p>}
 
         <div className="comanda-detail-actions">
-          {canCreateOrders && <Button type="button" icon="plus" className="comanda-action-primary" disabled={blocked} onClick={() => { if (canCreateOrders && !blocked) onAddOrder?.() }}>Adicionar pedido</Button>}
-          <Button type="button" variant="secondary" icon="finance" className="comanda-action-payment" disabled={blocked || !payable} onClick={() => { if (!blocked && payable) onPay?.() }}>Registrar pagamento</Button>
+          {canCreateOrders && <Button type="button" variant="secondary" icon="plus" className="comanda-action-primary" disabled={blocked} onClick={() => { if (canCreateOrders && !blocked) onAddOrder?.() }}>Adicionar pedido</Button>}
+          <Button type="button" icon="finance" className="comanda-action-payment" disabled={blocked || !payable} onClick={() => { if (!blocked && payable) onPay?.() }}>Registrar pagamento</Button>
           <div className="comanda-detail-secondary-actions">
             {canTransfer && <Button type="button" variant="secondary" className="comanda-action-secondary comanda-action-transfer" disabled={blocked} onClick={() => { if (!blocked) onTransfer?.() }}>Transferir comanda</Button>}
             <Button type="button" variant="secondary" icon="ticket" className="comanda-action-secondary" disabled={blocked || printingDisabled} onClick={() => { if (!blocked && !printingDisabled) onViewTicket?.() }}>Ver ticket</Button>

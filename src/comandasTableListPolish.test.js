@@ -24,7 +24,7 @@ const tables = [
   },
 ]
 
-test('Comandas list uses one centered table icon without repeating the table number', async (t) => {
+test('Comandas list identifies numbered tables with a decorative number and an explicit table name', async (t) => {
   const h = await workspaceHarness(t, { mobile: true })
   const { default: Comandas } = await h.load('/src/domains/table-service/ui/Comandas.jsx')
   const r = await h.render(Comandas, { tables, currency: (value) => `R$ ${value.toFixed(2)}` })
@@ -34,8 +34,8 @@ test('Comandas list uses one centered table icon without repeating the table num
   assert.equal(buttons.length, 2)
   for (const button of buttons) {
     const iconCell = button.findByProps({ className: 'comanda-table-icon' })
-    assert.ok(iconCell.findByType('svg'), 'table icon must be rendered inside the visual slot')
-    assert.equal(nodeText(iconCell), '', 'the icon slot must not repeat the table number')
+    assert.equal(iconCell.props['aria-hidden'], 'true')
+    assert.match(nodeText(button), new RegExp(`Mesa ${nodeText(iconCell)}`))
   }
   assert.match(nodeText(buttons[0]), /Mesa 1.*Ocupada.*Comanda 30.*5 itens.*R\$ 93\.50/)
   assert.match(nodeText(buttons[1]), /Mesa 4.*Livre.*Toque para lançar pedido/)
