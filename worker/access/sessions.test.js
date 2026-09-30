@@ -190,3 +190,26 @@ test('password reset between verification and session insertion rejects the just
   assert.equal(sqlite.prepare('SELECT count(*) n FROM sessions').get().n,0)
   assert.equal(sqlite.prepare("SELECT count(*) n FROM audit_events WHERE action='login.failure'").get().n,1)
 })
+
+test('revocation after the final session read prevents a stale authenticated session response', async (t) => {
+  const { db, sqlite } = await setup(t)
+  const { token } = await createUserSession({ DB: db }, { businessId, userId: 'user' })
+  let sessionReads = 0
+  const intercept = { ...db, prepare(sql) {
+    const statement = db.prepare(sql)
+    if (!sql.includes('FROM sessions WHERE token_hash')) return statement
+    return { bind(...values) {
+      const bound = statement.bind(...values)
+      return { ...bound, async first() {
+        const row = await bound.first()
+        sessionReads += 1
+        if (sessionReads === 2) await revokeUserSessions(db, businessId, 'user')
+        return row
+      } }
+    } }
+  } }
+  const response = await handleRequest(req(token), { DB: intercept })
+  assert.equal(response.status, 401)
+  assert.equal((await response.json()).error.code, 'UNAUTHENTICATED')
+  assert.ok(sqlite.prepare('SELECT revoked_at FROM sessions').get().revoked_at)
+})

@@ -55,8 +55,9 @@ export async function authenticateHumanRequest(request, env, now = new Date()) {
       roleName: user.role_name, roleId: user.role_id, granted: authMode === 'enrollment' ? new Set([...granted].filter(c => c.startsWith('access.'))) : granted,
       deviceMode: row.device_mode, authMode, legacy: false }
   }
-  await env.DB.prepare('UPDATE sessions SET last_seen_at = ? WHERE id = ? AND business_id = ? AND revoked_at IS NULL')
+  const result = await env.DB.prepare('UPDATE sessions SET last_seen_at = ? WHERE id = ? AND business_id = ? AND revoked_at IS NULL')
     .bind(now.toISOString(), row.id, row.business_id).run()
+  if (result.meta?.changes !== 1) return null
   return context
 }
 export function prepareUserSessionRevocation(db, businessId, userId, now = new Date()) {
