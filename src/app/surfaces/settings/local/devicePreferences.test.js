@@ -95,8 +95,8 @@ test('keeps safe values and reports persistence failures without a policy engine
     })))
 
   const visualGroup = screen.root.findByProps({ 'aria-label': 'Estilo visual' })
-  await act(async () => buttonNamed(visualGroup, 'Mesiva').props.onClick())
-  assert.equal(buttonNamed(visualGroup, 'Clássico').props['aria-pressed'], true)
+  await act(async () => buttonNamed(visualGroup, 'Clássico').props.onClick())
+  assert.equal(buttonNamed(visualGroup, 'Mesiva').props['aria-pressed'], true)
 
   const group = screen.root.findByProps({ 'aria-label': 'Tema do sistema' })
   await act(async () => buttonNamed(group, 'Escuro').props.onClick())

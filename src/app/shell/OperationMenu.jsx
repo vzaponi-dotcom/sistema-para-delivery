@@ -58,6 +58,7 @@ export default function OperationMenu({ businessName, businessHasLogo = false, b
             fallback={<span className="operation-menu-initials" aria-hidden="true">{initials}</span>}
           />
         : <span className="operation-menu-initials" aria-hidden="true">{initials}</span>}
+      <span className="operation-menu-trigger-copy"><strong>{operationName}</strong><small>Operação atual</small></span>
       <Icon name="arrow-down" size={14} />
     </button>
     {open && <div className="operation-menu-popover" role="menu" aria-label="Operação atual">

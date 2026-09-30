@@ -48,7 +48,7 @@ test('orders page composes the approved kitchen heading, actions, counters, and 
 
 test('orders page wires ticket actions by phase and keeps global counts independent from search results', async () => {
   const source = await read('./Orders.jsx')
-  const preparingBlock = source.slice(source.indexOf('queueModel.preparing.map'), source.indexOf('kitchen-scheduled-heading'))
+  const preparingBlock = source.slice(source.indexOf('preparing.map'), source.indexOf('kitchen-scheduled-heading'))
   const scheduledBlock = source.slice(source.indexOf('queueModel.scheduled.map'), source.indexOf('!queueModel.scheduled.length'))
   assert.match(source, /onDetails=\{\(order\) => setDetailOrderId\(order\.id\)\}/)
   assert.match(preparingBlock, /disabled=\{actionsDisabled \|\| !canFinalizeOrders\}/)

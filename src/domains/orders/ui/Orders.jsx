@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import '../../../order-operations.css'
 import '../../../order-operations-compact.css'
+import '../../../kitchen-refined.css'
 import Button from '../../../shared/ui/Button'
 import CancelOrderDialog from './components/CancelOrderDialog'
 import ConfirmationDialog from '../../../shared/ui/ConfirmationDialog'
@@ -93,6 +94,7 @@ function FutureScheduledOrderCard({
 
 
 function Orders({ orders, officialOrders = orders, now, currentTiming, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onEditReservation, onRegisterPayment, paymentDisabled = false, paymentOptions, cancellationOptions = [], cancellationRevision = null, onNavigatePrintQueue, printQueueActiveCount = 0, granted, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange, printing, onToast, canCreateOrders = true, canFinalizeOrders = true, canCancelOrders = true, canRefundPayments = true, canUseLocalPreferences = true, canViewPrintQueue = true, canExecutePrinting = true }) {
+  const [queueFilter, setQueueFilter] = useState('all')
   const [pendingAction, setPendingAction] = useState(null)
   const [detailOrderId, setDetailOrderId] = useState(null)
   const [cancelOrder, setCancelOrder] = useState(null)
@@ -102,6 +104,7 @@ function Orders({ orders, officialOrders = orders, now, currentTiming, search, o
   const activePrintJobs = Math.max(0, Math.floor(Number(printQueueActiveCount) || 0))
   const queueModel = useMemo(() => buildKitchenQueueModel(orders, now, search, currentTiming), [currentTiming, orders, now, search])
   const futureScheduleModel = useMemo(() => buildFutureScheduledOrdersModel(orders, now, search, currentTiming), [currentTiming, orders, now, search])
+  const preparing = queueModel.preparing.filter((entry) => queueFilter === 'all' || entry.isLate)
   const detailOrder = detailOrderId ? officialOrders.find((order) => order.id === detailOrderId) ?? null : null
   const detailPrintJob = detailOrder ? printing?.latestJobByOrderId?.get?.(String(detailOrder.id)) || null : null
 
@@ -143,8 +146,6 @@ function Orders({ orders, officialOrders = orders, now, currentTiming, search, o
 
   return (
     <div className="kitchen-page">
-      <AreaNavigation area="orders" />
-
       <PageHeader
         eyebrow="Operação"
         title="Cozinha"
@@ -171,6 +172,8 @@ function Orders({ orders, officialOrders = orders, now, currentTiming, search, o
         )}
       />
 
+      <AreaNavigation area="orders" />
+
       <section className="stats-grid stats-grid-four order-ops-stats kitchen-stats" aria-label="Resumo dos pedidos">
         <StatCard className="kitchen-stat-card kitchen-stat-preparing" label="Em preparo" value={queueModel.counts.preparing} helper="Pedidos ativos agora" icon="preparation" />
         <StatCard className="kitchen-stat-card kitchen-stat-scheduled" label="Agendados" value={queueModel.counts.scheduled} helper="Próximos pedidos" icon="clock" />
@@ -179,18 +182,20 @@ function Orders({ orders, officialOrders = orders, now, currentTiming, search, o
       </section>
 
       <section className="kitchen-board" aria-label="Filas da cozinha">
-        <div className="kitchen-toolbar">
-          <label className="search-control kitchen-search"><Icon name="search" size={18} /><input type="search" placeholder="Buscar cliente, pedido, produto ou tipo" value={search} onChange={(event) => onSearchChange(event.target.value)} /></label>
-          <span className="toolbar-count">{queueModel.totalVisible} {queueModel.totalVisible === 1 ? 'pedido visível' : 'pedidos visíveis'}</span>
-        </div>
-
         <section className="kitchen-queue-section" aria-labelledby="kitchen-preparing-heading">
           <div className="kitchen-queue-heading">
             <div><Icon name="preparation" size={18} /><h2 id="kitchen-preparing-heading">Em preparo <span>({queueModel.preparing.length})</span></h2></div>
             <span className="kitchen-queue-help">Prioridade por prazo</span>
           </div>
+          <div className="kitchen-toolbar">
+            <label className="search-control kitchen-search"><Icon name="search" size={18} /><input type="search" aria-label="Buscar pedido" placeholder="Buscar cliente, pedido, produto ou tipo" value={search} onChange={(event) => onSearchChange(event.target.value)} /></label>
+            <div className="kitchen-queue-filters" role="group" aria-label="Filtrar pedidos em preparo">
+              <button type="button" aria-pressed={queueFilter === 'all'} onClick={() => setQueueFilter('all')}>Todos</button>
+              <button type="button" aria-label="Mostrar apenas pedidos em atraso" aria-pressed={queueFilter === 'late'} onClick={() => setQueueFilter('late')}>Atrasados <span>{queueModel.counts.late}</span></button>
+            </div>
+          </div>
           <div className="kitchen-ticket-list">
-            {queueModel.preparing.map((entry) => (
+            {preparing.map((entry) => (
               <div className={`kitchen-ticket-shell${entry.isLate ? ' kitchen-ticket-late' : ''}`} key={entry.order.id}>
                 <KitchenTicket
                   entry={entry}
@@ -203,61 +208,64 @@ function Orders({ orders, officialOrders = orders, now, currentTiming, search, o
                 />
               </div>
             ))}
-            {!queueModel.preparing.length && <div className="kitchen-queue-empty"><Icon name="preparation" size={24} /><strong>Nenhum pedido em preparo agora.</strong><span>{search ? 'Nenhum resultado nesta fila para a busca atual.' : 'Novos pedidos aparecem aqui automaticamente.'}</span></div>}
+            {!preparing.length && <div className="kitchen-queue-empty"><Icon name="preparation" size={24} /><strong>{queueFilter === 'late' ? 'Nenhum pedido em atraso nesta busca.' : 'Nenhum pedido em preparo agora.'}</strong><span>{search ? 'Nenhum resultado nesta fila para a busca atual.' : 'Novos pedidos aparecem aqui automaticamente.'}</span></div>}
           </div>
         </section>
 
-        <section className="kitchen-queue-section" aria-labelledby="kitchen-scheduled-heading">
-          <div className="kitchen-queue-heading">
-            <div><Icon name="clock" size={18} /><h2 id="kitchen-scheduled-heading">Agendados para preparo <span>({queueModel.scheduled.length})</span></h2></div>
-            <span className="kitchen-queue-help">Mais próximos primeiro</span>
-          </div>
-          <div className="kitchen-ticket-list">
-            {queueModel.scheduled.map((entry) => (
-              <div className={`kitchen-ticket-shell${entry.isLate ? ' kitchen-ticket-late' : ''}`} key={entry.order.id}>
-                <KitchenTicket
+        <aside className="kitchen-schedule-rail" aria-label="Agendamentos">
+          <section className="kitchen-queue-section" aria-labelledby="kitchen-scheduled-heading">
+            <div className="kitchen-queue-heading">
+              <div><Icon name="clock" size={18} /><h2 id="kitchen-scheduled-heading">Agendados para preparo <span>({queueModel.scheduled.length})</span></h2></div>
+              <span className="kitchen-queue-help">Mais próximos primeiro</span>
+            </div>
+            <div className="kitchen-ticket-list">
+              {queueModel.scheduled.map((entry) => (
+                <div className={`kitchen-ticket-shell${entry.isLate ? ' kitchen-ticket-late' : ''}`} key={entry.order.id}>
+                  <KitchenTicket
+                    entry={entry}
+                    now={now}
+                    currentTiming={currentTiming}
+                    disabled={actionsDisabled || !canCancelOrders}
+                    highlighted={newOrderIds.has(String(entry.order.id))}
+                    onDetails={(order) => setDetailOrderId(order.id)}
+                    onCancel={(order) => { if (!canCancelOrders) return false; setCancelOrder(order); return true }}
+                  />
+                </div>
+              ))}
+              {!queueModel.scheduled.length && <div className="kitchen-queue-empty"><Icon name="clock" size={24} /><strong>Nenhum pedido agendado aguardando preparo.</strong><span>{search ? 'Nenhum resultado nesta fila para a busca atual.' : 'Os próximos pedidos agendados aparecem aqui.'}</span></div>}
+            </div>
+          </section>
+
+          <section className="future-scheduled-orders" aria-labelledby="future-scheduled-heading">
+            <div className="kitchen-queue-heading">
+              <div><Icon name="clock" size={18} /><h2 id="future-scheduled-heading">Próximos dias <span>({futureScheduleModel.visible.length})</span></h2></div>
+              <span className="kitchen-queue-help">Fora dos contadores de hoje</span>
+            </div>
+            <div className="kitchen-ticket-list">
+              {futureScheduleModel.visible.map((entry) => (
+                <FutureScheduledOrderCard
+                  key={entry.order.id}
                   entry={entry}
                   now={now}
-                  currentTiming={currentTiming}
-                  disabled={actionsDisabled || !canCancelOrders}
-                  highlighted={newOrderIds.has(String(entry.order.id))}
+                  disabled={actionsDisabled}
+                  canCreateOrders={canCreateOrders}
+                  canCancelOrders={canCancelOrders}
                   onDetails={(order) => setDetailOrderId(order.id)}
+                  onEditReservation={(order) => runAction(`edit-reservation:${order.id}`, () => onEditReservation?.(order))}
                   onCancel={(order) => { if (!canCancelOrders) return false; setCancelOrder(order); return true }}
                 />
-              </div>
-            ))}
-            {!queueModel.scheduled.length && <div className="kitchen-queue-empty"><Icon name="clock" size={24} /><strong>Nenhum pedido agendado aguardando preparo.</strong><span>{search ? 'Nenhum resultado nesta fila para a busca atual.' : 'Os próximos pedidos agendados aparecem aqui.'}</span></div>}
-          </div>
-        </section>
-      </section>
-
-      <section className="future-scheduled-orders" aria-labelledby="future-scheduled-heading">
-        <div className="kitchen-queue-heading">
-          <div><Icon name="clock" size={18} /><h2 id="future-scheduled-heading">Próximos dias <span>({futureScheduleModel.visible.length})</span></h2></div>
-          <span className="kitchen-queue-help">Fora dos contadores de hoje</span>
-        </div>
-        <div className="kitchen-ticket-list">
-          {futureScheduleModel.visible.map((entry) => (
-            <FutureScheduledOrderCard
-              key={entry.order.id}
-              entry={entry}
-              now={now}
-              disabled={actionsDisabled}
-              canCreateOrders={canCreateOrders}
-              canCancelOrders={canCancelOrders}
-              onDetails={(order) => setDetailOrderId(order.id)}
-              onEditReservation={(order) => runAction(`edit-reservation:${order.id}`, () => onEditReservation?.(order))}
-              onCancel={(order) => { if (!canCancelOrders) return false; setCancelOrder(order); return true }}
-            />
-          ))}
-          {!futureScheduleModel.visible.length && (
-            <div className="kitchen-queue-empty">
-              <Icon name="clock" size={24} />
-              <strong>{futureScheduleModel.totalCount && search ? 'Nenhum próximo pedido corresponde à busca atual.' : 'Nenhum pedido agendado para os próximos dias.'}</strong>
-              <span>{futureScheduleModel.totalCount ? 'Limpe ou altere a busca para ver os próximos agendamentos.' : 'Agendamentos de outras datas aparecem aqui sem afetar a operação de hoje.'}</span>
+              ))}
+              {!futureScheduleModel.visible.length && (
+                <div className="kitchen-queue-empty">
+                  <Icon name="clock" size={24} />
+                  <strong>{futureScheduleModel.totalCount && search ? 'Nenhum próximo pedido corresponde à busca atual.' : 'Nenhum pedido agendado para os próximos dias.'}</strong>
+                  <span>{futureScheduleModel.totalCount ? 'Limpe ou altere a busca para ver os próximos agendamentos.' : 'Agendamentos de outras datas aparecem aqui sem afetar a operação de hoje.'}</span>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </section>
+
+        </aside>
       </section>
 
       {detailOrder && <OrderDetail order={detailOrder} currency={currency} printing={printing} printJob={detailPrintJob} onClose={() => setDetailOrderId(null)} onRequestCancel={canCancelOrders ? () => { if (!canCancelOrders) return; setDetailOrderId(null); setCancelOrder(detailOrder) } : undefined} canCancelOrders={canCancelOrders} canExecutePrinting={canExecutePrinting} canRegisterPayment={canReceiveStandaloneOrder(detailOrder, granted, 'orders')} registerPaymentDisabled={paymentDisabled || actionsDisabled} onRegisterPayment={registerPaymentFromDetail} onToast={onToast} />}

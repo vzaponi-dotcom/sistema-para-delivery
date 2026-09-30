@@ -12,18 +12,9 @@ test('operation brand lives in the global top bar instead of the sidebar', () =>
   assert.doesNotMatch(sidebar, /BrandLogo/)
   assert.doesNotMatch(sidebar, /className="sidebar-(?:logo|brand)"/)
   assert.doesNotMatch(sidebar, /Amor &amp; Sabor|Gestão do delivery/)
-  assert.match(topbar, /<Icon name="meal" size=\{23\}/)
+  assert.match(topbar, /alt="Mesiva"/)
+  assert.match(sidebar, /alt="Mesiva"/)
   assert.match(topbar, /businessName/)
   assert.match(topbar, /operationName/)
   assert.doesNotMatch(topbar, /'Amor & Sabor'/)
-  assert.match(topbar, /'Gestão do delivery'/)
-})
-
-test('global top bar meal mark has the compact premium treatment', () => {
-  const css = read('src/app-top-bar.css')
-
-  assert.match(css, /\.app-topbar-brand-icon\s*\{[^}]*width:\s*36px[^}]*height:\s*36px/s)
-  assert.match(css, /\.app-topbar-brand-icon\s*\{[^}]*border-radius:\s*12px/s)
-  assert.match(css, /\.app-topbar-brand-icon\s*\{[^}]*background:\s*var\(--primary-soft\)/s)
-  assert.match(css, /\.app-topbar-brand-icon\s*\{[^}]*color:\s*var\(--primary\)/s)
 })

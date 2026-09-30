@@ -4,7 +4,7 @@ export const VISUAL_THEME_STORAGE_KEY = 'delivery-visual-theme'
 export const VISUAL_THEMES = ['classic', 'mesiva']
 
 export const normalizeThemePreference = (value) => THEME_PREFERENCES.includes(value) ? value : 'system'
-export const normalizeVisualTheme = (value) => VISUAL_THEMES.includes(value) ? value : 'classic'
+export const normalizeVisualTheme = (value) => VISUAL_THEMES.includes(value) ? value : 'mesiva'
 
 export const resolveTheme = (preference, prefersDark = false) => {
   const normalized = normalizeThemePreference(preference)
@@ -39,7 +39,7 @@ export const readVisualTheme = (storage = browserStorage()) => {
   try {
     return normalizeVisualTheme(storage?.getItem(VISUAL_THEME_STORAGE_KEY))
   } catch {
-    return 'classic'
+    return 'mesiva'
   }
 }
 
