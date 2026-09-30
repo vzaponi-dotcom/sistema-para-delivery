@@ -6,6 +6,10 @@ Proposta visual aprovada em 29/09/2026. Implementação sobre a versão de stagi
 ## Identidade
 
 - Logo horizontal oficial em `public/brand/mesiva-logo.svg`, sem redesenho ou alteração de cores.
+- Variante transparente para fundo escuro em `public/brand/mesiva-logo-dark.svg`:
+  lettering `#F1F5F9` e slogan `#A8BBD2`, com geometria e cores do símbolo preservadas.
+  O tema resolvido controla a troca via CSS na lateral e no topo mobile,
+  incluindo a preferência Automático; o nome acessível da imagem permanece Mesiva.
 - Referência: guia Mesiva v1.0 no Drive, arquivo `1YHj8qfsBMhGz7BQCCyTn69iQ8qtMOjKc`;
   SVG oficial `1trjYpwVraEeLslSTsLQ1h8QV6icCCP4T`.
 - Ação principal: azul-marinho `#0F2747` com texto branco no tema claro.
