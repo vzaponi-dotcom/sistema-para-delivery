@@ -4,6 +4,15 @@ const terminalStatuses = new Set(['Finalizado', 'Cancelado'])
 const activeStatuses = new Set(['Em preparo', 'Agendado'])
 const canReadMovements = (granted) => hasAny(granted, ['finance.movements', 'finance.movements.manage'])
 const canReadReservations = (granted) => hasAny(granted, ['orders.view', 'orders.history', 'comandas.view'])
+const PRINT_JOB_METADATA_KEYS = Object.freeze([
+  'id', 'orderId', 'tableTabId', 'type', 'trigger', 'status', 'priority', 'parentJobId',
+  'copiesRequested', 'copiesPrinted', 'stationId', 'createdAt', 'availableAt',
+  'processingStartedAt', 'processedAt', 'discardedAt', 'attentionReason',
+  'actionActorLabel', 'actionAt', 'secondCopyPromptedAt', 'secondCopyRequestedAt', 'secondCopySkippedAt',
+])
+const projectPrintJobMetadata = (job) => job == null ? job : Object.fromEntries(
+  PRINT_JOB_METADATA_KEYS.filter((key) => Object.hasOwn(job, key)).map((key) => [key, job[key]]),
+)
 
 // Shared by operational lists, mutation effects and print-document authorization.
 export function canReadOrder(order, granted) {
@@ -60,8 +69,12 @@ export function projectMutationEffects(payload, granted) {
   }
   if (canReadReservation(payload.reservation, granted)) projected.reservation = payload.reservation
   if (canReadReservations(granted) && Array.isArray(payload.reservations)) projected.reservations = payload.reservations.filter((reservation) => canReadReservation(reservation, granted))
-  if (hasAny(granted, ['printing.queue', 'printing.execute'])) {
-    for (const key of ['printJob', 'hasManualPrintHistory']) if (Object.hasOwn(payload, key)) projected[key] = payload[key]
+  const canReadPrintDocument = has(granted, 'printing.execute') && canReadOrder(payload.order, granted)
+    && (!payload.printJob || payload.printJob.orderId === payload.order.id)
+  if (has(granted, 'printing.queue') || canReadPrintDocument) {
+    if (Object.hasOwn(payload, 'printJob')) projected.printJob = canReadPrintDocument
+      ? payload.printJob : projectPrintJobMetadata(payload.printJob)
+    if (Object.hasOwn(payload, 'hasManualPrintHistory')) projected.hasManualPrintHistory = payload.hasManualPrintHistory
   }
   // These are confirmation of this operation, never the administrative receipt collection.
   if (has(granted, 'payments.receive') && (payload.payment || Array.isArray(payload.payments))) {

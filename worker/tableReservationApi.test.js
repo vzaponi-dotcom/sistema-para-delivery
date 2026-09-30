@@ -3,6 +3,7 @@ import test from 'node:test'
 import { OperationalDb } from './test-support/operationalDb.js'
 import { handleTableReservationApi } from './tableReservationApi.js'
 import { loadBootstrap } from './repositories.js'
+import { createOrderPrintDocument } from '../shared/orderPrintDocument.js'
 
 const BUSINESS = 'amor-e-sabor'
 const OTHER = 'other-business'
@@ -155,6 +156,44 @@ test('reservation reads project nested orders printing metadata and history by t
   assert.deepEqual(history.reservations.map(({ id }) => id), ['reservation-2'])
   const active = await (await call(db, '/api/table-reservations', ['orders.view'])).json()
   assert.deepEqual(active.reservations.map(({ id }) => id), ['reservation-1'])
+})
+
+test('raw reservation detail requires matching order read and execute for an embedded print snapshot', async () => {
+  const db = seed()
+  const marker = 'Private snapshot customer address'
+  const document = createOrderPrintDocument({
+    businessName: 'Amor & Sabor', orderId: 'order-1', orderNumber: 1001,
+    orderDate: '2026-10-10', createdAt: CREATED, type: 'Local', scheduledFor: '2026-10-10T23:00:00.000Z',
+    customer: { name: 'João', phone: '11999990001', address: marker },
+    items: [{ name: 'Prato', presentation: 'Un', quantity: 2, unitPriceCents: 1650, note: marker }],
+    subtotalCents: 3300, totalCents: 3300,
+  })
+  db.sqlite.prepare("UPDATE print_jobs SET snapshot_json=?, last_error_code='PRINT_TEST', last_error_message=? WHERE id='print-reservation-1'").run(JSON.stringify(document), marker)
+  for (const [status, grants, allowDocument, allowMetadata] of [
+    ['Em preparo', ['orders.history', 'printing.execute'], false, false],
+    ['Finalizado', ['orders.view', 'printing.execute'], false, false],
+    ['Cancelado', ['orders.view', 'printing.execute'], false, false],
+    ['Em preparo', ['orders.view', 'printing.execute'], true, true],
+    ['Finalizado', ['orders.history', 'printing.execute'], true, true],
+    ['Cancelado', ['orders.history', 'printing.execute'], true, true],
+    ['Em preparo', ['orders.view', 'printing.queue'], false, true],
+    ['Em preparo', ['orders.history', 'printing.queue', 'printing.execute'], false, true],
+    ['Finalizado', ['orders.view', 'printing.queue', 'printing.execute'], false, true],
+  ]) {
+    db.sqlite.prepare("UPDATE orders SET status=? WHERE id='order-1'").run(status)
+    const response = await call(db, '/api/table-reservations/reservation-1', grants)
+    assert.equal(response.status, 200)
+    const raw = await response.text(), body = JSON.parse(raw), label = `${status}: ${grants.join(',')}`
+    assert.equal(raw.includes(marker), allowDocument, label)
+    assert.equal(Object.hasOwn(body, 'printJob'), allowMetadata, label)
+    assert.equal(Object.hasOwn(body.printJob || {}, 'document'), allowDocument, label)
+    if (allowDocument) assert.deepEqual(body.printJob.document, document)
+    if (allowMetadata) {
+      assert.equal(body.printJob.id, 'print-reservation-1')
+      assert.equal(body.printJob.status, 'pending')
+      assert.equal(body.printJob.availableAt, '2026-10-10T22:10:00.000Z')
+    }
+  }
 })
 
 test('bootstrap exposes only nextReservation on tables and never a 90-day reservation collection', async () => {

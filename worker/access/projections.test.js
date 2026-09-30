@@ -139,6 +139,18 @@ test('mutation projection cannot expose unknown administrative collections or un
   assert.deepEqual(projectMutationEffects(payload, new Set(['orders.history'])), { orders: [{ id: 'closed', status: 'Cancelado' }], deletedOrderIds: ['active'] })
 })
 
+test('queue metadata allowlist excludes snapshots alternate copies and freeform error data', () => {
+  const payload = { order: { id: 'active', status: 'Em preparo' }, printJob: {
+    id: 'job', orderId: 'active', status: 'pending', availableAt: '2026-10-10T22:10:00.000Z',
+    document: { customer: 'private snapshot' }, snapshotJson: 'private snapshot',
+    nested: { document: 'private snapshot' }, lastError: { code: 'ERROR', message: 'private snapshot' },
+  } }
+  const result = projectMutationEffects(payload, new Set(['orders.history', 'printing.queue', 'printing.execute']))
+  assert.deepEqual(result, { deletedOrderIds: ['active'], printJob: { id: 'job', orderId: 'active', status: 'pending', availableAt: '2026-10-10T22:10:00.000Z' } })
+  const mismatched = { ...payload, order: { id: 'another', status: 'Em preparo' } }
+  assert.equal(Object.hasOwn(projectMutationEffects(mismatched, new Set(['orders.view', 'printing.execute'])), 'printJob'), false)
+})
+
 test('finalizing without history read returns an eviction effect rather than a terminal order', async (t) => {
   const { env, tokens, sqlite, active } = await setup(t)
   sqlite.prepare('INSERT INTO role_capabilities(business_id,role_id,capability) VALUES(?,?,?)').run(BUSINESS, 'active', 'orders.finalize')
