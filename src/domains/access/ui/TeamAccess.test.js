@@ -66,3 +66,9 @@ test('view-only grant exposes immutable summaries but no manager controls', asyn
   assert.equal(screen.root.findAllByType('form').length, 0)
   assert.equal(buttonNamed(screen.root, 'Desativar Maria'), undefined)
 })
+test('callback-only parent render does not repeat the team read', async t => {
+  let reads = 0
+  const { screen, Component } = await setup(t, 'TeamAccess', { sessionContext: manager, onApiError() {} }, async () => { reads++; return response({ users, roles }) })
+  await act(async () => screen.update(React.createElement(Component, { sessionContext: manager, onApiError() {} })))
+  assert.equal(reads, 1); assert.match(nodeText(screen.root), /Otávio/)
+})

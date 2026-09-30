@@ -5,6 +5,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 export function useAccessRequest(owner, onApiError) {
   const current = useRef(owner)
   current.current = owner
+  const errorCallback = useRef(onApiError)
+  errorCallback.current = onApiError
   const mounted = useRef(true)
   const lock = useRef(null)
   const [state, setState] = useState({ owner })
@@ -28,12 +30,12 @@ export function useAccessRequest(owner, onApiError) {
     } catch (error) {
       if (!owns()) return false
       patch({ error: error?.message || 'Não foi possível concluir. Tente novamente.' })
-      onApiError?.(error)
+      errorCallback.current?.(error)
       return false
     } finally {
       if (lock.current === operationLock) lock.current = null
       patch({ pending: false })
     }
-  }, [owner, owns, patch, onApiError])
+  }, [owner, owns, patch])
   return { state: state.owner === owner ? state : {}, patch, run, owns }
 }

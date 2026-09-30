@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import React from 'react'
 import { setup, manager, users, roles, response, fill, submit, act, nodeText, buttonNamed } from '../../../test-support/accessUi.js'
 test('activity sends exact filters and opaque pagination; changes reset pagination', async t => {
   const requests = []
@@ -23,6 +24,20 @@ test('activity sends exact filters and opaque pagination; changes reset paginati
 test('activity refuses operators without requests', async t => {
   const { screen } = await setup(t, 'ActivityLog', { sessionContext: { user: { id: 'o' }, capabilities: [] } }, () => assert.fail('private request'))
   assert.match(nodeText(screen.root), /Acesso negado/)
+})
+test('callback-only parent render preserves filtered cursor items without another read', async t => {
+  const requests = []
+  const { screen, Component } = await setup(t, 'ActivityLog', { sessionContext: manager, onApiError() {} }, async url => {
+    requests.push(url)
+    return response(url === '/api/access/users' ? { users, roles } : { items: [{ id: url, actor: { type: 'user', displayName: url.includes('cursor=') ? 'Página filtrada' : 'Primeira página' }, occurredAt: '2026-09-30', action: 'order.created' }], nextCursor: 'page-two' })
+  })
+  await fill(screen, 'from', '2026-09-29'); await submit(screen)
+  await act(async () => buttonNamed(screen.root, 'Próxima página').props.onClick())
+  const before = requests.length
+  await act(async () => screen.update(React.createElement(Component, { sessionContext: manager, onApiError() {} })))
+  assert.equal(requests.length, before)
+  assert.match(nodeText(screen.root), /Página filtrada/)
+  assert.equal(screen.root.findAllByType('input').find(n => n.props.name === 'from').props.value, '2026-09-29')
 })
 test('activity offers details only for a resolvable permitted resource', async t => {
   const opened = []

@@ -3,6 +3,45 @@ import assert from 'node:assert/strict'
 import { act } from 'react-test-renderer'
 import { workspaceHarness, buttonNamed, nodeText } from './test-support/renderWorkspace.js'
 import { comandaDetail } from './test-support/comandaFixtures.js'
+import { fill } from './test-support/accessUi.js'
+
+test('actual App blocks switch after account unmount until password response and trusted verification settle', async t => {
+  const h = await workspaceHarness(t)
+  let finishPassword, finishVerification, writes = 0, logouts = 0, reads = 0
+  const session = { authenticated: true, user: { id: 'u', displayName: 'Ana' }, capabilities: ['orders.view', 'preferences.local'], businessId: 'b', settingsContextId: 's', authMode: 'user_only' }
+  globalThis.fetch = async path => {
+    if (path === '/api/auth/session') {
+      reads++
+      if (reads === 2) return new Promise(resolve => { finishVerification = () => resolve({ ok: true, json: async () => session }) })
+      return { ok: true, json: async () => session }
+    }
+    if (path === '/api/access/me/password') { writes++; return new Promise(resolve => { finishPassword = () => resolve({ ok: true, json: async () => ({ changed: true }) }) }) }
+    if (path === '/api/auth/logout') { logouts++; return { ok: true, json: async () => ({}) } }
+    const data = path === '/api/bootstrap' ? bootstrap : path === '/api/orders' ? { orders: [] } : path === '/api/printing/stations' ? { stations: [] } : String(path).startsWith('/api/printing/jobs?') ? { jobs: [] } : path === '/api/printing/jobs/summary' ? { summary: {} } : null
+    assert.ok(data, `Unexpected ${path}`)
+    return { ok: true, json: async () => data }
+  }
+  const { default: App } = await h.load('/src/App.jsx')
+  const { renderer, router } = await h.renderAdminApp(App, {}, { initialEntries: ['/minha-conta'] })
+  await fill(renderer, 'currentPassword', 'current-password-long'); await fill(renderer, 'password', 'new-password-long-enough')
+  await act(async () => { renderer.root.findByType('form').props.onSubmit({ preventDefault() {} }) })
+  await act(async () => router.navigate('/pedidos'))
+  assert.equal(renderer.root.findAllByProps({ name: 'currentPassword' }).length, 0)
+  await act(async () => buttonNamed(renderer.root, 'Loja, operação atual').props.onClick())
+  const exit = buttonNamed(renderer.root, 'Trocar usuário').props.onClick
+  await act(async () => exit())
+  assert.equal(logouts, 0); assert.match(nodeText(renderer.root), /alteração da senha/)
+  await act(async () => finishPassword())
+  assert.equal(reads, 2)
+  await act(async () => exit())
+  assert.equal(logouts, 0)
+  await act(async () => finishVerification())
+  assert.equal(writes, 1)
+  await act(async () => buttonNamed(renderer.root, 'Loja, operação atual').props.onClick())
+  assert.match(nodeText(renderer.root), /Ana/)
+  await act(async () => buttonNamed(renderer.root, 'Trocar usuário').props.onClick())
+  assert.equal(logouts, 1); assert.equal(writes, 1)
+})
 
 test('human enrollment lands on an allowed account context without requesting operational data', async (t) => {
   const h = await workspaceHarness(t)

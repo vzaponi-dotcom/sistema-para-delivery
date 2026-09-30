@@ -63,6 +63,78 @@ const authenticatedSession = {
   capabilities: ['orders.view'],
 }
 
+test('runtime holds credential transition through response and trusted verification and blocks local auth actions', async t => {
+  let settlePost, settleVerification, sessionReads = 0, logins = 0, logouts = 0, broadcasts = 0
+  const userSession = { ...authenticatedSession, user: { id: 'u' }, authMode: 'user_only' }
+  const h = await mountHarness(t, { api: anonymousApi({ getSession: async () => ++sessionReads === 1 ? userSession : new Promise(resolve => { settleVerification = resolve }), login: async () => { logins++; return userSession }, logout: async () => { logouts++ } }), coordinatorFactory: () => ({ publish() { broadcasts++ }, close() {} }) })
+  assert.equal(typeof h.getCurrent().runCredentialChange, 'function')
+  let operation
+  await act(async () => { operation = h.getCurrent().runCredentialChange(() => { assert.equal(h.getCurrent().isCredentialChangePending(), true); return new Promise(resolve => { settlePost = resolve }) }) })
+  await act(async () => { assert.equal(await h.getCurrent().handleLogout(), false); assert.equal(await h.getCurrent().handleLogin({}), false) })
+  assert.equal(logins, 0); assert.equal(logouts, 0)
+  await act(async () => settlePost({ changed: true }))
+  assert.equal(h.getCurrent().isCredentialChangePending(), true); assert.equal(broadcasts, 1)
+  await act(async () => { settleVerification(userSession); await operation })
+  assert.equal(h.getCurrent().isCredentialChangePending(), false)
+})
+
+test('late confirmed cookie change after other-tab invalidation broadcasts and verifies the currently installed cookie', async t => {
+  let invalidate, settlePost, sessionReads = 0, broadcasts = 0
+  const first = { ...authenticatedSession, user: { id: 'first' }, authMode: 'user_only' }
+  const second = { ...first, user: { id: 'other-tab' } }
+  let cookieSession = first
+  const h = await mountHarness(t, { api: anonymousApi({ getSession: async () => { sessionReads++; return cookieSession } }), coordinatorFactory: ({ onInvalidate }) => { invalidate = onInvalidate; return { publish() { broadcasts++ }, close() {} } } })
+  assert.equal(typeof h.getCurrent().runCredentialChange, 'function')
+  let operation
+  await act(async () => { operation = h.getCurrent().runCredentialChange(() => new Promise(resolve => { settlePost = resolve })) })
+  cookieSession = second
+  await act(async () => { invalidate(); await flush() })
+  assert.equal(h.getCurrent().sessionContext.user.id, 'other-tab')
+  cookieSession = first
+  await act(async () => { settlePost({ changed: true }); await operation })
+  assert.equal(h.getCurrent().sessionContext.user.id, 'first'); assert.equal(broadcasts, 1); assert.equal(sessionReads, 3)
+  assert.equal(h.getCurrent().isCredentialChangePending(), false)
+})
+test('uncertain password response masks identity and holds exit guard until trusted cookie rediscovery', async t => {
+  let rejectPost, verify, reads = 0, broadcasts = 0
+  const session = { ...authenticatedSession, user: { id: 'u' }, authMode: 'user_only' }
+  const h = await mountHarness(t, { api: anonymousApi({ getSession: async () => ++reads === 1 ? session : new Promise(resolve => { verify = resolve }) }), coordinatorFactory: () => ({ publish() { broadcasts++ }, close() {} }) })
+  let operation
+  await act(async () => { operation = h.getCurrent().runCredentialChange(() => new Promise((_resolve, reject) => { rejectPost = reject })).catch(error => error) })
+  await act(async () => rejectPost(new Error('body stream interrupted after headers')))
+  assert.equal(h.getCurrent().authState, 'checking')
+  assert.equal(h.getCurrent().sessionContext, null)
+  assert.equal(h.getCurrent().isCredentialChangePending(), true)
+  assert.equal(broadcasts, 1)
+  await act(async () => { verify(session); await operation })
+  assert.equal(h.getCurrent().isCredentialChangePending(), false)
+  assert.equal(reads, 2)
+})
+test('malformed password confirmation and failed rediscovery leave anonymous safe context without replay', async t => {
+  let reads = 0, writes = 0
+  const session = { ...authenticatedSession, user: { id: 'u' }, authMode: 'user_only' }
+  const h = await mountHarness(t, { api: anonymousApi({ getSession: async () => { if (++reads > 1) throw new Error('offline'); return session } }), coordinatorFactory: () => ({ publish() {}, close() {} }) })
+  await act(async () => { await assert.rejects(h.getCurrent().runCredentialChange(async () => { writes++; return null }), /confirmar a alteração/) })
+  assert.equal(writes, 1); assert.equal(reads, 2)
+  assert.equal(h.getCurrent().authState, 'anonymous'); assert.equal(h.getCurrent().sessionContext, null)
+  assert.equal(h.getCurrent().isCredentialChangePending(), false)
+})
+test('superseded password verification keeps guard until the current tab invalidation read settles', async t => {
+  let invalidate, reads = 0, firstVerification, currentVerification
+  const session = { ...authenticatedSession, user: { id: 'u' }, authMode: 'user_only' }
+  const h = await mountHarness(t, { api: anonymousApi({ getSession: async () => {
+    if (++reads === 1) return session
+    return new Promise(resolve => { if (reads === 2) firstVerification = resolve; else currentVerification = resolve })
+  } }), coordinatorFactory: ({ onInvalidate }) => { invalidate = onInvalidate; return { publish() {}, close() {} } } })
+  let operation
+  await act(async () => { operation = h.getCurrent().runCredentialChange(async () => ({ changed: true })) })
+  await act(async () => invalidate())
+  await act(async () => firstVerification(session))
+  assert.equal(h.getCurrent().isCredentialChangePending(), true)
+  await act(async () => { currentVerification(session); await operation })
+  assert.equal(h.getCurrent().isCredentialChangePending(), false)
+})
+
 for (const authAction of ['handleLogin', 'handleLogout']) test(`refresh clears an old request lock and superseded ${authAction} cannot clear the next lock`, async (t) => {
   let current, key, setKey, finishLogin, oldLogin, renderer
   const pendingAuth = () => new Promise((resolve) => { finishLogin = resolve })

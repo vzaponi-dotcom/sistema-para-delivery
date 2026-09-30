@@ -219,8 +219,9 @@ export function useNavigationController({
   const requestSessionExit = useCallback((exit, getPendingEffects = () => ({})) => {
     if (pendingNavigationRef.current) return false
     const draft = resolveNavigationDraft?.(resolvedActiveTab)
-    const decision = decideSessionExit({ checkoutPending, dirtyOrder, policyDraft: draft, ...getPendingEffects() })
-    if (decision === 'blocked') { onFeedback?.('Conclua a reconciliação do pagamento ou da impressão antes de sair.'); return false }
+    const pendingEffects = getPendingEffects()
+    const decision = decideSessionExit({ checkoutPending, dirtyOrder, policyDraft: draft, ...pendingEffects })
+    if (decision === 'blocked') { onFeedback?.(pendingEffects.credentialChangePending ? 'Aguarde a confirmação da alteração da senha antes de sair.' : 'Conclua a reconciliação do pagamento ou da impressão antes de sair.'); return false }
     if (decision === 'exit') { void exit(); return true }
     const pending = { kind: decision === 'confirm-order' ? 'order' : 'policy', destination: 'session-exit', exit, getPendingEffects, draft }
     pendingNavigationRef.current = pending
@@ -233,8 +234,9 @@ export function useNavigationController({
     if (!pending) return false
 
     if (pending.exit) {
-      const decision = decideSessionExit({ checkoutPending, ...pending.getPendingEffects() })
-      if (decision === 'blocked') { onFeedback?.('Conclua a reconciliação do pagamento ou da impressão antes de sair.'); return false }
+      const pendingEffects = pending.getPendingEffects()
+      const decision = decideSessionExit({ checkoutPending, ...pendingEffects })
+      if (decision === 'blocked') { onFeedback?.(pendingEffects.credentialChangePending ? 'Aguarde a confirmação da alteração da senha antes de sair.' : 'Conclua a reconciliação do pagamento ou da impressão antes de sair.'); return false }
       if (pending.kind === 'order') onDiscardOrder?.()
       else if (discardDraft?.(pending.draft.resourceKey, pending.draft) === false) return false
       pendingNavigationRef.current = null

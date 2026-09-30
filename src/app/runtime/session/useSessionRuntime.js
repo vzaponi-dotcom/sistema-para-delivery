@@ -11,6 +11,10 @@ export const useSessionRuntime = ({ api = defaultApi, coordinatorFactory = creat
   const [loginError, setLoginError] = useState('')
   const operationRef = useRef(0)
   const coordinatorRef = useRef(null)
+  const credentialChangeRef = useRef(null)
+  const sessionDiscoveryRef = useRef(null)
+  const [credentialChangePending, setCredentialChangePending] = useState(false)
+  const isCredentialChangePending = useCallback(() => credentialChangeRef.current !== null, [])
   const clear = useCallback((scope) => {
     setSessionGeneration((value) => value + 1)
     resetOperationalData(); onClearApplicationState(scope); setSessionContext(null)
@@ -42,8 +46,12 @@ export const useSessionRuntime = ({ api = defaultApi, coordinatorFactory = creat
     const operation = ++operationRef.current
     clear(); setRequestKey(null); setAuthState('checking')
     if (broadcast) coordinatorRef.current?.publish()
-    try { return await accept(await api.getSession(), operation) }
-    catch { if (operation === operationRef.current) expireSession({ broadcast: false }); return false }
+    const discovery = (async () => {
+      try { return await accept(await api.getSession(), operation) }
+      catch { if (operation === operationRef.current) expireSession({ broadcast: false }); return false }
+    })()
+    sessionDiscoveryRef.current = { operation, promise: discovery }
+    return await discovery
   }, [accept, api, clear, expireSession, setRequestKey])
   const refreshSessionRef = useRef(refreshSession)
   refreshSessionRef.current = refreshSession
@@ -52,8 +60,50 @@ export const useSessionRuntime = ({ api = defaultApi, coordinatorFactory = creat
     coordinatorRef.current = coordinator
     return () => { coordinator.close(); coordinatorRef.current = null }
   }, [coordinatorFactory])
+  const runCredentialChange = useCallback(async (operation) => {
+    if (!isOnline || authState !== 'authenticated' || !sessionContext?.user?.id || credentialChangeRef.current) return false
+    const pending = {}
+    // Register synchronously before invoking the operation that sends POST.
+    // This lifetime belongs to the runtime, independently of the account screen.
+    credentialChangeRef.current = pending
+    setCredentialChangePending(true)
+    const rediscover = async options => {
+      await refreshSessionRef.current(options)
+      // An external invalidation may supersede this read. Hold the credential
+      // guard until the newest existing discovery has also settled.
+      let latest
+      do {
+        latest = sessionDiscoveryRef.current
+        await latest?.promise
+      } while (latest !== sessionDiscoveryRef.current)
+    }
+    try {
+      let result
+      try { result = await operation() }
+      catch (error) {
+        if (error?.code === 'CREDENTIAL_CHANGED') await rediscover()
+        else if (!Number.isInteger(error?.status)) await rediscover({ broadcast: true })
+        throw error
+      }
+      if (result?.changed !== true) {
+        // A body/network failure can follow accepted Set-Cookie headers. Treat
+        // this as uncertain: invalidate before discovery, never repeat the POST.
+        await rediscover({ broadcast: true })
+        throw new Error('Não foi possível confirmar a alteração da senha.')
+      }
+      // Set-Cookie is already applied by the browser. Even an expired UI owner
+      // must announce that cookie change and rediscover its trusted identity.
+      await rediscover({ broadcast: true })
+      return result
+    } finally {
+      if (credentialChangeRef.current === pending) {
+        credentialChangeRef.current = null
+        setCredentialChangePending(false)
+      }
+    }
+  }, [authState, isOnline, sessionContext])
   const handleLogin = useCallback(async (credentials) => {
-    if (!isOnline || requestKey !== null) return false
+    if (!isOnline || requestKey !== null || credentialChangeRef.current) return false
     const operation = ++operationRef.current
     setRequestKey('auth:login'); setLoginError('')
     try {
@@ -70,7 +120,7 @@ export const useSessionRuntime = ({ api = defaultApi, coordinatorFactory = creat
     } finally { if (operation === operationRef.current) setRequestKey(null) }
   }, [accept, api, clear, isOnline, onClearApplicationState, requestKey, resetOperationalData, setRequestKey])
   const handleLogout = useCallback(async () => {
-    if (!isOnline || requestKey !== null) return false
+    if (!isOnline || requestKey !== null || credentialChangeRef.current) return false
     const operation = ++operationRef.current
     setRequestKey('auth:logout'); clear(); setAuthState('checking')
     try {
@@ -83,5 +133,5 @@ export const useSessionRuntime = ({ api = defaultApi, coordinatorFactory = creat
       return false
     } finally { if (operation === operationRef.current) setRequestKey(null) }
   }, [api, clear, isOnline, requestKey, setRequestKey])
-  return { authState, sessionContext, sessionGeneration, authMode, operationalAccess: sessionHasOperationalAccess(sessionContext), loginError, handleLogin, handleLogout, expireSession, refreshSession }
+  return { authState, sessionContext, sessionGeneration, authMode, operationalAccess: sessionHasOperationalAccess(sessionContext), loginError, handleLogin, handleLogout, expireSession, refreshSession, runCredentialChange, credentialChangePending, isCredentialChangePending }
 }

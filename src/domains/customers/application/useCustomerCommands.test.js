@@ -121,7 +121,7 @@ test('customer commands refuse every write when offline/global writes are blocke
   }
 
   for (const props of [
-    { writesBlocked: true, canManageClients: true },
+    { writesBlocked: true, canCreateClients: true, canUpdateClients: true, canDeleteClients: true },
     { writesBlocked: false, canCreateClients: false, canUpdateClients: false, canDeleteClients: false },
   ]) {
     const probe = await mountProbe({ ...common, ...props })

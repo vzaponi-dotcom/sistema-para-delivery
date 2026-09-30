@@ -5,7 +5,8 @@ import { accessApi } from '../infrastructure/accessApi.js'
 import { useAccessRequest } from './useAccessRequest.js'
 import './access.css'
 
-export default function MyAccount({ sessionContext, api = accessApi, refreshSession, onApiError, writesBlocked = false }) {
+const unavailableCredentialChange = async () => { throw new Error('Não foi possível confirmar o contexto da sessão. Entre novamente.') }
+export default function MyAccount({ sessionContext, api = accessApi, runCredentialChange = unavailableCredentialChange, onApiError, writesBlocked = false }) {
   const { state, run, owns, patch } = useAccessRequest(sessionContext, onApiError)
   const [passwords, setPasswords] = useState({ owner: sessionContext, currentPassword: '', password: '' })
   const values = passwords.owner === sessionContext ? passwords : { currentPassword: '', password: '' }
@@ -13,20 +14,10 @@ export default function MyAccount({ sessionContext, api = accessApi, refreshSess
   const submit = async event => {
     event.preventDefault()
     if (writesBlocked || state.pending || !owns()) return
-    await run(async () => {
-      try { return await api.changePassword({ currentPassword: values.currentPassword, password: values.password }) }
-      catch (error) {
-        if (owns() && error.code === 'CREDENTIAL_CHANGED') {
-          setPasswords({ owner: sessionContext, currentPassword: '', password: '' })
-          await refreshSession?.()
-        }
-        throw error
-      }
-    }, async result => {
+    await run(() => runCredentialChange(() => api.changePassword({ currentPassword: values.currentPassword, password: values.password })), result => {
       if (result?.changed !== true) throw new Error('Não foi possível confirmar a alteração da senha.')
       setPasswords({ owner: sessionContext, currentPassword: '', password: '' })
-      patch({ notice: 'Senha alterada. Verificando sua sessão…' })
-      await refreshSession?.({ broadcast: true })
+      patch({ notice: 'Senha alterada.' })
     })
   }
   return <div className="settings-page access-page"><PageHeader title="Minha conta" description={sessionContext.user.displayName} />

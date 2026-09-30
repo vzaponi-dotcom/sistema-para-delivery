@@ -154,6 +154,8 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     authMode,
     operationalAccess,
     refreshSession,
+    runCredentialChange,
+    isCredentialChangePending,
     loginError,
     handleLogin,
     handleLogout: handleSessionLogout,
@@ -511,7 +513,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     paymentPending: Boolean(tableTabPayment.busy || tableTabPayment.syncState || orderPayment.dialog?.submitting || clientOrdersPayment.dialog?.submitting),
     printPending: Boolean(printing.busyJobId || printing.jobs.some((job) => ['unknown', 'awaiting_confirmation', 'waiting_confirmation', 'printing'].includes(job.status) || job.physicalOutcome === 'unknown')),
   }
-  const getPendingSessionEffects = () => pendingSessionEffectsRef.current
+  const getPendingSessionEffects = () => ({ ...pendingSessionEffectsRef.current, credentialChangePending: isCredentialChangePending() })
   const handleLogout = () => requestSessionExit(handleSessionLogout, getPendingSessionEffects)
   const handleSwitchUser = () => requestSessionExit(handleSessionLogout, getPendingSessionEffects)
 
@@ -616,7 +618,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     if (!order) return null
     return hasCapability(granted, ['Finalizado', 'Cancelado'].includes(order.status) ? 'orders.history' : 'orders.view') ? order : null
   }
-  const accessProps = { section: activeTab, sessionContext, refreshSession, onApiError: showApiError, writesBlocked,
+  const accessProps = { section: activeTab, sessionContext, refreshSession, runCredentialChange, onApiError: showApiError, writesBlocked,
     canOpenResource: (item) => Boolean(resolveActivityOrder(item)),
     onOpenResource: (item) => { const order = resolveActivityOrder(item); if (order) setActivityDetail({ owner: accessContextId, orderId: order.id }) },
   }
