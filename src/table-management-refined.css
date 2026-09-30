@@ -1,0 +1,106 @@
+.tables-refined { gap: 22px; }
+.tables-refined .page-header { align-items: center; }
+.tables-refined .page-actions { display: flex; gap: 10px; }
+.table-management-panel { min-width: 0; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); box-shadow: var(--shadow-sm); }
+.table-management-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 20px 24px; border-bottom: 1px solid var(--border); }
+.table-management-search { display: flex; align-items: center; gap: 9px; width: min(100%, 320px); min-height: 44px; padding: 0 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-soft); color: var(--muted); }
+.table-management-search input { width: 100%; min-width: 0; min-height: 42px; padding: 0; border: 0; box-shadow: none; background: transparent; color: var(--text); font: inherit; font-size: .82rem; }
+.table-management-search input:focus { outline: none; box-shadow: none; }
+.table-management-search:focus-within { outline: 2px solid var(--primary); outline-offset: 2px; }
+.table-management-filters { display: flex; gap: 3px; padding: 3px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-soft); }
+.table-management-filters button { min-width: 70px; min-height: 38px; padding: 7px 12px; border: 0; border-radius: 5px; background: transparent; color: var(--muted); font: inherit; font-size: .76rem; cursor: pointer; }
+.table-management-filters button[aria-pressed='true'] { background: var(--surface); color: var(--text); font-weight: 650; box-shadow: var(--shadow-sm); }
+.table-management-filters button:disabled { cursor: default; opacity: .55; }
+.table-management-columns, .tables-refined .table-management-card { display: grid; grid-template-columns: minmax(145px, 1fr) 110px minmax(230px, 1.5fr) 160px; align-items: center; gap: 20px; }
+.table-management-columns { padding: 12px 24px; background: var(--surface-soft); color: var(--muted); font-size: .65rem; text-transform: uppercase; letter-spacing: .06em; }
+.table-management-columns > :last-child { text-align: right; }
+.tables-refined .table-management-list { gap: 0; }
+.tables-refined .table-management-card { min-width: 0; min-height: 84px; padding: 16px 24px; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: var(--surface); box-shadow: none; position: relative; opacity: 1; }
+.tables-refined .table-management-card:last-child { border-bottom: 0; }
+.table-management-identity { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.table-management-identity strong { color: var(--text); font-size: .9rem; font-weight: 650; overflow-wrap: anywhere; }
+.table-management-symbol { display: grid; flex: 0 0 40px; height: 40px; place-items: center; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-soft); color: var(--muted); }
+.tables-refined .inactive .table-management-identity strong { color: var(--muted); }
+.tables-refined .table-status { display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px; font-size: .67rem; font-weight: 650; border-radius: 5px; white-space: nowrap; }
+.tables-refined .table-status::before { content: ''; width: 4px; height: 4px; background: currentColor; border-radius: 50%; }
+.table-management-context { min-width: 0; color: var(--muted); font-size: .76rem; }
+.table-management-reservation { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 7px; min-height: 38px; border-left: 3px solid var(--info); border-radius: 0 6px 6px 0; background: color-mix(in srgb, var(--info-soft) 65%, var(--surface)); color: var(--info); padding: 9px 10px; font-size: .68rem; }
+.table-management-reservation strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; }
+.table-management-reservation time { white-space: nowrap; font-size: .65rem; font-variant-numeric: tabular-nums; }
+.table-management-row-actions { display: flex; justify-content: flex-end; align-items: center; gap: 6px; min-width: 0; }
+.table-management-row-actions .button { padding: 8px 11px; min-height: 40px; font-size: .72rem; box-shadow: none; }
+.table-management-menu { position: relative; }
+.table-management-menu[open] { z-index: 8; }
+.table-management-menu summary { display: grid; place-items: center; width: 36px; min-height: 44px; color: var(--muted); font-size: 21px; font-weight: 700; cursor: pointer; list-style: none; border-radius: 7px; }
+.table-management-menu summary::-webkit-details-marker { display: none; }
+.table-management-menu summary:hover { background: var(--surface-soft); }
+.table-management-menu > div { position: absolute; z-index: 8; right: 0; top: 100%; width: 260px; max-width: calc(100vw - 50px); display: grid; padding: 6px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); box-shadow: var(--shadow-md); }
+.table-management-menu button { display: flex; align-items: center; gap: 9px; min-height: 42px; padding: 10px; border: 0; border-radius: 6px; background: transparent; color: var(--text); font: inherit; font-size: .8rem; text-align: left; cursor: pointer; }
+.table-management-menu button:hover:enabled { background: var(--surface-soft); }
+.table-management-menu button:disabled { opacity: .5; cursor: default; }
+.table-management-menu .table-management-danger { color: var(--danger); }
+.table-management-menu p { margin: 5px 0 0; padding: 10px; border-top: 1px solid var(--border); color: var(--muted); font-size: .74rem; line-height: 1.6; }
+.table-management-footer { padding: 15px 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: .73rem; }
+.table-management-helper { display: flex; align-items: flex-start; gap: 8px; margin: -5px 0 0; color: var(--muted); font-size: .75rem; line-height: 1.6; }
+.table-management-helper svg { flex-shrink: 0; margin-top: 2px; }
+.table-order-help { margin: 0; padding: 14px 24px; border-bottom: 1px solid var(--border); background: var(--info-soft); color: var(--info); font-size: .75rem; line-height: 1.6; }
+.table-drag-handle { display: grid; place-items: center; flex: 0 0 32px; width: 32px; height: 44px; padding: 0; border: 0; background: transparent; color: var(--muted); font-size: 24px; cursor: grab; touch-action: none; user-select: none; }
+.table-drag-handle:active { cursor: grabbing; }
+.table-drag-handle:disabled { opacity: .4; cursor: default; touch-action: auto; }
+.table-order-number { color: var(--muted); font-size: .74rem; }
+.tables-refined .table-management-card.is-dnd-source { opacity: .28; background: var(--surface-soft); }
+.tables-refined .table-management-card.is-dnd-dropping { box-shadow: inset 0 0 0 1px var(--primary); }
+.table-insertion-marker { position: absolute; z-index: 4; left: 18px; right: 18px; height: 3px; border-radius: 99px; background: var(--primary); box-shadow: 0 0 0 2px var(--surface); pointer-events: none; }
+.table-insertion-marker.is-before { top: -2px; }
+.table-insertion-marker.is-after { bottom: -2px; }
+.table-drag-preview { display: flex; align-items: center; gap: 14px; width: min(420px, calc(100vw - 34px)); padding: 14px 20px; border: 1px solid var(--primary); border-radius: 10px; background: var(--surface); color: var(--text); box-shadow: var(--shadow-lg); pointer-events: none; }
+.table-drag-preview > span { font-size: 24px; color: var(--muted); }
+.table-drag-preview strong { font-size: .9rem; overflow-wrap: anywhere; }
+.table-drag-preview small { display: block; color: var(--muted); font-size: .74rem; margin-top: 4px; }
+.table-name-modal { max-width: 440px; }
+.table-name-form { display: grid; gap: 20px; }
+.table-name-form > p { margin: 0; color: var(--muted); font-size: .84rem; line-height: 1.6; }
+.table-management-announcement { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.tables-refined :is(button, summary):focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+@media (max-width: 1250px) and (min-width: 821px) {
+  .table-management-columns, .tables-refined .table-management-card { grid-template-columns: minmax(120px, 1fr) 94px minmax(210px, 1.5fr) 135px; gap: 10px; padding-inline: 18px; }
+  .table-management-identity { gap: 8px; }
+  .table-management-symbol { flex-basis: 34px; height: 36px; }
+  .table-management-row-actions .button { font-size: .67rem; padding-inline: 8px; }
+  .table-management-reservation { gap: 5px; padding-inline: 7px; }
+}
+@media (max-width: 1000px) {
+  .tables-refined .page-header { align-items: flex-start; flex-direction: column; gap: 18px; }
+}
+@media (max-width: 1000px) {
+  .tables-refined { gap: 18px; }
+  .tables-refined .page-actions { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+  .tables-refined .page-actions .button { padding-inline: 10px; font-size: .76rem; }
+  .table-management-toolbar { padding: 15px; flex-direction: column; align-items: stretch; gap: 13px; }
+  .table-management-search { width: 100%; }
+  .table-management-filters { align-self: flex-start; }
+  .table-management-filters button { min-height: 40px; }
+  .table-management-columns { display: none; }
+  .tables-refined .table-management-card { grid-template-columns: minmax(0, 1fr) auto; gap: 9px; min-height: 105px; padding: 16px 15px; }
+  .table-management-identity { grid-column: 1; grid-row: 1; gap: 10px; }
+  .table-management-identity strong { font-size: .86rem; }
+  .table-management-symbol { flex-basis: 35px; height: 35px; border-radius: 9px; }
+  .table-management-status { grid-column: 1; grid-row: 2; margin-left: 45px; }
+  .table-management-context { grid-column: 1 / -1; margin-left: 45px; }
+  .table-management-context:not(.has-reservation) { display: none; }
+  .table-management-row-actions { grid-column: 2; grid-row: 1 / 3; gap: 2px; }
+  .table-management-row-actions .button { font-size: .66rem; padding: 8px; }
+  .table-management-menu summary { width: 32px; }
+  .table-management-reservation { font-size: .65rem; padding: 9px 8px; gap: 5px; }
+  .table-management-reservation time { font-size: .63rem; }
+  .table-management-footer { padding: 14px 15px; }
+  .table-order-help { padding: 13px 15px; }
+  .tables-refined.is-organizing .table-management-context { margin-left: 0; }
+  .tables-refined.is-organizing .table-management-status { margin-left: 58px; }
+  .tables-refined.is-organizing .table-management-identity { gap: 7px; }
+}
+@media (max-width: 360px) {
+  .table-management-context { margin-left: 0; }
+  .table-management-identity strong { font-size: .8rem; }
+  .table-management-row-actions .button { padding-inline: 6px; }
+}

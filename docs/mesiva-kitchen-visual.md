@@ -74,5 +74,27 @@ Impressão física exige estação e impressora disponíveis.
 ## Continuidade
 
 Este é o primeiro conjunto de telas do novo padrão. A navegação e os tokens são
-compartilhados; Mesas e o formulário de pedido precisam de revisão
+compartilhados; o formulário de pedido precisa de revisão
 específica antes de receber uma reorganização estrutural equivalente.
+
+## Mesas
+
+- Cadastro em modal, busca por nome sem distinção de acentos e filtros Todas,
+  Ativas e Inativas. Não há barra de indicadores do salão.
+- Lista compacta com situação atual, reserva em azul (nome/data/hora na mesma
+  linha, horário de São Paulo) e menus de ações. Inativas não aparecem como livres.
+- Organizar ordem mostra alças de arraste usando `@dnd-kit/react`, como nas
+  configurações. Alt + setas e ações do menu são alternativas ao gesto.
+  Ao organizar, a busca é limpa e todos os IDs, inclusive inativos, são mantidos.
+- Cada movimento salva pela API existente; Concluir ordem apenas encerra o modo.
+  A mesa ocupada não pode iniciar um arraste, mas pode ser destino de inserção.
+  Leituras oficiais continuam determinando a ordem; falhas ou atualização da
+  lista durante o gesto não deixam a ordenação otimista do DOM como confirmada.
+- A lista é reconstruída após o drop e restaura o foco à alça. Pedidos de escrita
+  duplicados ficam bloqueados. Permissões, offline e operações pendentes são respeitados.
+- Renomear/desativar revalidam ocupação e reserva mesmo com o formulário aberto.
+  Desativação mantém confirmação e histórico; reativação usa o comando existente.
+  Ver comanda mantém a identidade exata de mesa/comanda e a permissão correspondente.
+- O layout compacto entra até 1000 px para acomodar a lateral em tablets.
+  Validação local: 1440, 834, 390 e 320 px; temas claro/escuro; criação e busca;
+  DnD real com sucesso/falha e restauração de foco; regras cobertas por testes.
