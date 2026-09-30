@@ -20,6 +20,11 @@
 .app-topbar-context { display: flex; align-items: center; gap: 14px; font-size: .76rem; color: var(--muted); }
 .app-topbar-context strong { color: var(--text-soft); font-weight: 600; }
 .app-topbar-actions { display: flex; align-items: center; gap: 16px; flex: 0 0 auto; }
+.app-theme-control { position: relative; }
+.app-theme-toggle { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 10px; background: transparent; color: var(--muted); cursor: pointer; }
+.app-theme-toggle:hover { background: var(--surface-soft); color: var(--text); }
+.app-theme-toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.app-theme-error { position: absolute; top: calc(100% + 8px); right: -100px; z-index: 35; width: min(260px, calc(100vw - 32px)); padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); box-shadow: var(--shadow-lg); font-size: .78rem; line-height: 1.5; }
 .app-topbar .notification-bell { width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 10px; background: transparent; color: var(--muted); box-shadow: none; }
 .app-topbar .notification-bell:hover { background: var(--surface-soft); }
 .operation-menu { position: relative; }

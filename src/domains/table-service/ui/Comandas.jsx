@@ -189,8 +189,6 @@ function Comandas({
   const occupiedTables = activeTables.filter((table) => table.occupancy === 'occupied')
   const freeCount = activeTables.filter((table) => table.occupancy === 'free').length
   const reservationCount = activeTables.filter((table) => table.nextReservation).length
-  const totalsAvailable = occupiedTables.every((table) => Number.isFinite(table.openTableTab?.totalCents))
-  const openTotal = occupiedTables.reduce((sum, table) => sum + (table.openTableTab?.totalCents || 0), 0)
   const visibleTables = activeTables.filter((table) => {
     const matchesFilter = filter === 'all' || (filter === 'reserved' ? Boolean(table.nextReservation) : table.occupancy === filter)
     return matchesFilter && searchable([table.name, table.nextReservation?.clientName, table.openTableTab?.number].join(' ')).includes(searchable(query))
@@ -291,12 +289,6 @@ function Comandas({
       if (event.relatedTarget) lastFocusedRef.current = null
     }}>
       <PageHeader title="Comandas" description="O salão em um só lugar. Mesas, consumo e reservas." />
-      <dl className="comandas-overview" aria-label="Resumo do salão">
-        <div><dt>Em atendimento</dt><dd>{occupiedTables.length}</dd></div>
-        <div><dt>Livres agora</dt><dd>{freeCount}</dd></div>
-        <div><dt>Com reserva</dt><dd>{reservationCount}</dd></div>
-        <div><dt>Em aberto nas comandas</dt><dd>{totalsAvailable ? currency(openTotal / 100) : '—'}</dd>{!totalsAvailable && <small>Resumo indisponível</small>}</div>
-      </dl>
       {paymentSync && <div role={paymentSync.status === 'error' ? 'alert' : 'status'}>
         <p>Pagamento registrado. {paymentSync.status === 'error' ? 'Não foi possível confirmar a sincronização das mesas. Tente sincronizar novamente.' : 'Aguardando sincronização das mesas…'}</p>
         {paymentSync.status === 'error' && <Button type="button" onClick={onRetryPaymentSync}>Tentar sincronizar</Button>}
@@ -365,7 +357,7 @@ function Comandas({
                     onClick={() => selectReservation(table)}
                   >
                     <span className="comanda-status reserved">Reservada</span>
-                    <strong>{reservation.clientName || 'Reserva'}</strong>
+                    <strong title={reservation.clientName || 'Reserva'}>{reservation.clientName || 'Reserva'}</strong>
                     <time dateTime={reservation.scheduledFor}>{reservationDateTime(reservation.scheduledFor)}</time>
                   </button>
                 )}

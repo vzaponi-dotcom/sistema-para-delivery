@@ -22,6 +22,10 @@ Proposta visual aprovada em 29/09/2026. Implementação sobre a versão de stagi
 
 - Desktop: logo na lateral, indicação da área e identidade da operação no topo.
 - Mobile: topbar contínua, logo, notificações e menu da operação; navegação inferior preservada.
+- Atalho sol/lua ao lado das notificações alterna Claro/Escuro e salva a preferência
+  existente no dispositivo. Segue o tema efetivo quando Automático está ativo;
+  ao clicar, escolhe explicitamente Claro ou Escuro. Automático continua disponível
+  nas preferências. O atalho respeita `preferences.local` e informa falhas ao salvar.
 - Menus e badges continuam respeitando as permissões e dados oficiais.
 
 ## Cozinha
@@ -46,13 +50,13 @@ Impressão física exige estação e impressora disponíveis.
 
 ## Comandas
 
-- Resumo do salão com mesas ocupadas, livres, com reserva e total oficial em aberto.
-  Uma mesa pode estar ocupada e ter reserva; os contadores não são somados entre si.
-  Valores reservados não integram o total das comandas atuais. Resumos incompletos
-  exibem indisponibilidade, sem inventar um total.
+- A barra superior de resumo do salão foi removida após o refinamento solicitado.
+  Os contadores permanecem nos filtros; ocupação e reserva são independentes.
 - Busca por mesa, cliente da reserva ou número da comanda, sem distinção de acentos,
   combinada aos filtros Todas, Ocupadas, Livres e Reservas.
-- Lista com indicação independente da ocupação atual e faixa azul para reserva.
+- Lista com indicação independente da ocupação atual e faixa azul para reserva,
+  com nome, data e horário na mesma linha. Nomes longos usam reticências, mantendo
+  o nome completo no título acessível e no detalhe da reserva.
   Seleção controlada permanece aberta quando sai do filtro, acompanhada de aviso.
 - Detalhe destaca a mesa, o consumo e o pagamento; transferência, ticket e impressão
   preservam os fluxos, permissões e valores oficiais existentes.

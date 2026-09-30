@@ -11,18 +11,17 @@ const tables = [{ ...occupied, nextReservation: reserve }, { ...free, nextReserv
 const list = (r) => r.root.findByProps({ 'aria-label': 'Mesas ativas' })
 const rows = (r) => list(r).findAll((node) => node.type === 'button' && /comanda-table-button/.test(node.props.className || ''))
 const search = (r) => r.root.findByProps({ 'aria-label': 'Buscar mesa, cliente ou comanda' })
-const summary = (r) => nodeText(r.root.findByProps({ 'aria-label': 'Resumo do salão' }))
 
-test('salon summary counts occupancy and reservations independently and excludes reserved totals', async (t) => {
+test('filter counts treat occupancy and reservations independently', async (t) => {
   const h = await workspaceHarness(t)
   const { default: Comandas } = await h.load('/src/domains/table-service/ui/Comandas.jsx')
   const r = await h.render(Comandas, { tables, currency: (value) => value.toFixed(2) })
-  assert.match(summary(r), /Em atendimento1Livres agora2Com reserva2Em aberto nas comandas123.45/)
+  assert.equal(nodeText(buttonNamed(r.root, 'Ocupadas')), 'Ocupadas1')
+  assert.equal(nodeText(buttonNamed(r.root, 'Livres')), 'Livres2')
+  assert.equal(nodeText(buttonNamed(r.root, 'Reservas')), 'Reservas2')
   const freeRow = rows(r).find((row) => nodeText(row).includes('Varanda'))
   assert.match(nodeText(freeRow), /Livre agora/)
   assert.equal(list(r).findAllByProps({ className: 'comanda-reservation-button' }).length, 2)
-  await act(async () => r.update(React.createElement(Comandas, { tables: [{ ...occupied, openTableTab: null }] })))
-  assert.match(summary(r), /Em aberto nas comandas—.*Resumo indisponível/)
 })
 
 test('occupancy filters combine with accent-insensitive table, customer and tab search', async (t) => {
@@ -66,7 +65,9 @@ test('official refresh updates filtered rows and global counts without resetting
   await act(async () => r.update(React.createElement(Comandas, { tables: tables.map((table) => table.id === occupied.id ? { ...table, occupancy: 'free', openTableTab: null } : table) })))
   assert.equal(rows(r).length, 0)
   assert.equal(buttonNamed(r.root, 'Ocupadas').props['aria-pressed'], true)
-  assert.match(summary(r), /Em atendimento0Livres agora3Com reserva2/)
+  assert.equal(nodeText(buttonNamed(r.root, 'Ocupadas')), 'Ocupadas0')
+  assert.equal(nodeText(buttonNamed(r.root, 'Livres')), 'Livres3')
+  assert.equal(nodeText(buttonNamed(r.root, 'Reservas')), 'Reservas2')
 })
 
 test('mobile detail starts at the top and returning restores the outer page position', async (t) => {
