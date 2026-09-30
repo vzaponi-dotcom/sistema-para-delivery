@@ -30,6 +30,7 @@ import { handleBusinessProfileApi } from './businessProfileApi.js'
 import { handleReportingApi } from './reporting/api.js'
 import { handleTableReservationApi } from './tableReservationApi.js'
 import { acceptAccessInvitation } from './access/invitations.js'
+import { handleAccessApi } from './access/api.js'
 
 const BUSINESS_ID = 'amor-e-sabor'
 const authJson = (body, init = {}) => json(body, { ...init, headers: { 'cache-control': 'no-store', ...init.headers } })
@@ -171,6 +172,9 @@ const authenticatedApi = async (request, env) => {
 }
 
 const dispatchAuthenticatedApi = async (request, env, session, context, url) => {
+
+  const accessResponse = await handleAccessApi(request, env, context, url)
+  if (accessResponse) return accessResponse
 
   const kitchenTvResponse = await handleKitchenTvAdminApi(request, env, context, url)
   if (kitchenTvResponse) return kitchenTvResponse
