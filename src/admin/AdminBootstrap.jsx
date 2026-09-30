@@ -10,6 +10,7 @@ import '../success-feedback.css'
 import '../theme.css'
 import '../product-selection.css'
 import '../mobile-compact-controls.css'
+import '../mesiva-shell.css'
 
 const router = createAdminBrowserRouter({ rootComponent: App })
 

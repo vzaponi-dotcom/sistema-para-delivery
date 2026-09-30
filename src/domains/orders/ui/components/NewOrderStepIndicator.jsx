@@ -1,7 +1,7 @@
 import { NEW_ORDER_STEPS, NEW_ORDER_STEP_ORDER } from '../../domain/newOrderStepFlow.js'
 
 const STEPS = [
-  { id: NEW_ORDER_STEPS.CUSTOMER, number: 1, label: 'Cliente' },
+  { id: NEW_ORDER_STEPS.CUSTOMER, number: 1, label: 'Atendimento' },
   { id: NEW_ORDER_STEPS.PRODUCTS, number: 2, label: 'Produtos' },
   { id: NEW_ORDER_STEPS.REVIEW, number: 3, label: 'Finalizar' },
 ]

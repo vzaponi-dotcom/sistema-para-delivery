@@ -397,7 +397,7 @@ const reservationDetailResponse = (reservation = reservationSummary(), overrides
   }),
 })
 
-test('Comandas subtitle and free-table reservation card use explicit Reservada semantics and open reservation detail', async (t) => {
+test('a free table keeps its current occupancy separate from its reservation and opens reservation detail', async (t) => {
   const h = await workspaceHarness(t)
   const { default: Comandas } = await h.load('/src/domains/table-service/ui/Comandas.jsx')
   const reservation = reservationSummary()
@@ -418,9 +418,10 @@ test('Comandas subtitle and free-table reservation card use explicit Reservada s
     canCancelOrders: true,
   })
 
-  assert.match(nodeText(renderer.root), /Acompanhe mesas, comandas e reservas/)
+  assert.match(nodeText(renderer.root), /Mesas, consumo e reservas/)
   const reservedCard = list(renderer).findAllByType('button').find((button) => nodeText(button).includes('Varanda'))
-  assert.match(nodeText(reservedCard), /Varanda.*Reservada.*João.*20:00/)
+  assert.match(nodeText(reservedCard), /Varanda.*Livre agora/)
+  assert.match(nodeText(list(renderer).findByProps({ className: 'comanda-reservation-button' })), /Reservada.*João.*20:00/)
   assert.doesNotMatch(nodeText(reservedCard), /Toque para lançar pedido/)
 
   await act(async () => reservedCard.props.onClick())

@@ -142,8 +142,8 @@ test('kitchen page keeps the approved two-queue composition and search vocabular
   const orders = read('./domains/orders/ui/Orders.jsx')
 
   assert.match(orders, /placeholder="Buscar cliente, pedido, produto ou tipo"/)
-  assert.match(orders, /queueModel\.totalVisible/)
-  assert.match(orders, /queueModel\.preparing\.map/)
+  assert.match(orders, /queueModel\.counts\.preparing/)
+  assert.match(orders, /preparing\.map/)
   assert.match(orders, /queueModel\.scheduled\.map/)
   assert.match(orders, /Nenhum pedido em preparo agora\./)
   assert.match(orders, /Nenhum pedido agendado aguardando preparo\./)

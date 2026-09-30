@@ -1,9 +1,13 @@
+import Icon from '../../../../shared/ui/Icon'
+import { OrderTiming } from './NewOrderContext'
 import Button from '../../../../shared/ui/Button'
 import { LocalTableSelector } from '../../../table-service/index.js'
 import { formatScheduledTimeInput } from '../../../../shared/utils/formFormatting.js'
 import { ORDER_TYPE_OPTIONS } from '../../domain/orderTypeOptions.js'
 
 function NewOrderCustomerStep({
+  customerSummary,
+  contextProps,
   clients,
   tables,
   selectedTableId,
@@ -45,11 +49,11 @@ function NewOrderCustomerStep({
   orderTypeOptions = ORDER_TYPE_OPTIONS,
 }) {
   return (
-    <section className="surface-card new-order-customer-card new-order-step-card">
+    <div className="new-order-attendance-layout"><section className="surface-card new-order-customer-card new-order-step-card">
       <div className="section-heading">
         <div>
-          <span className="section-kicker">Etapa 1</span>
-          <h2>Cliente e atendimento</h2>
+
+          <h2>Como será o atendimento?</h2><p>Defina o tipo de pedido, o cliente e o momento de preparar.</p>
         </div>
       </div>
 
@@ -62,10 +66,12 @@ function NewOrderCustomerStep({
               type="button"
               className={type === option.value ? 'new-order-type-option selected' : 'new-order-type-option'}
               aria-pressed={type === option.value}
+              aria-label={option.label}
               onClick={() => onTypeChange(option.value)}
               disabled={disabled}
             >
-              {option.label}
+              <Icon name={option.value === 'Local' ? 'table' : option.value === 'Entrega' ? 'delivery' : 'pickup'} size={20} />
+              <span>{option.value === 'Local' ? 'No local' : option.label}<small>{option.value === 'Local' ? 'Consumo na mesa' : option.value === 'Entrega' ? 'No endereço do cliente' : 'Cliente retira no local'}</small></span>
             </button>
           ))}
         </div>
@@ -86,9 +92,14 @@ function NewOrderCustomerStep({
 
       <>
           <div className="form-field new-order-client-picker" onBlur={onClientBlur}>
-            <span>{type === 'Local' ? 'Vincular cliente cadastrado — opcional' : 'Cliente'}</span>
+            <div className="new-order-client-label"><span>{type === 'Local' ? 'Vincular cliente cadastrado — opcional' : 'Cliente'}</span>          {canManageClients && (
+            <button type="button" className="new-order-quick-client-toggle" onClick={() => { if (canManageClients) onQuickClientToggle?.() }} disabled={disabled}>
+              + Novo cliente
+            </button>
+          )}</div>
             <div className="new-order-client-combobox">
               <input
+                aria-label={type === 'Local' ? 'Cliente opcional' : 'Cliente'}
                 type="search"
                 role="combobox"
                 aria-autocomplete="list"
@@ -121,11 +132,7 @@ function NewOrderCustomerStep({
             </div>
           </div>
 
-          {canManageClients && (
-            <button type="button" className="new-order-quick-client-toggle" onClick={() => { if (canManageClients) onQuickClientToggle?.() }} disabled={disabled}>
-              + Novo cliente
-            </button>
-          )}
+
 
           {canManageClients && quickClient.open && (
             <form className="new-order-quick-client" onSubmit={(event) => { if (!canManageClients) { event.preventDefault(); return }; onQuickClientSubmit?.(event) }}>
@@ -159,6 +166,7 @@ function NewOrderCustomerStep({
           )}
       </>
 
+      <div className="new-order-when-grid">
       <label className="form-field new-order-date-field">
         <span>Data do pedido</span>
         <input
@@ -210,10 +218,11 @@ function NewOrderCustomerStep({
         </div>
       )}
 
-      <div className="new-order-step-actions">
-        <Button type="button" onClick={onContinue} disabled={disabled || !canContinue}>Continuar →</Button>
       </div>
-    </section>
+      <div className="new-order-step-actions">
+        <Button type="button" onClick={onContinue} disabled={disabled || !canContinue}>Escolher produtos →</Button>
+      </div>
+    </section><aside className="surface-card new-order-attendance-summary"><Icon name="orders" size={27} /><h3>Dados do atendimento</h3><dl><div><dt>Modalidade</dt><dd>{type === 'Local' ? 'Consumo no local' : type || 'A definir'}</dd></div><div><dt>{type === 'Local' ? 'Atendimento' : 'Cliente'}</dt><dd>{contextProps?.displayName || customerSummary || 'A definir'}</dd></div></dl><OrderTiming {...contextProps} /><p>Na próxima etapa, escolha os produtos. Você poderá revisar as quantidades e os valores antes de salvar.</p></aside></div>
   )
 }
 

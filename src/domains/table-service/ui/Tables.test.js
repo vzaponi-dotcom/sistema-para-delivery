@@ -16,22 +16,21 @@ test('Tables keeps official ordering and separates operational and configuration
   const page = await read('./Tables.jsx')
 
   assert.match(page, /\[\.\.\.tables\]\.sort\(\(left, right\) => left\.sortOrder - right\.sortOrder\)/)
-  assert.match(page, /table\.isActive \? 'Ativa' : 'Inativa'/)
+  assert.match(page, /!table\.isActive \? 'Inativa' : occupied \? 'Ocupada' : 'Livre agora'/)
   assert.match(page, /const occupied = table\.occupancy === 'occupied'/)
-  assert.match(page, /\{occupied \? 'Ocupada' : 'Livre'\}/)
-  assert.doesNotMatch(page, /tables\.filter\([^)]*isActive/)
+  assert.match(page, /filter === 'all'/)
 })
 
 test('Tables provides creation, free-table rename, accessible reordering and confirmed deactivation', async () => {
   const page = await read('./Tables.jsx')
 
   assert.match(page, /Nova mesa/)
-  assert.match(page, /onClick=\{\(\) => beginRename\(table\)\}[^>]*>Renomear<\/Button>/)
+  assert.match(page, /onEdit=\{beginRename\}/)
   assert.match(page, /Mover .* para cima/)
   assert.match(page, /Mover .* para baixo/)
   assert.match(page, /Confirmar desativaçã[oã]/)
   assert.match(page, /onSetActive\(deactivatingTable\.id, false\)/)
-  assert.match(page, /onClick=\{\(\) => void onSetActive\(table\.id, true\)\}[^>]*>Reativar<\/Button>/)
+  assert.match(page, /onSetActive\(id, true\)/)
   assert.doesNotMatch(page, /Excluir mesa/)
 })
 
@@ -57,11 +56,11 @@ test('table management styling remains theme-token based and mobile-safe', async
 test('reserved tables explain the active reservation restriction without hiding current occupancy', async () => {
   const page = await read('./Tables.jsx')
 
-  assert.match(page, /const hasActiveReservation = Boolean\(table\.nextReservation\)/)
-  assert.match(page, /Reserva ativa/)
+  assert.match(page, /table\.nextReservation/)
+  assert.match(page, /table-management-reservation/)
   assert.match(page, /Mova ou cancele a reserva antes de renomear\/desativar\./)
-  assert.match(page, /disabled=\{disabled \|\| hasActiveReservation\}/)
-  assert.match(page, /\{occupied \? 'Ocupada' : 'Livre'\}/)
-  assert.match(page, /moveTable\(index, -1\)/)
-  assert.match(page, /moveTable\(index, 1\)/)
+  assert.match(page, /disabled=\{locked \|\| Boolean\(reason\)\}/)
+  assert.match(page, /occupied \? 'Ocupada' : 'Livre agora'/)
+  assert.match(page, /onMove\(table\.id, index - 1\)/)
+  assert.match(page, /onMove\(table\.id, index \+ 1\)/)
 })

@@ -24,7 +24,7 @@ test('a new common order uses only active modalities and the current default', a
     modalityRevision: 7,
   })
   const group = screen.root.findByProps({ 'aria-label': 'Tipo do pedido' })
-  assert.deepEqual(group.findAllByType('button').map((button) => nodeText(button)), ['Retirada'])
+  assert.deepEqual(group.findAllByType('button').map((button) => button.props['aria-label']), ['Retirada'])
   assert.equal(buttonNamed(group, 'Retirada').props['aria-pressed'], true)
 })
 
@@ -48,7 +48,7 @@ test('an open order keeps an inactive selection, cart and client until explicit 
   const types = screen.root.findByProps({ 'aria-label': 'Tipo do pedido' })
   await act(async () => buttonNamed(types, 'Retirada').props.onClick())
   await act(async () => screen.root.findByType(NewOrderCustomerStep).props.onClientSelect(client))
-  await act(async () => buttonNamed(screen.root, 'Continuar →').props.onClick())
+  await act(async () => buttonNamed(screen.root, 'Escolher produtos →').props.onClick())
   await act(async () => screen.root.findByType(NewOrderProductsStep).props.onAdd(product))
 
   await act(async () => screen.update(React.createElement(NewOrder, {
@@ -77,7 +77,7 @@ test('table context uses Local only while Local is active and otherwise requests
   await act(async () => screen.root.findByType(NewOrderProductsStep).props.onBack())
   const group = screen.root.findByProps({ 'aria-label': 'Tipo do pedido' })
   assert.equal(buttonNamed(group, 'Consumo no local').props['aria-pressed'], true, 'table context is preserved for review')
-  assert.equal(buttonNamed(screen.root, 'Continuar →').props.disabled, true)
+  assert.equal(buttonNamed(screen.root, 'Escolher produtos →').props.disabled, true)
 })
 
 test('POLICY_CHANGED keeps the prepared wizard and asks for modality review', async (t) => {
@@ -93,7 +93,7 @@ test('POLICY_CHANGED keeps the prepared wizard and asks for modality review', as
     onPolicyChanged() { refreshes += 1 },
   })
   await act(async () => screen.root.findByType(NewOrderCustomerStep).props.onClientSelect(client))
-  await act(async () => buttonNamed(screen.root, 'Continuar →').props.onClick())
+  await act(async () => buttonNamed(screen.root, 'Escolher produtos →').props.onClick())
   await act(async () => screen.root.findByType(NewOrderProductsStep).props.onAdd(product))
   await act(async () => screen.root.findByType(NewOrderProductsStep).props.onReview())
   await act(async () => screen.root.findByType(NewOrderReviewStep).props.checkoutProps.onSavePending())

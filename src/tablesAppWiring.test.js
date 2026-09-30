@@ -32,7 +32,7 @@ async function tablesWorkspace(t) {
 
 test('App consumes official bootstrap tables and clears old business tables on session reset', async (t) => {
   const { h, r, state, navigate } = await tablesWorkspace(t)
-  assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Lista de mesas' })), /Mesa 7AtivaOcupada/)
+  assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Lista de mesas' })), /Mesa 7Ocupada/)
   state.expired = true
   await act(async () => h.window.dispatchEvent(new Event('focus')))
   assert.equal(r.root.findAllByProps({ 'aria-label': 'Lista de mesas' }).length, 0)
@@ -40,21 +40,22 @@ test('App consumes official bootstrap tables and clears old business tables on s
   await act(async () => r.root.findByProps({ placeholder: 'Digite o PIN' }).props.onChange({ target: { value: '1234' } }))
   await act(async () => r.root.findByType('form').props.onSubmit({ preventDefault() {} }))
   await navigate()
-  assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Lista de mesas' })), /Nenhuma mesa cadastrada/)
+  assert.match(nodeText(r.root.findByProps({ 'aria-label': 'Cadastro de mesas' })), /Nenhuma mesa cadastrada/)
   assert.doesNotMatch(nodeText(r.root), /Mesa 7|Varanda/)
 })
 
 test('table creation applies the returned official list without predicting name or occupancy', async (t) => {
   const { r, state } = await tablesWorkspace(t)
-  await act(async () => r.root.findByProps({ placeholder: 'Ex: Varanda 1' }).props.onChange({ target: { value: 'Nome solicitado' } }))
+  await act(async () => buttonNamed(r.root, 'Nova mesa').props.onClick())
+  await act(async () => r.root.findByProps({ id: 'table-name' }).props.onChange({ target: { value: 'Nome solicitado' } }))
   await act(async () => { void r.root.findByType('form').props.onSubmit({ preventDefault() {} }) })
   assert.deepEqual(state.writes, [{ name: 'Nome solicitado' }])
-  assert.ok(buttonNamed(r.root, 'Adicionar').props.disabled)
+  assert.ok(buttonNamed(r.root, 'Adicionar mesa').props.disabled)
   assert.doesNotMatch(nodeText(r.root.findByProps({ 'aria-label': 'Lista de mesas' })), /Nome solicitado|Nome oficial/)
   const returned = [{ id: 'new', name: 'Nome oficial', isActive: true, sortOrder: 1, occupancy: 'occupied', openTableTab: { id: 'tab-new', number: 99, itemCount: 1, totalCents: 2000 } }]
   await act(async () => state.pending.resolve({ ok: true, json: async () => ({ tables: returned }) }))
   const list = r.root.findByProps({ 'aria-label': 'Lista de mesas' })
-  assert.match(nodeText(list), /Nome oficialAtivaOcupada/)
+  assert.match(nodeText(list), /Nome oficialOcupada/)
   assert.doesNotMatch(nodeText(list), /Mesa 7|Varanda|Nome solicitado/)
   assert.ok(buttonNamed(list, 'Ver comanda'))
 })

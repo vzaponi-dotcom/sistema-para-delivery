@@ -7,16 +7,14 @@ const tableStyles = fs.readFileSync(new URL('./table-management.css', import.met
 const detail = fs.readFileSync(new URL('./domains/finance/ui/ReceivableDetail.jsx', import.meta.url), 'utf8')
 
 test('tables routes occupied-table work to the protected Comandas flow', () => {
-  const occupiedActions = tables.match(/<div className="table-occupied-actions">([\s\S]*?)<\/div>/)?.[1] ?? ''
-
-  assert.match(occupiedActions, /className="table-transfer-primary"/)
-  assert.match(occupiedActions, />Ver comanda<\/Button>/)
-  assert.doesNotMatch(occupiedActions, /variant="secondary"/)
-  assert.match(tables, /className="table-deactivate-action"[^>]*variant="secondary"/)
+  assert.match(tables, /occupied && canOpenComanda && table\.openTableTab\?\.id/)
+  assert.match(tables, /onOpenComanda\?\.\(\{ tableId: table\.id, tableTabId: table\.openTableTab\.id \}\)/)
+  assert.match(tables, />Ver comanda<\/Button>/)
+  assert.match(tables, /className="table-management-danger"/)
 })
 
 test('tables uses a compact card layout while preserving mobile touch targets', () => {
-  assert.match(tables, /table-create-card table-create-card-compact/)
+  assert.match(tables, /<Modal title=\{editor\.type === 'create' \? 'Nova mesa'/)
   assert.match(tables, /table-management-card[^'"`]*\$\{occupied \? ' occupied' : ''\}/)
   assert.match(tableStyles, /\.table-create-card \{ padding: 14px 16px; \}/)
   assert.match(tableStyles, /\.table-management-card \{[^}]*padding: 14px 16px;/s)

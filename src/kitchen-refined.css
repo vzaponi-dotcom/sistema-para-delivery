@@ -1,0 +1,127 @@
+.kitchen-page.kitchen-page {
+  --kitchen-bg: var(--bg);
+  --kitchen-panel: var(--surface);
+  --kitchen-ticket: var(--surface);
+  --kitchen-ticket-text: var(--text);
+  --kitchen-ticket-muted: var(--muted);
+  --kitchen-board-text: var(--text);
+  --kitchen-board-muted: var(--muted);
+  --kitchen-scheduled: #5f87b6;
+  --kitchen-late: #cc7259;
+  padding: 0; margin: 0; border-radius: 0; overflow: visible;
+}
+.kitchen-page .page-header { margin-bottom: 24px; gap: 18px; }
+.kitchen-page .eyebrow { display: none; }
+.kitchen-page .page-header h1 { font-size: 1.8rem; letter-spacing: -.04em; }
+.kitchen-page .page-description { font-size: .82rem; margin-top: 7px; line-height: 1.5; }
+.kitchen-page .kitchen-header-actions { flex-wrap: nowrap; gap: 8px; }
+.kitchen-page .kitchen-header-primary-action { display: block; order: 2; }
+.kitchen-page .kitchen-header-secondary-actions { display: flex; gap: 8px; }
+.kitchen-page .kitchen-header-actions .button { min-height: 44px; font-size: .76rem; border-radius: 9px; background: var(--surface); color: var(--text-soft); border-color: var(--border); }
+.kitchen-page .kitchen-header-actions .button-primary { background: var(--primary-fill); color: var(--primary-contrast); border-color: transparent; padding-inline: 17px; }
+.kitchen-page > .area-navigation { margin-bottom: 20px; gap: 28px; }
+.kitchen-page .stats-grid.kitchen-stats { gap: 13px; margin-bottom: 22px; }
+.kitchen-page .kitchen-stat-card { background: var(--surface); border-color: var(--border); padding: 16px 17px; gap: 12px; }
+.kitchen-page .kitchen-stat-card .stat-copy > span { color: var(--muted); font-size: .74rem; font-weight: 450; }
+.kitchen-page .kitchen-stat-card .stat-copy strong { color: var(--text); font-size: 1.7rem; font-weight: 650; }
+.kitchen-page .kitchen-stat-card .stat-copy small { display: none; }
+.kitchen-page .kitchen-stat-card .stat-icon { width: 34px; height: 34px; border-radius: 8px; background: var(--surface-soft); color: var(--muted); }
+.kitchen-page .kitchen-stat-late.tone-danger { border-color: color-mix(in srgb, var(--kitchen-late) 28%, var(--border)); }
+.kitchen-page .kitchen-stat-late.tone-danger .stat-icon { background: var(--danger-soft); color: var(--danger); }
+.kitchen-page .kitchen-stat-late.tone-danger .stat-copy strong { color: var(--danger); }
+.kitchen-page .kitchen-board { display: grid; grid-template-columns: minmax(0, 1fr) 290px; align-items: start; gap: 18px; padding: 0; border: 0; background: transparent; }
+.kitchen-page .kitchen-schedule-rail { display: grid; gap: 18px; min-width: 0; }
+.kitchen-page .kitchen-queue-section,
+.kitchen-page .future-scheduled-orders { display: block; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 11px; overflow: hidden; }
+.kitchen-page .kitchen-queue-heading { padding: 19px 20px 15px; align-items: center; }
+.kitchen-page .kitchen-queue-heading h2 { font-size: .93rem; font-weight: 600; }
+.kitchen-page .kitchen-queue-heading h2 span { font-size: .71rem; font-weight: 500; }
+.kitchen-page .kitchen-queue-help { font-size: .65rem; padding: 0; border: 0; background: transparent; max-width: none; }
+.kitchen-page .kitchen-toolbar { padding: 0 20px 16px; gap: 12px; }
+.kitchen-page .kitchen-search { flex: 1; max-width: none; min-width: 0; min-height: 42px; border-radius: 8px; background: var(--surface); border-color: var(--border-strong); }
+.kitchen-page .kitchen-search input { width: 100%; min-width: 0; font-size: .75rem; font-weight: 400; }
+.kitchen-page .kitchen-search input::placeholder { color: var(--muted); }
+.kitchen-queue-filters { display: flex; gap: 3px; padding: 3px; border-radius: 8px; background: var(--surface-soft); flex: 0 0 auto; }
+.kitchen-queue-filters button { min-height: 36px; padding: 6px 10px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font: inherit; font-size: .69rem; cursor: pointer; }
+.kitchen-queue-filters button[aria-pressed='true'] { background: var(--surface); color: var(--text); box-shadow: 0 1px 4px #0f274718; font-weight: 600; }
+.kitchen-queue-filters button span { margin-left: 4px; color: var(--danger); }
+.kitchen-queue-filters button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.kitchen-page .kitchen-ticket-list { gap: 0; }
+.kitchen-page .kitchen-ticket {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'identity identity' 'customer customer' 'summary timing' 'notes notes' 'actions actions';
+  padding: 18px 20px; row-gap: 7px; column-gap: 14px;
+  border: 0; border-top: 1px solid var(--border); border-radius: 0; box-shadow: none;
+}
+.kitchen-page .kitchen-ticket::before { content: ''; top: 16px; bottom: 16px; left: 0; width: 3px; height: auto; border-radius: 0 3px 3px 0; transform: none; background: transparent; }
+.kitchen-page .kitchen-ticket::after { display: none; }
+.kitchen-page .kitchen-ticket:has(.status-agendado)::before { background: var(--kitchen-scheduled); }
+.kitchen-page .kitchen-ticket-late .kitchen-ticket::before { background: var(--kitchen-late); }
+.kitchen-page .kitchen-ticket-header { justify-content: space-between; gap: 10px; flex-wrap: nowrap; }
+.kitchen-page .kitchen-ticket-customer-name { font-size: .94rem; line-height: 1.4; font-weight: 600; }
+.kitchen-page .kitchen-ticket .status-badge { flex: 0 0 auto; font-size: .65rem; padding: 4px 7px; border-radius: 6px; font-weight: 500; }
+.kitchen-page .kitchen-ticket .status-em-preparo { background: var(--surface-soft); color: var(--text-soft); }
+.kitchen-page .kitchen-ticket .status-agendado { background: var(--info-soft); color: var(--info); }
+.kitchen-page .kitchen-ticket-late .status-badge { background: var(--danger-soft); color: var(--danger); }
+.kitchen-page .kitchen-ticket-customer { font-size: .68rem; }
+.kitchen-page .kitchen-ticket-items { font-size: .8rem; font-weight: 400; line-height: 1.5; color: var(--text-soft); align-self: start; }
+.kitchen-page .kitchen-ticket-notes { gap: 5px; }
+.kitchen-page .kitchen-ticket-note { display: block; overflow: visible; font-size: .75rem; line-height: 1.45; }
+.kitchen-page .kitchen-ticket-timing { border: 0; padding: 0; color: var(--muted); gap: 4px; justify-content: flex-start; }
+.kitchen-page .kitchen-ticket-timing strong { font-size: .69rem; font-weight: 500; }
+.kitchen-page .kitchen-ticket-late .kitchen-ticket-timing { color: var(--danger); }
+.kitchen-page .kitchen-ticket-actions { padding: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.kitchen-page .kitchen-ticket-actions .button { min-height: 38px; padding: 7px 10px; font-size: .69rem; white-space: normal; }
+.kitchen-page .kitchen-ticket-actions .button-secondary { border-color: transparent; background: transparent; color: var(--text-soft); }
+.kitchen-page .kitchen-ticket:has(.status-agendado) .kitchen-ticket-actions .button-secondary:last-child { border-color: transparent; background: transparent; color: var(--text-soft); }
+.kitchen-page .kitchen-ticket-actions .button-primary { border: 1px solid color-mix(in srgb, var(--success) 22%, var(--border)); background: var(--success-soft); color: var(--success); }
+.kitchen-page .kitchen-ticket-actions .button:hover { background: var(--surface-soft); transform: none; }
+.kitchen-page .kitchen-queue-empty { min-height: 132px; margin: 0; padding: 24px 18px; border: 0; border-top: 1px solid var(--border); border-radius: 0; background: transparent; }
+.kitchen-page .kitchen-queue-empty strong { font-size: .8rem; font-weight: 500; }
+.kitchen-page .kitchen-queue-empty span { font-size: .72rem; }
+.kitchen-schedule-rail .kitchen-queue-heading { padding: 18px 16px; }
+.kitchen-schedule-rail .kitchen-queue-heading h2 { font-size: .84rem; }
+.kitchen-schedule-rail .kitchen-queue-heading { flex-wrap: wrap; gap: 6px; }
+.kitchen-schedule-rail .kitchen-queue-help { text-align: left; }
+.kitchen-page .kitchen-schedule-rail .kitchen-ticket { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'identity' 'customer' 'summary' 'notes' 'timing' 'actions'; padding: 16px; }
+.kitchen-schedule-rail .kitchen-ticket-header { flex-wrap: wrap; }
+.kitchen-schedule-rail .kitchen-ticket-customer-name { font-size: .83rem; }
+.kitchen-page .kitchen-schedule-rail .kitchen-ticket-timing { flex-direction: row; align-items: center; justify-content: space-between; text-align: left; }
+.kitchen-page .kitchen-schedule-rail .kitchen-ticket-actions { gap: 2px; justify-content: flex-start; }
+.kitchen-page .kitchen-schedule-rail .kitchen-ticket-actions .button { padding-inline: 6px; }
+:root[data-theme='dark'] .kitchen-page { --kitchen-scheduled: #8bb5ef; --kitchen-late: #f07d73; }
+@media (min-width: 1101px) and (max-width: 1350px) {
+  .kitchen-page .kitchen-board { grid-template-columns: minmax(0, 1fr) 260px; }
+  .kitchen-page .kitchen-toolbar { flex-wrap: wrap; }
+  .kitchen-page .kitchen-search { flex-basis: 100%; }
+}
+@media (max-width: 1100px) {
+  .kitchen-page .kitchen-board { grid-template-columns: minmax(0, 1fr); }
+  .kitchen-page .kitchen-schedule-rail { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kitchen-page .page-header { flex-wrap: wrap; }
+}
+@media (max-width: 820px) {
+  .kitchen-page .page-header h1 { font-size: 1.6rem; }
+  .kitchen-page .page-description { font-size: .76rem; }
+  .kitchen-page .kitchen-header-actions { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr); }
+  .kitchen-page .page-actions { width: 100%; }
+  .kitchen-page .kitchen-header-primary-action { order: -1; }
+  .kitchen-page .kitchen-header-secondary-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kitchen-page .kitchen-header-actions .button { width: 100%; min-height: 44px; }
+  .kitchen-page .kitchen-header-primary-action .button { font-size: .82rem; min-height: 46px; }
+  .kitchen-page .stats-grid.kitchen-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-bottom: 18px; }
+  .kitchen-page .kitchen-stat-card { padding: 12px; gap: 10px; }
+  .kitchen-page .kitchen-stat-card .stat-copy > span { font-size: .68rem; }
+  .kitchen-page .kitchen-stat-card .stat-copy strong { font-size: 1.45rem; }
+  .kitchen-page .kitchen-stat-card .stat-icon { width: 29px; height: 29px; flex-basis: 29px; }
+  .kitchen-page .kitchen-queue-heading { padding: 17px 14px; }
+  .kitchen-page .kitchen-queue-heading h2 { font-size: .85rem; }
+  .kitchen-page .kitchen-toolbar { flex-wrap: wrap; padding: 0 14px 14px; }
+  .kitchen-page .kitchen-search { flex-basis: 100%; min-height: 44px; }
+  .kitchen-queue-filters button { min-height: 44px; }
+  .kitchen-page .kitchen-ticket { padding: 16px 14px; grid-template-columns: minmax(0, 1fr); grid-template-areas: 'identity' 'customer' 'summary' 'notes' 'timing' 'actions'; }
+  .kitchen-page .kitchen-ticket-timing { align-items: flex-start; text-align: left; }
+  .kitchen-page .kitchen-ticket-actions .button { min-height: 44px; width: auto; flex: 0 1 auto; }
+  .kitchen-page .kitchen-queue-help { font-size: .59rem; }
+  .kitchen-page .kitchen-schedule-rail { grid-template-columns: minmax(0, 1fr); }
+}

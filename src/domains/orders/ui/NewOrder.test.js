@@ -78,12 +78,12 @@ test('product catalog replaces added action with synchronized quantity controls'
   assert.match(css, /\.new-order-quantity-control\s*\{/)
 })
 
-test('product catalog starts empty until a category is selected or search is typed', () => {
+test('product catalog opens its first available category and keeps a selection', () => {
   const catalog = source('./components/OrderProductCatalog.jsx')
 
   assert.match(catalog, /const \[category, setCategory\] = useState\(null\)/)
   assert.doesNotMatch(catalog, /\['Todos',/)
-  assert.match(catalog, /if \(!normalized && !category\) return \[\]/)
+  assert.match(catalog, /const activeCategory = category \|\| categories\[0\] \|\| null/)
   assert.match(catalog, /Selecione uma categoria ou busque um produto/)
 })
 
@@ -91,7 +91,7 @@ test('product search ignores the selected category and adding keeps the category
   const catalog = source('./components/OrderProductCatalog.jsx')
 
   assert.match(catalog, /if \(normalized\) return matchesSearch/)
-  assert.match(catalog, /return uiCategory === category/)
+  assert.match(catalog, /return uiCategory === activeCategory/)
   assert.match(catalog, /onClick=\{\(\) => onAdd\(product\)\}/)
 })
 
@@ -160,7 +160,7 @@ test('new order still exposes catalog, cart and both checkout actions', () => {
   assert.match(customerStep, /\+ Novo cliente/)
   assert.match(catalog, /Buscar produto/)
   assert.match(catalog, /Categorias de produtos/)
-  assert.match(cart, /Carrinho/)
+  assert.match(cart, /Revise seu pedido/)
   assert.match(cart, /Observação deste item/)
   assert.match(checkout, /Salvar pedido/)
   assert.match(checkout, /Salvar e receber/)
@@ -180,7 +180,7 @@ test('wizard keeps checkout payload unchanged and never persists intermediate st
 
 test('scheduling uses the shared business timezone source', () => {
   const page = source('./NewOrder.jsx')
-  const review = source('./components/NewOrderReviewStep.jsx')
+  const review = source('./components/NewOrderContext.jsx')
   assert.match(page, /import \{ getBusinessDate \} from '\.\.\/\.\.\/\.\.\/\.\.\/shared\/finance\.js'/)
   assert.match(page, /useState\(initialDraft\?\.orderDate \|\| getBusinessDate\(\)\)/)
   assert.match(page, /const todayValue = getBusinessDate\(\)/)
@@ -193,7 +193,7 @@ test('scheduling uses the shared business timezone source', () => {
 test('new order extends the current wizard with multiday schedule and Local Reservar controls', () => {
   const page = source('./NewOrder.jsx')
   const customerStep = source('./components/NewOrderCustomerStep.jsx')
-  const review = source('./components/NewOrderReviewStep.jsx')
+  const review = source('./components/NewOrderContext.jsx')
   const tableSelector = source('../../table-service/ui/LocalTableSelector.jsx')
 
   assert.match(page, /getScheduleMaxBusinessDate/)
@@ -369,9 +369,9 @@ test('reservation conflict renders the specific server guidance instead of a gen
     }),
   })
 
-  await act(async () => buttonNamed(renderer.root, 'Continuar →').props.onClick())
-  await act(async () => renderer.root.findAllByType('button').find((node) => nodeText(node).includes('Ver carrinho')).props.onClick())
-  await act(async () => buttonNamed(renderer.root, 'Salvar pedido').props.onClick())
+  await act(async () => buttonNamed(renderer.root, 'Escolher produtos →').props.onClick())
+  await act(async () => buttonNamed(renderer.root, 'Revisar pedido →').props.onClick())
+  await act(async () => buttonNamed(renderer.root, 'Salvar reserva').props.onClick())
 
   const text = nodeText(renderer.root)
   assert.match(text, /Esta mesa já possui uma reserva nesse horário/)

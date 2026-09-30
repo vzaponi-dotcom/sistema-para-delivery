@@ -8,7 +8,7 @@ test('new order exposes an accessible three-step indicator with reached-state aw
   const indicator = await read('./components/NewOrderStepIndicator.jsx')
 
   assert.match(indicator, /Etapas da nova venda/)
-  assert.match(indicator, /Cliente/)
+  assert.match(indicator, /Atendimento/)
   assert.match(indicator, /Produtos/)
   assert.match(indicator, /Finalizar/)
   assert.match(indicator, /aria-current/)
@@ -28,7 +28,7 @@ test('new order starts on the context-appropriate step and customer step contain
   assert.match(customerStep, /Tipo do pedido/)
   assert.match(customerStep, /Data do pedido/)
   assert.match(customerStep, /\+ Novo cliente/)
-  assert.match(customerStep, /Continuar/)
+  assert.match(customerStep, /Escolher produtos/)
   assert.match(customerStep, /aria-pressed/)
   assert.doesNotMatch(customerStep, /OrderProductCatalog/)
   assert.doesNotMatch(customerStep, /OrderCart/)

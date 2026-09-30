@@ -32,13 +32,13 @@ const renderedPosition = (output, predicate) => {
   return match
 }
 
-const assertSingleSubnavigationPrecedesHeader = (renderer, label) => {
+const assertSingleSubnavigationPrecedesHeader = (renderer, label, afterHeader = false) => {
   const output = renderer.toJSON()
   const header = renderedPosition(output, (node) => node.type === 'header')
   const navigation = renderedPosition(output, (node) => node.type === 'nav' && node.props['aria-label'] === label)
   assert.ok(header >= 0, `PageHeader ausente para ${label}`)
   assert.ok(navigation >= 0, `${label} ausente`)
-  assert.ok(navigation < header, `${label} deve aparecer antes do PageHeader`)
+  assert.ok(afterHeader ? navigation > header : navigation < header, `${label} deve respeitar a posição aprovada em relação ao PageHeader`)
   assert.equal(renderer.root.findAllByProps({ 'aria-label': label }).length, 1, `${label} deve aparecer uma unica vez`)
 }
 
@@ -167,7 +167,7 @@ test('uma única subnavegação precede o PageHeader nas áreas que mantêm subt
   const navigationProps = { granted, implemented, onNavigate() {} }
   const currency = (value) => `R$ ${value}`
   const queryState = { search: '', activeView: 'pending', timingFilter: 'all', sortMode: 'urgency', exactDateFilter: null, selectedEntryKey: null }
-  assertSingleSubnavigationPrecedesHeader(await renderWithNavigation(h, Orders, { orders: [], now: new Date(), search: '', onSearchChange() {}, currency, onNewOrder() {}, onFinalizeOrder() {}, onCancelOrder() {}, onNavigatePrintQueue() {}, printing: {}, ...navigationProps }), 'Navegação de Pedidos')
+  assertSingleSubnavigationPrecedesHeader(await renderWithNavigation(h, Orders, { orders: [], now: new Date(), search: '', onSearchChange() {}, currency, onNewOrder() {}, onFinalizeOrder() {}, onCancelOrder() {}, onNavigatePrintQueue() {}, printing: {}, ...navigationProps }), 'Navegação de Pedidos', true)
   assertSingleSubnavigationPrecedesHeader(await renderWithNavigation(h, OrderHistory, { orders: [], queryState: { filter: 'all', analysisPeriod: '30d' }, onQueryChange() {}, ...navigationProps }), 'Navegação de Pedidos')
   assertSingleSubnavigationPrecedesHeader(await renderWithNavigation(h, DashboardSurface, { orders: [], movements: [], currency, queryState: { period: '30d', valuesVisible: true }, onQueryChange() {}, ...navigationProps }), 'Navegação de Financeiro')
   assertSingleSubnavigationPrecedesHeader(await renderWithNavigation(h, Receivables, { orders: [], currency, queryState, onQueryChange() {}, orderPresentation: { formatOrderDate: (value) => value || '', getOrderItemsSearchText: () => '', getOrderItemsSummary: () => '' }, orderRules: { isOrderCancelled: () => false, isOrderPaid: () => false, getPendingAmount: () => 0 }, ...navigationProps }), 'Navegação de Financeiro')
