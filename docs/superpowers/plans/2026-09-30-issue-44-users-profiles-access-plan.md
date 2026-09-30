@@ -181,7 +181,7 @@ Tasks 1–10 are independently testable commits, but do not enable `user_only` o
 
 ### Task 11: Enrollment preflight, one-way cutover and emergency recovery
 
-**Files:** Create `worker/access/cutover.js`, `worker/access/cutover.test.js`, `scripts/infra/issue-44-access-admin.mjs`, `scripts/infra/issue-44-access-admin.test.js`; modify `worker/index.js` and deployment runbook under `docs/operations/`.
+**Files:** Create `worker/access/cutover.js`, `worker/access/cutover.test.js`, `scripts/infra/issue-44-access-admin.mjs`, `scripts/infra/issue-44-access-admin.test.js`, `docs/operations/issue-44-access-cutover.md`; modify `worker/index.js`, `worker/access/roles.js` (atomic role/grant preparation) and `worker/access/credentials.js` (canonical verifier predicate).
 
 **Interfaces:** `preflightCutover(db, businessId): Promise<{ ready, failures: string[] }>` checks persisted identity and grant state; `cutoverBusinessAuth(db, businessId, now): Promise<void>` switches `enrollment` → `user_only` and revokes all null-user sessions atomically; CLI commands `issue-initial-manager`, `preflight`, `cutover`, `issue-emergency-invite` require infrastructure administrator access and log non-secret action. Route coverage and response projection are separate required code/QA gates in Tasks 5–6 and 12. No CLI command prints a password or re-enables the legacy PIN.
 

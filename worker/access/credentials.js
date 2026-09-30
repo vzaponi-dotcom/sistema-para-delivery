@@ -25,10 +25,16 @@ export async function hashHumanPassword(password) {
   return `v1$pbkdf2-sha256$${ITERATIONS}$${base64(salt)}$${base64(await derive(password, salt))}`
 }
 
-export async function verifyHumanPassword(password, verifier) {
-  if (typeof password !== 'string' || typeof verifier !== 'string' || Array.from(password).length > 1024) return false
+export function isSupportedPasswordVerifier(verifier) {
+  if (typeof verifier !== 'string') return false
   const [version, algorithm, cost, saltText, keyText, ...extra] = verifier.split('$')
   if (version !== 'v1' || algorithm !== 'pbkdf2-sha256' || cost !== String(ITERATIONS) || extra.length) return false
+  return Boolean(decode(saltText, 16) && decode(keyText, 32))
+}
+
+export async function verifyHumanPassword(password, verifier) {
+  if (typeof password !== 'string' || Array.from(password).length > 1024 || !isSupportedPasswordVerifier(verifier)) return false
+  const [, , , saltText, keyText] = verifier.split('$')
   const salt = decode(saltText, 16)
   const expected = decode(keyText, 32)
   if (!salt || !expected) return false

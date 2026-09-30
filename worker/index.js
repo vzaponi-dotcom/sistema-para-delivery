@@ -36,7 +36,8 @@ import { handleTableReservationApi } from './tableReservationApi.js'
 import { acceptAccessInvitation } from './access/invitations.js'
 import { handleAccessApi } from './access/api.js'
 
-const BUSINESS_ID = 'amor-e-sabor'
+// Shared with the infrastructure CLI; never sourced from a request or CLI flag.
+export const BUSINESS_ID = 'amor-e-sabor'
 const authJson = (body, init = {}) => json(body, { ...init, headers: { 'cache-control': 'no-store', ...init.headers } })
 const LOGIN_RATE_LIMIT_KEY = 'amor-e-sabor:auth-login'
 const LEGACY_PRODUCT_CATEGORIES = {

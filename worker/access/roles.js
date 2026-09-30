@@ -5,7 +5,7 @@ const OPERATOR_CAPABILITIES = Object.freeze([
   'payments.receive', 'clients.view', 'clients.create', 'clients.update', 'products.view',
   'tables.view', 'printing.queue', 'printing.execute', 'printing.station.view', 'preferences.local',
 ])
-const BUILTIN_ROLES = Object.freeze([
+export const BUILTIN_ROLES = Object.freeze([
   { code: 'manager', name: 'Gerente', capabilities: APPLICATION_CAPABILITIES },
   { code: 'operator', name: 'Operador', capabilities: OPERATOR_CAPABILITIES },
 ])
@@ -15,7 +15,7 @@ export function normalizeLogin(input) {
   return input.normalize('NFKC').trim().toLowerCase()
 }
 
-export async function seedBuiltinRoles(db, businessId, now) {
+export function prepareBuiltinRoles(db, businessId, now) {
   const timestamp = now.toISOString()
   const statements = []
   for (const { code, name, capabilities } of BUILTIN_ROLES) {
@@ -31,7 +31,11 @@ export async function seedBuiltinRoles(db, businessId, now) {
       ).bind(capability, businessId, code))
     }
   }
-  await db.batch(statements)
+  return statements
+}
+
+export async function seedBuiltinRoles(db, businessId, now) {
+  await db.batch(prepareBuiltinRoles(db, businessId, now))
 }
 
 export async function loadRoleGrants(db, businessId, roleId) {
