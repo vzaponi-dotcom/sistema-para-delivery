@@ -254,7 +254,7 @@ export const recordPrintAttemptEvent = async (db, businessId, attemptId, station
   await auditedMutation(db,businessId,db.prepare(`UPDATE print_job_attempts SET
     status = ?, spool_job_id = COALESCE(?, spool_job_id),
     submitted_at = COALESCE(submitted_at, ?), last_event_at = ?, updated_at = ?
-    WHERE id = ? AND business_id = ? AND station_id = ? AND status <> 'complete' AND resolution IS NULL AND (status <> ? OR spool_job_id IS NOT ?)`)
+    WHERE id = ? AND business_id = ? AND station_id = ? AND status <> 'complete' AND resolution IS NULL AND (status <> ? OR spool_job_id IS NOT COALESCE(?, spool_job_id))`)
     .bind(status, details.spoolJobId, at, at, at, attemptId, businessId, stationId,status,details.spoolJobId),{action:'printing.outcome.observed',resourceType:'print-job',resourceId:attempt.jobId,outcome:status,now}).run()
   return requireAttempt(db, businessId, attemptId)
 }

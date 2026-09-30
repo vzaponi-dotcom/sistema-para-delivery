@@ -33,13 +33,18 @@ export const businessEvent = (db,businessId,event) => prepareAuditEvent(db,audit
 // selectSql is a repository-owned SELECT of resource IDs, never request SQL.
 // Used before a matching bulk UPDATE in the same batch so each accepted row has
 // one event and competing/repeated operations cannot duplicate past outcomes.
-export function prepareAuditSelection(db,businessId,event,selectSql,bindings=[]) {
+export function prepareAuditSelection(db,businessId,event,selectSql,bindings=[],{stationFromSelection=false}={}) {
   const context=auditContext(db,businessId)
   const type=context.actorType || (context.legacy ? 'legacy' : context.userId ? 'user' : 'system')
+  // Only repository-owned SELECTs may provide a station already joined to this tenant.
+  const metadataSql = stationFromSelection
+    ? "CASE WHEN selected.station_id IS NULL THEN '{}' ELSE json_object('stationId',selected.station_id) END"
+    : '?'
+  const metadataBindings = stationFromSelection ? [] : [JSON.stringify(context.stationId?{stationId:context.stationId}:{})]
   return db.prepare(`INSERT INTO audit_events(id,business_id,occurred_at,actor_type,actor_user_id,actor_name,session_id,action,resource_type,resource_id,result,metadata_json)
-    SELECT ? || selected.id,?,?,?,?,?,?,?,?,selected.id,?,? FROM (${selectSql}) selected`)
+    SELECT ? || selected.id,?,?,?,?,?,?,?,?,selected.id,?,${metadataSql} FROM (${selectSql}) selected`)
     .bind(`${crypto.randomUUID()}:`,businessId,(event.now||new Date()).toISOString(),type,type==='user'?context.userId:null,
-      type==='system'?'Sistema':type==='legacy'?'Acesso legado':context.displayName,context.sessionId||null,event.action,event.resourceType,event.outcome||'success',JSON.stringify(context.stationId?{stationId:context.stationId}:{}),...bindings)
+      type==='system'?'Sistema':type==='legacy'?'Acesso legado':context.displayName,context.sessionId||null,event.action,event.resourceType,event.outcome||'success',...metadataBindings,...bindings)
 }
 
 // Explicitly called at a repository mutation boundary. D1 returns the original

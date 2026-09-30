@@ -275,31 +275,39 @@ const agePrintJobs = async (db, businessId, now = new Date()) => {
   const processingCutoff = new Date(at.getTime() - PRINT_PROCESSING_MAX_AGE_MS).toISOString()
 
   await routeIneligibleAutomaticJobsToAttention(db, businessId, at)
-  await db.prepare(`UPDATE print_job_attempts SET
+  const expiredAttempt = `a.business_id = ? AND a.status IN ('submitting', 'spooling', 'printing')
+    AND a.resolution IS NULL AND a.submission_started_at <= ?`
+  const timeoutCandidates = `SELECT print_jobs.id,
+    (SELECT s.id FROM print_stations s WHERE s.business_id=print_jobs.business_id
+      AND s.id=COALESCE((SELECT a.station_id FROM print_job_attempts a
+        WHERE a.business_id=print_jobs.business_id AND a.job_id=print_jobs.id
+          AND a.resolution IS NULL AND a.submission_started_at IS NOT NULL
+        ORDER BY a.attempt_number DESC LIMIT 1),print_jobs.station_id)) AS station_id
+    FROM print_jobs WHERE print_jobs.business_id = ? AND (
+      EXISTS (SELECT 1 FROM print_job_attempts a WHERE a.job_id=print_jobs.id AND ${expiredAttempt})
+      OR (status IN ('awaiting_confirmation','processing') AND EXISTS (
+        SELECT 1 FROM print_job_attempts a WHERE a.business_id=print_jobs.business_id
+          AND a.job_id=print_jobs.id AND a.status='unknown' AND a.resolution IS NULL))
+      OR (status='processing' AND processing_started_at <= ?)
+    )`
+  const candidateBindings = [businessId,businessId,processingCutoff,processingCutoff]
+  // Polling is not human execution. Stored station associations are validated
+  // by the tenant join above, without requiring the timed-out station online.
+  const systemDb=withAuditContext(db,{businessId,actorType:'system'})
+  await db.batch([
+    prepareAuditSelection(systemDb,businessId,{action:'printing.outcome.observed',resourceType:'print-job',outcome:'unknown',now:at},
+      timeoutCandidates,candidateBindings,{stationFromSelection:true}),
+    db.prepare(`UPDATE print_job_attempts AS a SET
       status = 'unknown', last_event_at = ?, last_error_code = 'PRINT_OUTCOME_UNKNOWN',
       last_error_message = 'O resultado físico da impressão não foi confirmado.', updated_at = ?
-    WHERE business_id = ? AND status IN ('submitting', 'spooling', 'printing')
-      AND resolution IS NULL AND submission_started_at <= ?`)
-    .bind(processedAt, processedAt, businessId, processingCutoff).run()
-  await db.prepare(`UPDATE print_jobs SET
-      status = 'requires_attention', processed_at = ?,
-      last_error_code = 'PRINT_OUTCOME_UNKNOWN',
+      WHERE ${expiredAttempt}`).bind(processedAt,processedAt,businessId,processingCutoff),
+    db.prepare(`UPDATE print_jobs SET
+      status = 'requires_attention', processed_at = ?, last_error_code = 'PRINT_OUTCOME_UNKNOWN',
       last_error_message = 'O resultado físico da impressão não foi confirmado.'
-    WHERE business_id = ? AND status = 'awaiting_confirmation'
-      AND EXISTS (
-        SELECT 1 FROM print_job_attempts
-        WHERE print_job_attempts.business_id = print_jobs.business_id
-          AND print_job_attempts.job_id = print_jobs.id
-          AND print_job_attempts.status = 'unknown'
-          AND print_job_attempts.resolution IS NULL
-      )`)
-    .bind(processedAt, businessId).run()
-  await db.prepare(`UPDATE print_jobs SET
-      status = 'requires_attention', processed_at = ?,
-      last_error_code = 'PRINT_OUTCOME_UNKNOWN',
-      last_error_message = 'O resultado físico da impressão não foi confirmado.'
-      WHERE business_id = ? AND status = 'processing' AND processing_started_at <= ?`)
-    .bind(processedAt, businessId, processingCutoff).run()
+      WHERE id IN (SELECT id FROM (${timeoutCandidates}))
+        AND business_id=? AND status IN ('awaiting_confirmation','processing')`)
+      .bind(processedAt,...candidateBindings,businessId),
+  ])
 }
 
 const mapPrintQueueJobs = async (db, businessId, result, now) => {
@@ -642,22 +650,19 @@ export const claimNextAutomaticPrintJob = async (db, businessId, stationId, now 
   }
   if (station.recoveryState !== 'normal') return null
   const at = timestamp(now)
+  const candidateSql = `SELECT id FROM print_jobs
+      WHERE business_id = ? AND type = 'order' AND trigger = 'automatic' AND status = 'pending' AND available_at <= ?
+        AND (${AUTOMATIC_ORDER_ELIGIBLE_SQL} OR last_error_code = 'FORCE_PRINT_AUTHORIZED')
+      ORDER BY priority DESC, COALESCE(available_at, created_at) ASC, created_at ASC, id ASC LIMIT 1`
+  const candidateBindings = [businessId,at]
   const update = db.prepare(`UPDATE print_jobs SET
       status = 'processing', station_id = ?, processing_started_at = ?, processed_at = NULL,
       last_error_code = NULL, last_error_message = NULL
-    WHERE id = (
-      SELECT id FROM print_jobs
-      WHERE business_id = ? AND type = 'order' AND trigger = 'automatic' AND status = 'pending' AND available_at <= ?
-        AND (${AUTOMATIC_ORDER_ELIGIBLE_SQL} OR last_error_code = 'FORCE_PRINT_AUTHORIZED')
-      ORDER BY priority DESC, COALESCE(available_at, created_at) ASC, created_at ASC, id ASC LIMIT 1
-    ) AND business_id = ? AND type = 'order' AND trigger = 'automatic' AND status = 'pending' AND available_at <= ?
+    WHERE id = (${candidateSql}) AND business_id = ? AND type = 'order' AND trigger = 'automatic' AND status = 'pending' AND available_at <= ?
     RETURNING *`)
-    .bind(stationId, at, businessId, at, businessId, at)
+    .bind(stationId, at, ...candidateBindings, businessId, at)
   const automaticDb=withAuditContext(db,printingActor(auditContext(db,businessId),{automatic:true,stationId}))
-  const audit=prepareAuditSelection(automaticDb,businessId,{action:'printing.claimed',resourceType:'print-job',now},`SELECT id FROM print_jobs
-      WHERE business_id = ? AND type = 'order' AND trigger = 'automatic' AND status = 'pending' AND available_at <= ?
-        AND (${AUTOMATIC_ORDER_ELIGIBLE_SQL} OR last_error_code = 'FORCE_PRINT_AUTHORIZED')
-      ORDER BY priority DESC, COALESCE(available_at, created_at) ASC, created_at ASC, id ASC LIMIT 1`,[businessId,at])
+  const audit=prepareAuditSelection(automaticDb,businessId,{action:'printing.claimed',resourceType:'print-job',now},candidateSql,candidateBindings)
   const [,claimed]=await db.batch([audit,update])
   const row=claimed.results?.[0] || null
   return mapJobRow(row)
@@ -775,6 +780,17 @@ export const discardOperationalPrintJobs = async (db, businessId, actorLabel = '
   const activeBefore = await db.prepare(`SELECT COUNT(*) AS count FROM print_jobs
     WHERE business_id = ? AND status NOT IN ('printed', 'discarded')`).bind(businessId).first()
 
+  const candidateSql = `SELECT id FROM print_jobs WHERE business_id = ?
+      AND status IN ('pending', 'queued', 'failed', 'requires_attention', 'awaiting_second_copy')
+      AND NOT EXISTS (
+        SELECT 1 FROM print_job_attempts
+        WHERE print_job_attempts.business_id = print_jobs.business_id
+          AND print_job_attempts.job_id = print_jobs.id
+          AND print_job_attempts.submission_started_at IS NOT NULL
+          AND print_job_attempts.resolution IS NULL
+          AND print_job_attempts.status <> 'complete'
+      )`
+  const candidateBindings = [businessId]
   const update = db.prepare(`UPDATE print_jobs SET
       status = 'discarded',
       second_copy_skipped_at = CASE
@@ -785,20 +801,11 @@ export const discardOperationalPrintJobs = async (db, businessId, actorLabel = '
       discarded_at = ?,
       action_actor_label = ?,
       action_at = ?
-    WHERE business_id = ?
-      AND status IN ('pending', 'queued', 'failed', 'requires_attention', 'awaiting_second_copy')
-      AND NOT EXISTS (
-        SELECT 1 FROM print_job_attempts
-        WHERE print_job_attempts.business_id = print_jobs.business_id
-          AND print_job_attempts.job_id = print_jobs.id
-          AND print_job_attempts.submission_started_at IS NOT NULL
-          AND print_job_attempts.resolution IS NULL
-          AND print_job_attempts.status <> 'complete'
-      )
+    WHERE id IN (${candidateSql})
     RETURNING *`)
-    .bind(at, at, actor, at, businessId)
+    .bind(at, at, actor, at, ...candidateBindings)
 
-  const audit = prepareAuditSelection(db,businessId,{action:'printing.discarded',resourceType:'print-job',now},`SELECT id FROM print_jobs WHERE business_id = ? AND status IN ('pending', 'queued', 'failed', 'requires_attention', 'awaiting_second_copy') AND NOT EXISTS (SELECT 1 FROM print_job_attempts WHERE print_job_attempts.business_id=print_jobs.business_id AND print_job_attempts.job_id=print_jobs.id AND print_job_attempts.submission_started_at IS NOT NULL AND print_job_attempts.resolution IS NULL AND print_job_attempts.status <> 'complete')`,[businessId])
+  const audit = prepareAuditSelection(db,businessId,{action:'printing.discarded',resourceType:'print-job',now},candidateSql,candidateBindings)
   // A subquery keeps this atomic cleanup at two bindings for any queue size.
   const cleanup = db.prepare(`UPDATE print_stations SET recovery_job_id=NULL,updated_at=? WHERE business_id=?
     AND recovery_job_id IN (SELECT id FROM print_jobs WHERE business_id=print_stations.business_id AND status='discarded')`).bind(at,businessId)
@@ -819,17 +826,19 @@ export const discardOperationalPrintJobs = async (db, businessId, actorLabel = '
 export const discardPendingPrintJobs = async (db, businessId, actorLabel = 'Sistema', now = new Date()) => {
   const at = timestamp(now)
   const actor = String(actorLabel || '').trim().slice(0, 100) || 'Sistema'
-  const update = db.prepare(`UPDATE print_jobs SET
-      status = 'discarded', discarded_at = ?, action_actor_label = ?, action_at = ?
-    WHERE business_id = ? AND status = 'pending' AND copies_printed = 0
+  const candidateSql = `SELECT id FROM print_jobs WHERE business_id = ? AND status = 'pending' AND copies_printed = 0
       AND NOT EXISTS (
         SELECT 1 FROM print_job_attempts
         WHERE print_job_attempts.business_id = print_jobs.business_id
           AND print_job_attempts.job_id = print_jobs.id
           AND print_job_attempts.submission_started_at IS NOT NULL
-      )
-    RETURNING *`).bind(at, actor, at, businessId)
-  const audit=prepareAuditSelection(db,businessId,{action:'printing.discarded',resourceType:'print-job',now},`SELECT id FROM print_jobs WHERE business_id=? AND status='pending' AND copies_printed=0 AND NOT EXISTS (SELECT 1 FROM print_job_attempts WHERE print_job_attempts.business_id=print_jobs.business_id AND print_job_attempts.job_id=print_jobs.id AND submission_started_at IS NOT NULL)`,[businessId])
+      )`
+  const candidateBindings = [businessId]
+  const update = db.prepare(`UPDATE print_jobs SET
+      status = 'discarded', discarded_at = ?, action_actor_label = ?, action_at = ?
+    WHERE id IN (${candidateSql})
+    RETURNING *`).bind(at, actor, at, ...candidateBindings)
+  const audit=prepareAuditSelection(db,businessId,{action:'printing.discarded',resourceType:'print-job',now},candidateSql,candidateBindings)
   const [,result]=await db.batch([audit,update])
   return rows(result).map(mapJobRow)
 }
