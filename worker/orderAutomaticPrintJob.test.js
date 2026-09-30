@@ -187,6 +187,95 @@ test('new scheduled order is printable immediately while keeping its scheduled t
   assert.equal(order.scheduledFor, scheduledFor)
 })
 
+test('same-day scheduled delivery and pickup remain printable immediately', async () => {
+  for (const type of ['Entrega', 'Retirada']) {
+    const db = seed()
+    const now = new Date('2026-09-03T12:00:00.000Z')
+    const scheduledFor = '2026-09-03T16:00:00.000Z'
+    const order = await createOrder(db, 'amor-e-sabor', input({
+      type,
+      idempotencyKey: `same-day-${type}`,
+      scheduledFor,
+    }), now)
+
+    const job = db.all(`SELECT created_at, available_at FROM print_jobs WHERE order_id = '${order.id}'`)[0]
+    assert.equal(job.created_at, now.toISOString())
+    assert.equal(job.available_at, now.toISOString())
+  }
+})
+
+test('next-day delivery and pickup automatic jobs wait for operationalStartAt', async () => {
+  for (const type of ['Entrega', 'Retirada']) {
+    const db = seed()
+    const now = new Date('2026-09-03T12:00:00.000Z')
+    const scheduledFor = '2026-09-04T15:00:00.000Z'
+    const order = await createOrder(db, 'amor-e-sabor', input({
+      type,
+      orderDate: '2026-09-04',
+      idempotencyKey: `next-day-${type}`,
+      scheduledFor,
+    }), now)
+
+    const job = db.all(`SELECT created_at, available_at FROM print_jobs WHERE order_id = '${order.id}'`)[0]
+    assert.equal(job.created_at, now.toISOString())
+    assert.equal(job.available_at, '2026-09-04T14:10:00.000Z')
+  }
+})
+
+test('Local reservation automatic job waits for operationalStartAt even on the same day', async () => {
+  const db = seed()
+  const now = new Date('2026-09-03T12:00:00.000Z')
+  const scheduledFor = '2026-09-03T16:00:00.000Z'
+  const order = await createOrder(db, 'amor-e-sabor', input({
+    customerIdentity: { type: 'table', tableId: 'table-1', clientId: 'c1' },
+    type: 'Local',
+    paymentAllocations: null,
+    idempotencyKey: 'same-day-local-reservation',
+    scheduledFor,
+  }), now)
+
+  const job = db.all(`SELECT created_at, available_at, copies_requested, snapshot_json
+    FROM print_jobs WHERE order_id = '${order.id}'`)[0]
+  assert.equal(job.created_at, now.toISOString())
+  assert.equal(job.available_at, '2026-09-03T15:10:00.000Z')
+  const snapshot = JSON.parse(job.snapshot_json)
+  assert.equal(snapshot.order.scheduledFor, scheduledFor)
+  assert.equal(snapshot.order.scheduleLabel, 'RESERVA')
+  assert.equal(snapshot.customer.name, 'Mesa 1 · Maria')
+})
+
+test('Local reservation copy count uses the table printing default without a table tab', async () => {
+  const db = seed({ centralCopies: 1 })
+  db.exec(`UPDATE business_print_settings
+    SET default_copies = 1, table_tab_default_copies = 2
+    WHERE business_id = 'amor-e-sabor'`)
+  const order = await createOrder(db, 'amor-e-sabor', input({
+    customerIdentity: { type: 'table', tableId: 'table-1' },
+    type: 'Local',
+    paymentAllocations: null,
+    idempotencyKey: 'reservation-table-copy-default',
+    scheduledFor: '2026-09-03T16:00:00.000Z',
+  }), new Date('2026-09-03T12:00:00.000Z'))
+
+  const job = db.all(`SELECT copies_requested FROM print_jobs WHERE order_id = '${order.id}'`)[0]
+  assert.equal(job.copies_requested, 2)
+})
+
+test('future scheduled delivery snapshot identifies the requested service time as AGENDADO', async () => {
+  const db = seed()
+  const scheduledFor = '2026-09-04T15:00:00.000Z'
+  const order = await createOrder(db, 'amor-e-sabor', input({
+    orderDate: '2026-09-04',
+    idempotencyKey: 'future-scheduled-document',
+    scheduledFor,
+  }), new Date('2026-09-03T12:00:00.000Z'))
+
+  const job = db.all(`SELECT snapshot_json FROM print_jobs WHERE order_id = '${order.id}'`)[0]
+  const snapshot = JSON.parse(job.snapshot_json)
+  assert.equal(snapshot.order.scheduledFor, scheduledFor)
+  assert.equal(snapshot.order.scheduleLabel, 'AGENDADO')
+})
+
 test('checkout retry with the same idempotency key keeps one order and one automatic print job', async () => {
   const db = seed()
   const first = await createOrder(db, 'amor-e-sabor', input(), new Date('2026-09-03T23:31:00.000Z'))

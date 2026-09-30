@@ -11,6 +11,7 @@ export function calculateReceivables(orders, payments, today = getBusinessDate(n
     // Match the Finance receivables list: paid is the existence of a payment,
     // and an open table tab is not a standalone receivable.
     if (order.status === 'Cancelado' || paid.has(order.id)
+      || order.table_reservation_id
       || (order.customer_identity_type === 'table' && order.table_tab_id)) continue
     const amount = Number(order.total_cents || 0)
     if (amount <= 0) continue

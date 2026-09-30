@@ -275,3 +275,130 @@ test('client receivable group sorting supports urgency, recent and value modes',
   assert.deepEqual(sortReceivableGroups(groups, 'recent').map((group) => group.key), ['client:c3', 'client:c2', 'client:c1'])
   assert.deepEqual(sortReceivableGroups(groups, 'value-desc').map((group) => group.key), ['client:c3', 'client:c2', 'client:c1'])
 })
+
+test('active Local reservation without table tab never becomes a standalone receivable', () => {
+  const reservation = datedPending({
+    id: 'reservation-local',
+    clientId: null,
+    client: 'Mesa 05 · Ana',
+    customerIdentityType: 'table',
+    type: 'Local',
+    tableTabId: null,
+    tableReservationId: 'reservation-1',
+    tableReservationStatus: 'reserved',
+    orderDate: '2026-09-10',
+    total: 85,
+  })
+
+  assert.deepEqual(getPendingReceivableOrders([reservation], orderRules), [])
+  assert.deepEqual(buildPendingReceivableEntries([reservation], '2026-09-06', orderRules), [])
+  assert.deepEqual(groupPendingOrders([reservation], orderRules), [])
+  assert.deepEqual(calculateReceivableSummary([reservation], '2026-09-06', orderRules), {
+    today: { amount: 0, count: 0 },
+    upcoming: { amount: 0, count: 0 },
+    overdue: { amount: 0, count: 0 },
+  })
+  assert.deepEqual(buildReceivablesForecast([reservation], '2026-09-06', 7, orderRules).days[3], {
+    date: '2026-09-10', amount: 0, count: 0,
+  })
+})
+
+test('reservation exclusion is explicit and does not hide legacy table-shaped orders without reservation identity', () => {
+  const legacyTable = datedPending({
+    id: 'legacy-table',
+    clientId: null,
+    client: 'Mesa 04',
+    customerIdentityType: 'table',
+    type: 'Local',
+    tableTabId: null,
+    tableReservationId: null,
+    orderDate: '2026-09-06',
+    total: 30,
+  })
+  const reservation = {
+    ...legacyTable,
+    id: 'reservation-context',
+    type: 'Entrega',
+    customerIdentityType: 'registered_client',
+    clientId: 'c9',
+    client: 'Reserva inconsistente protegida',
+    tableReservationId: 'reservation-9',
+    tableReservationStatus: 'reserved',
+  }
+
+  assert.deepEqual(getPendingReceivableOrders([legacyTable], orderRules).map(({ id }) => id), ['legacy-table'])
+  assert.deepEqual(getPendingReceivableOrders([reservation], orderRules), [])
+})
+
+test('converted, cancelled and no-show reservation orders stay out of receivables', () => {
+  const converted = datedPending({
+    id: 'converted',
+    clientId: null,
+    client: 'Mesa 02',
+    customerIdentityType: 'table',
+    type: 'Local',
+    tableTabId: 'tab-converted',
+    tableReservationId: 'reservation-converted',
+    tableReservationStatus: 'converted',
+  })
+  const cancelled = datedPending({
+    id: 'cancelled-reservation',
+    clientId: null,
+    customerIdentityType: 'table',
+    type: 'Local',
+    tableReservationId: 'reservation-cancelled',
+    tableReservationStatus: 'cancelled',
+    status: 'Cancelado',
+  })
+  const noShow = datedPending({
+    id: 'no-show-reservation',
+    clientId: null,
+    customerIdentityType: 'table',
+    type: 'Local',
+    tableReservationId: 'reservation-no-show',
+    tableReservationStatus: 'no_show',
+    status: 'Cancelado',
+  })
+
+  assert.deepEqual(getPendingReceivableOrders([converted, cancelled, noShow], orderRules), [])
+  assert.deepEqual(getPaidReceivableOrders([
+    { ...converted, paymentStatus: 'Pago' },
+    { ...cancelled, paymentStatus: 'Pago' },
+    { ...noShow, paymentStatus: 'Pago' },
+  ], orderRules), [])
+})
+
+test('future delivery and pickup remain forecast receivables by future orderDate while paid-at-checkout is excluded', () => {
+  const delivery = datedPending({
+    id: 'future-delivery',
+    type: 'Entrega',
+    orderDate: '2026-09-09',
+    promisedPaymentDate: null,
+    total: 60,
+  })
+  const pickup = datedPending({
+    id: 'future-pickup',
+    type: 'Retirada',
+    orderDate: '2026-09-12',
+    promisedPaymentDate: null,
+    total: 45,
+  })
+  const paidDelivery = datedPending({
+    id: 'future-paid',
+    type: 'Entrega',
+    orderDate: '2026-09-10',
+    paymentStatus: 'Pago',
+    paidAt: '2026-09-06T15:00:00.000Z',
+    total: 70,
+  })
+
+  const pending = getPendingReceivableOrders([delivery, pickup, paidDelivery], orderRules)
+  assert.deepEqual(pending.map(({ id }) => id), ['future-delivery', 'future-pickup'])
+  assert.equal(getReceivableTiming(delivery, '2026-09-06', orderRules).status, 'upcoming')
+  assert.equal(getReceivableTiming(pickup, '2026-09-06', orderRules).status, 'upcoming')
+
+  const forecast = buildReceivablesForecast([delivery, pickup, paidDelivery], '2026-09-06', 7, orderRules)
+  assert.deepEqual(forecast.days[2], { date: '2026-09-09', amount: 60, count: 1 })
+  assert.deepEqual(forecast.days[5], { date: '2026-09-12', amount: 45, count: 1 })
+  assert.equal(forecast.days.reduce((sum, day) => sum + day.amount, 0), 105)
+})

@@ -63,7 +63,7 @@ test('orders keep the faster cadence and stale order reads cannot overwrite newe
 test('paid checkout applies authoritative effects locally instead of awaiting full bootstrap', () => {
   assert.match(app, /submitOrder: ordersApi\.createOrder/)
   assert.match(app, /commitOfficialEffects: applyOfficialEffects/)
-  assert.match(newOrderDraft, /const result = await submitOrderRef\.current\(payload, token\.idempotencyKey\)/)
+  assert.match(newOrderDraft, /await submitOrderRef\.current\(payload, token\.idempotencyKey\)/)
   assert.match(newOrderDraft, /commitOfficialEffectsRef\.current\(result\)/)
   assert.doesNotMatch(app, /if \(order\.paymentStatus === 'Pago'\) await refreshBootstrap\(\)/)
   assert.match(runtime, /markMutation/)

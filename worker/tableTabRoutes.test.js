@@ -141,7 +141,7 @@ test('a local order opens a fresh stable tab and returns its occupied pending su
     .find((table) => table.id === 'table-2')
   assert.deepEqual(initialTable, {
     id: 'table-2', name: 'Mesa 2', sortOrder: 2, isActive: true,
-    occupancy: 'free', openTableTabId: null, openTableTab: null,
+    occupancy: 'free', openTableTabId: null, openTableTab: null, nextReservation: null,
   })
 
   const created = await request(env, cookie, 'POST', '/api/orders', {
@@ -169,6 +169,46 @@ test('a local order opens a fresh stable tab and returns its occupied pending su
   assert.equal(paid.status, 201)
   const paidPayload = await paid.json()
   assert.equal(paidPayload.tables.find((table) => table.id === 'table-2').occupancy, 'free')
+})
+
+test('scheduled Local API returns the reservation and table projection without opening a comanda', async () => {
+  const { env, cookie } = await authenticated()
+  const scheduled = new Date(Date.now() + 24 * 60 * 60 * 1000)
+  const body = {
+    customerIdentity: { type: 'table', tableId: 'table-closed', clientId: 'client-1' },
+    type: 'Local',
+    orderDate: getBusinessDate(scheduled),
+    scheduledFor: scheduled.toISOString(),
+    items: [{ productId: 'product-1', quantity: 1, note: '' }],
+    deliveryFee: 0,
+    adjustment: { type: 'none', mode: 'fixed', value: 0, reason: '' },
+  }
+
+  const firstResponse = await request(env, cookie, 'POST', '/api/orders', {
+    idempotencyKey: 'local-reservation-api',
+    body,
+  })
+  assert.equal(firstResponse.status, 201)
+  const first = await firstResponse.json()
+  assert.equal(first.order.tableTabId, null)
+  assert.equal(first.order.tableReservationStatus, 'reserved')
+  assert.equal(first.reservation.id, first.order.tableReservationId)
+  assert.equal(first.reservation.tableId, 'table-closed')
+  assert.equal(first.tableTab, null)
+  const table = first.tables.find((item) => item.id === 'table-closed')
+  assert.equal(table.occupancy, 'free')
+  assert.equal(table.nextReservation.id, first.reservation.id)
+  assert.equal(env.DB.sqlite.prepare("SELECT COUNT(*) AS count FROM table_tabs WHERE table_id = 'table-closed' AND status = 'open'").get().count, 0)
+
+  const replayResponse = await request(env, cookie, 'POST', '/api/orders', {
+    idempotencyKey: 'local-reservation-api',
+    body,
+  })
+  assert.equal(replayResponse.status, 201)
+  const replay = await replayResponse.json()
+  assert.equal(replay.order.id, first.order.id)
+  assert.equal(replay.reservation.id, first.reservation.id)
+  assert.equal(env.DB.sqlite.prepare("SELECT COUNT(*) AS count FROM table_reservations WHERE table_id = 'table-closed'").get().count, 1)
 })
 
 test('direct API rejects immediate payment for a table order', async () => {

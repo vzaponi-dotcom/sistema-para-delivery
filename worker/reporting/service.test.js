@@ -61,3 +61,148 @@ test('overview returns a comparison for every KPI with semantic direction and un
   assert.equal(result.comparison.metrics.receivedCents.available, false)
   assert.equal(result.comparison.metrics.cancellationRate.direction, 'lower_better')
 })
+
+test('sales keeps future order_date separate from early receipt date and excludes active reservation from receivables', async () => {
+  const { createReportingService } = await import('./service.js')
+  const repository = {
+    async loadSales(_businessId, query) {
+      if (query.from === '2026-09-29') {
+        return {
+          orders: [],
+          receipts: [{ id: 'early-receipt', total_cents: 4_000, paid_at: '2026-09-29T15:00:00.000Z' }],
+          allocations: [{ receipt_id: 'early-receipt', method_label: 'Pix', amount_cents: 4_000 }],
+          payments: [],
+          refunds: [],
+        }
+      }
+      if (query.from === '2026-10-03') {
+        return {
+          orders: [
+            {
+              id: 'future-delivery',
+              order_date: '2026-10-03',
+              status: 'Finalizado',
+              type: 'Entrega',
+              total_cents: 4_000,
+              delivery_fee_cents: 0,
+              adjustment_type: 'none',
+              adjustment_amount_cents: 0,
+              customer_identity_type: 'registered_client',
+              table_tab_id: null,
+              table_reservation_id: null,
+              promised_payment_date: null,
+            },
+            {
+              id: 'future-local-reservation',
+              order_date: '2026-10-03',
+              status: 'Finalizado',
+              type: 'Local',
+              total_cents: 5_000,
+              delivery_fee_cents: 0,
+              adjustment_type: 'none',
+              adjustment_amount_cents: 0,
+              customer_identity_type: 'table',
+              table_tab_id: null,
+              table_reservation_id: 'reservation-1',
+              promised_payment_date: null,
+            },
+            {
+              id: 'no-show-local',
+              order_date: '2026-10-03',
+              status: 'Cancelado',
+              type: 'Local',
+              total_cents: 3_000,
+              delivery_fee_cents: 0,
+              adjustment_type: 'none',
+              adjustment_amount_cents: 0,
+              customer_identity_type: 'table',
+              table_tab_id: null,
+              table_reservation_id: 'reservation-no-show',
+              promised_payment_date: null,
+            },
+          ],
+          receipts: [],
+          allocations: [],
+          payments: [{ order_id: 'future-delivery', amount_cents: 4_000 }],
+          refunds: [],
+        }
+      }
+      return { orders: [], receipts: [], allocations: [], payments: [], refunds: [] }
+    },
+  }
+  const service = createReportingService(repository)
+
+  const paymentDay = await service.sales('business-a', {
+    from: '2026-09-29',
+    to: '2026-09-29',
+    period: 'custom',
+  })
+  assert.equal(paymentDay.data.salesCents, 0)
+  assert.equal(paymentDay.data.receivedCents, 4_000)
+  assert.deepEqual(paymentDay.data.salesSeries, [])
+  assert.deepEqual(paymentDay.data.receivedSeries, [{ date: '2026-09-29', cents: 4_000 }])
+
+  const serviceDay = await service.sales('business-a', {
+    from: '2026-10-03',
+    to: '2026-10-03',
+    period: 'custom',
+  })
+  assert.equal(serviceDay.data.salesCents, 9_000)
+  assert.equal(serviceDay.data.ordersCount, 2)
+  assert.equal(serviceDay.data.receivedCents, 0)
+  assert.equal(serviceDay.data.receivableCents, 0)
+  assert.equal(serviceDay.data.receivableCount, 0)
+  assert.deepEqual(serviceDay.data.salesSeries, [{ date: '2026-10-03', cents: 9_000 }])
+  assert.deepEqual(serviceDay.data.ordersSeries, [{ date: '2026-10-03', count: 2 }])
+  assert.deepEqual(serviceDay.data.receivedSeries, [])
+})
+
+test('overview receivable metrics exclude an active reservation while keeping ordinary future unpaid orders', async () => {
+  const { createReportingService } = await import('./service.js')
+  const repository = {
+    async listOperationalOrders() { return [] },
+    async loadOverview(_businessId, query) {
+      if (query.from !== '2026-10-03') return { orders: [], payments: [], receipts: [], refunds: [] }
+      return {
+        orders: [
+          {
+            id: 'future-delivery-unpaid',
+            order_date: '2026-10-03',
+            status: 'Finalizado',
+            type: 'Entrega',
+            total_cents: 4_000,
+            customer_identity_type: 'registered_client',
+            table_tab_id: null,
+            table_reservation_id: null,
+            promised_payment_date: null,
+          },
+          {
+            id: 'future-local-reservation',
+            order_date: '2026-10-03',
+            status: 'Finalizado',
+            type: 'Local',
+            total_cents: 5_000,
+            customer_identity_type: 'table',
+            table_tab_id: null,
+            table_reservation_id: 'reservation-1',
+            promised_payment_date: null,
+          },
+        ],
+        payments: [],
+        receipts: [],
+        refunds: [],
+      }
+    },
+  }
+
+  const result = await createReportingService(repository).overview('business-a', {
+    from: '2026-10-03',
+    to: '2026-10-03',
+    period: 'custom',
+  })
+
+  assert.equal(result.data.metrics.salesCents, 9_000)
+  assert.equal(result.data.metrics.ordersCount, 2)
+  assert.equal(result.data.metrics.receivableCents, 4_000)
+  assert.equal(result.data.metrics.receivableCount, 1)
+})

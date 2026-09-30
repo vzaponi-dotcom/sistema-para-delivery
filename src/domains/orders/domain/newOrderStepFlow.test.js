@@ -5,6 +5,7 @@ import {
   canNavigateToNewOrderStep,
   createNewOrderDirtySnapshot,
   getFurthestReachedStep,
+  getNewOrderScheduleState,
   getNewOrderStepAccess,
   getOrderItemCount,
   getOrderItemsSubtotal,
@@ -110,4 +111,77 @@ test('global exit confirmation only applies when leaving a dirty new order', () 
   assert.equal(shouldConfirmNewOrderExit({ activeTab: 'new-order', targetTab: 'new-order', draftDirty: true }), false)
   assert.equal(shouldConfirmNewOrderExit({ activeTab: 'new-order', targetTab: 'orders', draftDirty: false }), false)
   assert.equal(shouldConfirmNewOrderExit({ activeTab: 'orders', targetTab: 'clients', draftDirty: true }), false)
+})
+
+
+test('schedule state supports Local Reservar and multiday delivery while protecting open-comanda orders', () => {
+  const now = new Date('2026-09-29T15:00:00.000Z')
+
+  assert.deepEqual(getNewOrderScheduleState({
+    type: 'Local',
+    orderDate: '2026-09-29',
+    today: '2026-09-29',
+    scheduleMode: 'scheduled',
+    scheduledFor: '2026-09-29T20:00:00.000Z',
+    expectedTableTabId: '',
+    now,
+  }), {
+    visible: true,
+    valid: true,
+    reservationMode: true,
+    nowAllowed: true,
+    scheduledLabel: 'Reservar',
+    fieldLabel: 'Quando atender?',
+  })
+
+  assert.deepEqual(getNewOrderScheduleState({
+    type: 'Entrega',
+    orderDate: '2026-10-01',
+    today: '2026-09-29',
+    scheduleMode: 'scheduled',
+    scheduledFor: '2026-10-01T20:00:00.000Z',
+    expectedTableTabId: '',
+    now,
+  }), {
+    visible: true,
+    valid: true,
+    reservationMode: false,
+    nowAllowed: false,
+    scheduledLabel: 'Agendado',
+    fieldLabel: 'Quando preparar?',
+  })
+
+  const openTab = getNewOrderScheduleState({
+    type: 'Local',
+    orderDate: '2026-09-29',
+    today: '2026-09-29',
+    scheduleMode: 'scheduled',
+    scheduledFor: '2026-09-29T20:00:00.000Z',
+    expectedTableTabId: 'tab-1',
+    now,
+  })
+  assert.equal(openTab.visible, false)
+  assert.equal(openTab.reservationMode, false)
+  assert.equal(openTab.valid, false)
+})
+
+test('future date cannot continue in Agora mode and day 91 is invalid', () => {
+  const now = new Date('2026-09-29T15:00:00.000Z')
+  assert.equal(getNewOrderScheduleState({
+    type: 'Retirada',
+    orderDate: '2026-10-01',
+    today: '2026-09-29',
+    scheduleMode: 'now',
+    scheduledFor: null,
+    now,
+  }).valid, false)
+
+  assert.equal(getNewOrderScheduleState({
+    type: 'Retirada',
+    orderDate: '2026-12-29',
+    today: '2026-09-29',
+    scheduleMode: 'scheduled',
+    scheduledFor: '2026-12-29T20:00:00.000Z',
+    now,
+  }).valid, false)
 })

@@ -52,7 +52,36 @@ class D1Sqlite {
         last_number INTEGER NOT NULL DEFAULT 0,
         updated_at TEXT NOT NULL
       );
-      CREATE TABLE orders (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, table_tab_id TEXT, status TEXT NOT NULL, total_cents INTEGER NOT NULL, created_at TEXT NOT NULL);
+      CREATE TABLE orders (
+        id TEXT PRIMARY KEY,
+        business_id TEXT NOT NULL,
+        order_number INTEGER,
+        client_id TEXT,
+        client_name_snapshot TEXT NOT NULL DEFAULT '',
+        table_tab_id TEXT,
+        status TEXT NOT NULL,
+        total_cents INTEGER NOT NULL,
+        scheduled_for TEXT,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE table_reservations (
+        id TEXT PRIMARY KEY,
+        business_id TEXT NOT NULL,
+        order_id TEXT NOT NULL,
+        table_id TEXT NOT NULL,
+        table_name_snapshot TEXT NOT NULL,
+        status TEXT NOT NULL,
+        scheduled_for TEXT NOT NULL,
+        ends_at TEXT NOT NULL,
+        duration_minutes INTEGER NOT NULL,
+        revision INTEGER NOT NULL,
+        converted_table_tab_id TEXT,
+        converted_at TEXT,
+        cancelled_at TEXT,
+        no_show_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
       CREATE TABLE payments (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT NOT NULL);
       CREATE TABLE order_items (id TEXT PRIMARY KEY, business_id TEXT NOT NULL, order_id TEXT NOT NULL, quantity INTEGER NOT NULL);
       INSERT INTO businesses (id, name) VALUES ('amor-e-sabor', 'Amor & Sabor');

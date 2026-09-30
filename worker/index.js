@@ -17,11 +17,13 @@ import { createClient, createOrder, createProduct, deleteClient, deleteProduct, 
 import { registerClientOrdersPayment, registerOrderPayment, registerTableTabPayment } from './paymentRepository.js'
 import { validatePaymentAllocations, validateReceivableOrderIds } from './paymentValidation.js'
 import { createTable, listTables, renameTable, reorderTables, setTableActive, transferOpenTableTab } from './tableRepository.js'
+import { loadTableReservationByOrderId } from './tableReservationRepository.js'
 import { moneyToCents, optionalText, requireNonEmpty, validateProductCategory, validateStructuredPresentation } from './validation.js'
 import { createTableTabPrintDocument } from '../shared/tableTabPrintDocument.js'
 import { handleKitchenTvAdminApi, handleKitchenTvPublicApi } from './kitchenTvApi.js'
 import { handleBusinessProfileApi } from './businessProfileApi.js'
 import { handleReportingApi } from './reporting/api.js'
+import { handleTableReservationApi } from './tableReservationApi.js'
 
 const BUSINESS_ID = 'amor-e-sabor'
 const LOGIN_RATE_LIMIT_KEY = 'amor-e-sabor:auth-login'
@@ -107,6 +109,9 @@ const authenticatedApi = async (request, env) => {
   const reportingResponse = await handleReportingApi(request, env, context, url)
   if (reportingResponse) return reportingResponse
 
+  const tableReservationResponse = await handleTableReservationApi(request, env, context, url)
+  if (tableReservationResponse) return tableReservationResponse
+
   if (url.pathname === '/api/bootstrap' && request.method === 'GET') {
     const effectiveBusinessConfig = await loadEffectiveBusinessConfig(env.DB, session.businessId, context.granted)
     const knownVersion = url.searchParams.get('knownEffectiveConfigVersion')
@@ -188,8 +193,10 @@ const authenticatedApi = async (request, env) => {
       ? await loadTableTabById(env.DB, session.businessId, order.tableTabId)
       : null
     const printJob = await loadAutomaticPrintJobForOrder(env.DB, session.businessId, order.id)
+    const reservation = await loadTableReservationByOrderId(env.DB, session.businessId, order.id)
     const response = { order, movements, tableTab, printJob }
-    if (order.tableTabId) response.tables = await listTables(env.DB, session.businessId)
+    if (reservation) response.reservation = reservation
+    if (order.tableTabId || reservation) response.tables = await listTables(env.DB, session.businessId)
     return json(response, { status: 201 })
   }
   const statusMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/status$/)

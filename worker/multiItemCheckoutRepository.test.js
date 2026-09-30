@@ -155,3 +155,83 @@ test('failed paid checkout rolls back order items payment and movement together'
   assert.equal(db.all('SELECT * FROM payments').length, 0)
   assert.equal(db.all('SELECT * FROM movements').length, 0)
 })
+
+
+test('scheduled Local checkout creates a reservation without opening or reusing a table tab', async () => {
+  const db = new CheckoutDb()
+  const now = new Date('2026-09-02T18:00:00.000Z')
+  const reservationInput = tableInput('table-1', 'reservation-local', 'c1')
+  reservationInput.orderDate = '2026-09-03'
+  reservationInput.scheduledFor = '2026-09-03T21:00:00.000Z'
+  const order = await createOrder(db, 'amor-e-sabor', reservationInput, now)
+
+  assert.equal(order.tableTabId, null)
+  assert.equal(order.tableReservationStatus, 'reserved')
+  assert.equal(order.reservationTableId, 'table-1')
+  assert.equal(order.reservationTableName, 'Mesa 4')
+  assert.equal(db.all('SELECT * FROM table_tabs').length, 0)
+  assert.equal(db.all('SELECT * FROM table_reservations').length, 1)
+
+  const reservation = db.all('SELECT * FROM table_reservations')[0]
+  assert.equal(reservation.order_id, order.id)
+  assert.equal(reservation.table_id, 'table-1')
+  assert.equal(reservation.table_name_snapshot, 'Mesa 4')
+  assert.equal(reservation.status, 'reserved')
+  assert.equal(reservation.duration_minutes, 120)
+  assert.equal(reservation.scheduled_for, '2026-09-03T21:00:00.000Z')
+  assert.equal(reservation.ends_at, '2026-09-03T23:00:00.000Z')
+  assert.equal(db.all('SELECT * FROM print_jobs').length, 1)
+})
+
+test('a future reservation may target a table that is occupied now without joining the current tab', async () => {
+  const db = new CheckoutDb()
+  const now = new Date('2026-09-02T18:00:00.000Z')
+  const immediate = await createOrder(db, 'amor-e-sabor', tableInput('table-1', 'occupied-now'), now)
+
+  const reservationInput = tableInput('table-1', 'occupied-future', 'c1')
+  reservationInput.orderDate = '2026-09-03'
+  reservationInput.scheduledFor = '2026-09-03T21:00:00.000Z'
+  const reserved = await createOrder(db, 'amor-e-sabor', reservationInput, new Date('2026-09-02T18:01:00.000Z'))
+
+  assert.ok(immediate.tableTabId)
+  assert.equal(reserved.tableTabId, null)
+  assert.equal(reserved.tableReservationStatus, 'reserved')
+  assert.equal(db.all("SELECT * FROM table_tabs WHERE status = 'open'").length, 1)
+  assert.equal(db.all('SELECT * FROM table_reservations').length, 1)
+})
+
+test('reservation overlap aborts the entire second checkout and idempotent replay returns the same reservation', async () => {
+  const db = new CheckoutDb()
+  const now = new Date('2026-09-02T18:00:00.000Z')
+  const firstInput = tableInput('table-1', 'reservation-first', 'c1')
+  firstInput.orderDate = '2026-09-03'
+  firstInput.scheduledFor = '2026-09-03T21:00:00.000Z'
+
+  const first = await createOrder(db, 'amor-e-sabor', firstInput, now)
+  const replay = await createOrder(db, 'amor-e-sabor', firstInput, new Date('2026-09-02T18:01:00.000Z'))
+  assert.equal(replay.id, first.id)
+  assert.equal(replay.tableReservationId, first.tableReservationId)
+  assert.equal(db.all('SELECT * FROM table_reservations').length, 1)
+  assert.equal(db.all('SELECT * FROM print_jobs').length, 1)
+
+  const before = {
+    orders: db.all('SELECT * FROM orders').length,
+    items: db.all('SELECT * FROM order_items').length,
+    jobs: db.all('SELECT * FROM print_jobs').length,
+    reservations: db.all('SELECT * FROM table_reservations').length,
+  }
+  const secondInput = tableInput('table-1', 'reservation-conflict')
+  secondInput.orderDate = '2026-09-03'
+  secondInput.scheduledFor = '2026-09-03T21:30:00.000Z'
+
+  await assert.rejects(
+    () => createOrder(db, 'amor-e-sabor', secondInput, new Date('2026-09-02T18:02:00.000Z')),
+    (error) => error.status === 409 && error.code === 'TABLE_RESERVATION_CONFLICT',
+  )
+  assert.deepEqual({
+    orders: db.all('SELECT * FROM orders').length,
+    items: db.all('SELECT * FROM order_items').length,
+    jobs: db.all('SELECT * FROM print_jobs').length,
+    reservations: db.all('SELECT * FROM table_reservations').length,
+  }, before)
+})

@@ -292,10 +292,11 @@ test('authenticated bootstrap returns the shared clean business dataset', async 
     products: [],
     orders: [],
     tables: [
-      { id: 'table-1', name: 'Mesa 1', sortOrder: 1, isActive: true, occupancy: 'free', openTableTabId: null, openTableTab: null },
+      { id: 'table-1', name: 'Mesa 1', sortOrder: 1, isActive: true, occupancy: 'free', openTableTabId: null, openTableTab: null, nextReservation: null },
       {
         id: 'table-2', name: 'Mesa 2', sortOrder: 2, isActive: true, occupancy: 'occupied', openTableTabId: 'tab-1',
         openTableTab: { id: 'tab-1', number: 1042, openedAt: '2026-09-07T12:00:00.000Z', orderCount: 0, itemCount: 0, totalCents: 0 },
+        nextReservation: null,
       },
     ],
     tableTabs: [{

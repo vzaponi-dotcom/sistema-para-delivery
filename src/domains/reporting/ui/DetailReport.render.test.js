@@ -133,3 +133,46 @@ test('detail status selector exposes only current operational statuses', async (
   const text = nodeText(renderer.root)
   assert.doesNotMatch(text, /Despachado|Entregue/)
 })
+
+test('detail Data column shows service order_date instead of advance-created timestamp', async (t) => {
+  const harness = await workspaceHarness(t)
+  const { DetailReport } = await harness.load('/src/domains/reporting/ui/views/DetailReport.jsx')
+  const item = {
+    id: 'future-local',
+    order_number: 276,
+    order_date: '2026-09-30',
+    created_at: '2026-09-29T22:00:00.000Z',
+    scheduled_for: '2026-09-30T00:00:00.000Z',
+    client_name_snapshot: 'Reserva futura',
+    type: 'Local',
+    status: 'Finalizado',
+    total_cents: 1600,
+    paidCents: 0,
+    pendingCents: 0,
+    payment_label: null,
+    durationMinutes: 20,
+    onTime: true,
+  }
+
+  const renderer = await harness.render(DetailReport, {
+    state: {
+      data: {
+        total: 1,
+        page: 1,
+        pageSize: 25,
+        totalPages: 1,
+        items: [item],
+        summary: { ordersCount: 1, salesCents: 1600, averageTicketCents: 1600, cancellationRate: 0 },
+      },
+      comparison: { metrics: {} },
+      loading: false,
+    },
+    query: { page: 1, pageSize: 25, sort: 'date-desc' },
+    onChange() {},
+  })
+
+  const row = renderer.root.findByProps({ 'aria-label': 'Abrir pedido 276' })
+  const text = nodeText(row)
+  assert.match(text, /30\/09/)
+  assert.doesNotMatch(text, /29\/09/)
+})

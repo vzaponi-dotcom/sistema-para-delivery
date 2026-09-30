@@ -674,3 +674,81 @@ test('multipage builder returns no empty page for an empty kitchen queue', () =>
     unrenderableOrderIds: [],
   })
 })
+
+test('future-day schedules and distant Local reservations stay out of TV cards and counters until operational', () => {
+  const futureDelivery = {
+    id: 'future-delivery',
+    orderNumber: 7001,
+    status: 'Em preparo',
+    type: 'Entrega',
+    client: 'Entrega amanhã',
+    createdAt: '2026-09-22T12:00:00.000Z',
+    orderDate: '2026-09-23',
+    scheduledFor: '2026-09-23T15:00:00.000Z',
+    items: [{ quantity: 1, name: 'Marmita', note: '' }],
+  }
+  const distantReservation = {
+    id: 'future-reservation',
+    orderNumber: 7002,
+    status: 'Em preparo',
+    type: 'Local',
+    client: 'Mesa 4 · Ana',
+    createdAt: '2026-09-22T12:00:00.000Z',
+    orderDate: '2026-10-22',
+    scheduledFor: '2026-10-22T18:00:00.000Z',
+    tableReservationId: 'reservation-7002',
+    tableReservationStatus: 'reserved',
+    items: [{ quantity: 1, name: 'Lanche', note: '' }],
+  }
+
+  const result = buildKitchenDisplayPresentation(
+    [futureDelivery, distantReservation],
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 1280, viewportHeight: 720 },
+  )
+
+  assert.deepEqual(result.cards, [])
+  assert.deepEqual(result.counts, { preparing: 0, late: 0, scheduled: 0 })
+  assert.equal(result.overflow, 0)
+
+  const pages = buildKitchenDisplayPages(
+    [futureDelivery, distantReservation],
+    timing,
+    now,
+    new Set(),
+    { viewportWidth: 1280, viewportHeight: 720 },
+  )
+  assert.deepEqual(pages, { pages: [], totalVisible: 0, unrenderableOrderIds: [] })
+})
+
+test('a Local reservation becomes a normal Local TV card when its operational window starts', () => {
+  const reservation = {
+    id: 'reservation-operational',
+    orderNumber: 7003,
+    status: 'Em preparo',
+    type: 'Local',
+    client: 'Mesa 7 · Joana',
+    createdAt: '2026-09-22T12:00:00.000Z',
+    orderDate: '2026-09-23',
+    scheduledFor: '2026-09-23T15:00:00.000Z',
+    tableReservationId: 'reservation-7003',
+    tableReservationStatus: 'reserved',
+    items: [{ quantity: 1, name: 'Prato executivo', note: '' }],
+  }
+  const atOperationalStart = new Date('2026-09-23T14:10:00.000Z')
+  const result = buildKitchenDisplayPresentation(
+    [reservation],
+    timing,
+    atOperationalStart,
+    new Set(),
+    { viewportWidth: 1280, viewportHeight: 720 },
+  )
+
+  assert.equal(result.cards.length, 1)
+  assert.equal(result.cards[0].order.id, 'reservation-operational')
+  assert.equal(result.cards[0].order.type, 'Local')
+  assert.equal(result.cards[0].phase, 'preparing')
+  assert.deepEqual(result.counts, { preparing: 1, late: 0, scheduled: 0 })
+})

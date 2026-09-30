@@ -20,8 +20,8 @@ test('local orders require a registered active table without free-text identity 
 
 test('local registered client stays optional while delivery client remains separate', () => {
   assert.match(customerStep, /Vincular cliente cadastrado — opcional/)
-  assert.match(page, /const \[localClientId, setLocalClientId\] = useState\(''\)/)
-  assert.match(page, /const \[clientId, setClientId\] = useState\(''\)/)
+  assert.match(page, /const \[localClientId, setLocalClientId\] = useState\(initialLocalClientId\)/)
+  assert.match(page, /const \[clientId, setClientId\] = useState\(initialClientId\)/)
   assert.match(page, /type === 'Local' \? localClientId : clientId/)
   assert.match(page, /identityValid: identityValidation\.ok/)
 })

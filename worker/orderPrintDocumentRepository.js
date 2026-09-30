@@ -11,9 +11,11 @@ export const loadOrderPrintDocument = async (db, businessId, orderId) => {
       o.client_address_snapshot,
       o.client_id,
       o.customer_identity_type,
-      tt.table_identifier,
+      COALESCE(tt.table_identifier, rt.name, tr.table_name_snapshot) AS table_identifier,
+      tr.id AS reservation_id,
       o.type,
       o.order_date,
+      o.scheduled_for,
       o.subtotal_cents,
       o.delivery_fee_cents,
       o.adjustment_type,
@@ -27,6 +29,8 @@ export const loadOrderPrintDocument = async (db, businessId, orderId) => {
     FROM orders o
     JOIN businesses b ON b.id = o.business_id
     LEFT JOIN table_tabs tt ON tt.id = o.table_tab_id AND tt.business_id = o.business_id
+    LEFT JOIN table_reservations tr ON tr.order_id = o.id AND tr.business_id = o.business_id
+    LEFT JOIN tables rt ON rt.id = tr.table_id AND rt.business_id = tr.business_id
     LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id
     WHERE o.id = ? AND o.business_id = ?
     LIMIT 1`).bind(orderId, businessId).first()
@@ -50,6 +54,8 @@ export const loadOrderPrintDocument = async (db, businessId, orderId) => {
     orderDate: order.order_date,
     createdAt: order.created_at,
     type: order.type,
+    scheduledFor: order.scheduled_for || '',
+    scheduleLabel: order.scheduled_for ? (order.reservation_id ? 'RESERVA' : 'AGENDADO') : '',
     customerIdentityType: order.customer_identity_type,
     tableIdentifier: order.table_identifier,
     hasOptionalClient: Boolean(order.client_id),

@@ -1,7 +1,7 @@
 import { formatClientPhone, normalizeClientPhone } from '../shared/clientIdentity.js'
 import { getBusinessDate } from '../shared/finance.js'
 import { createOrderPrintDocument } from '../shared/orderPrintDocument.js'
-import { resolvePrintCopies } from '../shared/printContextPolicy.js'
+import { resolveAutomaticOrderPrintAvailableAt, resolvePrintCopies } from '../shared/printContextPolicy.js'
 import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
 import { formatProductPresentation } from '../shared/productCatalog.js'
 import { mapMovementRow, loadFinanceSettings } from './financeRepository.js'
@@ -72,7 +72,7 @@ export const mapOrderRow = (row, items = []) => {
     ? Number(row.adjustment_value || 0) / 100
     : centsToMoney(row.adjustment_value)
   const customerIdentityType = row.customer_identity_type || (row.client_id ? 'registered_client' : 'guest_name')
-  const tableIdentifier = row.table_identifier ?? null
+  const tableIdentifier = row.table_identifier ?? row.reservation_table_name ?? null
   const client = customerIdentityType === 'table' && tableIdentifier
     ? row.client_id && row.client_name_snapshot ? `${tableIdentifier} · ${row.client_name_snapshot}` : tableIdentifier
     : row.client_name_snapshot
@@ -87,6 +87,11 @@ export const mapOrderRow = (row, items = []) => {
     customerIdentityType,
     tableTabId: row.table_tab_id ?? null,
     tableIdentifier,
+    tableReservationId: row.table_reservation_id ?? null,
+    tableReservationStatus: row.table_reservation_status ?? null,
+    reservationTableId: row.reservation_table_id ?? null,
+    reservationTableName: row.reservation_table_name ?? null,
+    reservationRevision: row.reservation_revision == null ? null : Number(row.reservation_revision),
     type: row.type,
     status: row.status,
     productName: firstItem?.name ?? '',
@@ -124,7 +129,7 @@ export const mapOrderRow = (row, items = []) => {
 }
 
 const productSelectFields = 'id, category, size, presentation_type, presentation_value, presentation_unit, name, price_cents'
-const orderSelect = `SELECT o.id, o.order_number, o.client_id, o.client_name_snapshot, o.client_phone_snapshot, o.client_address_snapshot, o.customer_identity_type, o.table_tab_id, o.type, o.order_date, o.status, o.scheduled_for, o.promised_payment_date, o.is_backdated, o.subtotal_cents, o.delivery_fee_cents, o.adjustment_type, o.adjustment_mode, o.adjustment_value, o.adjustment_amount_cents, o.adjustment_reason, o.total_cents, o.created_at, o.finished_at, o.cancelled_at, o.cancel_reason, o.cancel_reason_note, cr.label AS cancel_reason_label, o.timing_policy_snapshot_json, p.id AS payment_id, p.method AS payment_method, p.paid_at, ${PAYMENT_ALLOCATIONS_JSON_SELECT}, p.amount_cents AS paid_amount_cents, r.id AS refund_movement_id, r.created_at AS refund_created_at, tt.table_identifier AS table_identifier FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id LEFT JOIN movements r ON r.order_id = o.id AND r.business_id = o.business_id AND r.source = 'order-refund' LEFT JOIN business_cancel_reasons cr ON cr.business_id = o.business_id AND cr.id = o.cancel_reason LEFT JOIN table_tabs tt ON tt.id = o.table_tab_id AND tt.business_id = o.business_id`
+const orderSelect = `SELECT o.id, o.order_number, o.client_id, o.client_name_snapshot, o.client_phone_snapshot, o.client_address_snapshot, o.customer_identity_type, o.table_tab_id, o.type, o.order_date, o.status, o.scheduled_for, o.promised_payment_date, o.is_backdated, o.subtotal_cents, o.delivery_fee_cents, o.adjustment_type, o.adjustment_mode, o.adjustment_value, o.adjustment_amount_cents, o.adjustment_reason, o.total_cents, o.created_at, o.finished_at, o.cancelled_at, o.cancel_reason, o.cancel_reason_note, cr.label AS cancel_reason_label, o.timing_policy_snapshot_json, p.id AS payment_id, p.method AS payment_method, p.paid_at, ${PAYMENT_ALLOCATIONS_JSON_SELECT}, p.amount_cents AS paid_amount_cents, r.id AS refund_movement_id, r.created_at AS refund_created_at, tt.table_identifier AS table_identifier, tr.id AS table_reservation_id, tr.status AS table_reservation_status, tr.table_id AS reservation_table_id, COALESCE(rt.name, tr.table_name_snapshot) AS reservation_table_name, tr.revision AS reservation_revision FROM orders o LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id LEFT JOIN movements r ON r.order_id = o.id AND r.business_id = o.business_id AND r.source = 'order-refund' LEFT JOIN business_cancel_reasons cr ON cr.business_id = o.business_id AND cr.id = o.cancel_reason LEFT JOIN table_tabs tt ON tt.id = o.table_tab_id AND tt.business_id = o.business_id LEFT JOIN table_reservations tr ON tr.order_id = o.id AND tr.business_id = o.business_id LEFT JOIN tables rt ON rt.id = tr.table_id AND rt.business_id = tr.business_id`
 const itemSelect = `SELECT id, order_id, product_id, name_snapshot, category_snapshot, size_snapshot, quantity, catalog_price_cents, unit_price_cents, price_reason, note, created_at FROM order_items`
 const productSnapshotSize = (row) => {
   const presentation = formatProductPresentation(mapProductRow(row))
@@ -306,6 +311,7 @@ export const deleteProduct = async (db, businessId, id, now = new Date()) => {
 }
 
 const backdatedOperationalTimestamp = (orderDate) => `${orderDate}T15:00:00.000Z`
+const TABLE_RESERVATION_DURATION_MINUTES = 120
 
 export const loadOrderById = async (db, businessId, id) => {
   const row = await db.prepare(`${orderSelect} WHERE o.id = ? AND o.business_id = ? LIMIT 1`).bind(id, businessId).first()
@@ -351,6 +357,7 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
   let tableTabId = null
   let tableIdentifier = null
   let pendingTableTab = null
+  let pendingReservation = null
   if (customerIdentity.type === 'registered_client') {
     const client = await db.prepare('SELECT id, name, phone, address FROM clients WHERE id = ? AND business_id = ? LIMIT 1').bind(customerIdentity.clientId, businessId).first()
     if (!client) throw repositoryError(404, 'CLIENT_NOT_FOUND', 'Cliente não encontrado.')
@@ -369,31 +376,49 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
       clientPhoneSnapshot = formatClientPhone(client.phone)
       clientAddressSnapshot = client.address || ''
     }
-    let tableTab
-    if (input.expectedTableTabId) {
-      tableTab = await requireExpectedOpenTableTab(db, businessId, customerIdentity.tableId, input.expectedTableTabId)
-    } else {
+    const reservationMode = Boolean(input.scheduledFor)
+    if (reservationMode) {
+      if (input.expectedTableTabId) {
+        throw repositoryError(400, 'RESERVATION_TABLE_TAB_NOT_ALLOWED', 'Reservas não podem ser vinculadas a uma comanda aberta.')
+      }
       const table = await db.prepare(`SELECT id, name, is_active
         FROM tables WHERE id = ? AND business_id = ? LIMIT 1`).bind(customerIdentity.tableId, businessId).first()
-      if (!table) throw repositoryError(404, 'TABLE_NOT_FOUND', 'Mesa n\u00e3o encontrada.')
-      if (!table.is_active) throw repositoryError(409, 'TABLE_INACTIVE', 'A mesa est\u00e1 inativa.')
-      const openRow = await db.prepare(`SELECT id, table_id, table_identifier, tab_number, status, opened_at, closed_at
-        FROM table_tabs WHERE business_id = ? AND table_id = ? AND status = 'open' LIMIT 1`).bind(businessId, table.id).first()
-      if (openRow) {
-        tableTab = mapTableTabRow(openRow)
-      } else {
-        const timestamp = now.toISOString()
-        tableTab = {
-          id: crypto.randomUUID(), tableId: table.id, tableIdentifier: table.name,
-          tabNumber: await reserveNextTableTabNumber(db, businessId, now), status: 'open',
-          openedAt: timestamp, closedAt: null,
-        }
-        pendingTableTab = tableTab
+      if (!table) throw repositoryError(404, 'TABLE_NOT_FOUND', 'Mesa não encontrada.')
+      if (!table.is_active) throw repositoryError(409, 'TABLE_INACTIVE', 'A mesa está inativa.')
+      tableIdentifier = table.name
+      if (!clientSnapshot) clientSnapshot = table.name
+      pendingReservation = {
+        id: crypto.randomUUID(),
+        tableId: table.id,
+        tableName: table.name,
       }
+    } else {
+      let tableTab
+      if (input.expectedTableTabId) {
+        tableTab = await requireExpectedOpenTableTab(db, businessId, customerIdentity.tableId, input.expectedTableTabId)
+      } else {
+        const table = await db.prepare(`SELECT id, name, is_active
+          FROM tables WHERE id = ? AND business_id = ? LIMIT 1`).bind(customerIdentity.tableId, businessId).first()
+        if (!table) throw repositoryError(404, 'TABLE_NOT_FOUND', 'Mesa não encontrada.')
+        if (!table.is_active) throw repositoryError(409, 'TABLE_INACTIVE', 'A mesa está inativa.')
+        const openRow = await db.prepare(`SELECT id, table_id, table_identifier, tab_number, status, opened_at, closed_at
+          FROM table_tabs WHERE business_id = ? AND table_id = ? AND status = 'open' LIMIT 1`).bind(businessId, table.id).first()
+        if (openRow) {
+          tableTab = mapTableTabRow(openRow)
+        } else {
+          const timestamp = now.toISOString()
+          tableTab = {
+            id: crypto.randomUUID(), tableId: table.id, tableIdentifier: table.name,
+            tabNumber: await reserveNextTableTabNumber(db, businessId, now), status: 'open',
+            openedAt: timestamp, closedAt: null,
+          }
+          pendingTableTab = tableTab
+        }
+      }
+      if (!clientSnapshot) clientSnapshot = tableTab.tableIdentifier
+      tableTabId = tableTab.id
+      tableIdentifier = tableTab.tableIdentifier
     }
-    if (!clientSnapshot) clientSnapshot = tableTab.tableIdentifier
-    tableTabId = tableTab.id
-    tableIdentifier = tableTab.tableIdentifier
   } else {
     throw repositoryError(400, 'INVALID_CUSTOMER_IDENTITY', 'Identificação do pedido inválida.')
   }
@@ -406,10 +431,16 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
   }
 
   const today = getBusinessDate(now)
-  if (input.orderDate > today) throw repositoryError(400, 'ORDER_DATE_IN_FUTURE', 'A data do pedido não pode estar no futuro.')
+  const scheduledFor = input.scheduledFor || null
+  if (input.orderDate > today && !scheduledFor) {
+    throw repositoryError(400, 'ORDER_DATE_IN_FUTURE', 'A data do pedido não pode estar no futuro.')
+  }
+  if (input.orderDate < today && scheduledFor) {
+    throw repositoryError(400, 'ORDER_SCHEDULE_INVALID', 'Pedido agendado não pode usar uma data retroativa.')
+  }
 
-  const historical = input.orderDate < today
-  const scheduledFor = historical ? null : (input.scheduledFor || null)
+  const historical = input.orderDate < today && !scheduledFor
+  const scheduledOperations = scheduledFor ? await loadOperations(db, businessId) : null
   const isBackdated = historical ? 1 : 0
   const createdAt = historical ? backdatedOperationalTimestamp(input.orderDate) : now.toISOString()
   const finishedAt = historical ? createdAt : null
@@ -435,6 +466,15 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
     RETURNING last_order_number`).bind(businessId).first()
   const orderNumber = Number(sequenceRow?.last_order_number)
   if (!Number.isInteger(orderNumber) || orderNumber < 1) throw new Error('ORDER_NUMBER_ALLOCATION_FAILED')
+
+  if (pendingReservation) {
+    const scheduledAt = new Date(scheduledFor)
+    if (Number.isNaN(scheduledAt.getTime())) throw repositoryError(400, 'ORDER_SCHEDULE_INVALID', 'Horário agendado inválido.')
+    pendingReservation.scheduledFor = scheduledAt.toISOString()
+    pendingReservation.endsAt = new Date(
+      scheduledAt.getTime() + TABLE_RESERVATION_DURATION_MINUTES * 60_000,
+    ).toISOString()
+  }
 
   const orderStatement = db.prepare(`INSERT INTO orders (id, business_id, order_number, client_id, client_name_snapshot, customer_identity_type, table_tab_id, type, order_date, status, scheduled_for, is_backdated, subtotal_cents, delivery_fee_cents, adjustment_type, adjustment_mode, adjustment_value, adjustment_amount_cents, adjustment_reason, total_cents, created_at, finished_at, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
     orderId,
@@ -472,6 +512,11 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
       AND NOT EXISTS (SELECT 1 FROM table_tabs WHERE business_id = ? AND table_id = ? AND status = 'open')`,
     [pendingTableTab.tableId, businessId, businessId, pendingTableTab.tableId])
     : null
+  const reservationTableGuard = pendingReservation
+    ? prepareSettingsAssertion(db, policyTxId, 'reservation-table',
+      'EXISTS (SELECT 1 FROM tables WHERE id = ? AND business_id = ? AND is_active = 1)',
+      [pendingReservation.tableId, businessId])
+    : null
   const tableTabStatement = pendingTableTab
     ? db.prepare(`INSERT INTO table_tabs (
       id, business_id, table_id, table_identifier, tab_number, status, opened_at, closed_at, created_at, updated_at
@@ -480,11 +525,32 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
       pendingTableTab.tabNumber, pendingTableTab.openedAt, pendingTableTab.openedAt, pendingTableTab.openedAt,
     )
     : null
+  const reservationStatement = pendingReservation
+    ? db.prepare(`INSERT INTO table_reservations (
+      id, business_id, order_id, table_id, table_name_snapshot, status,
+      scheduled_for, ends_at, duration_minutes, revision,
+      converted_table_tab_id, converted_at, cancelled_at, no_show_at,
+      created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, 'reserved', ?, ?, ?, 1, NULL, NULL, NULL, NULL, ?, ?)`).bind(
+      pendingReservation.id,
+      businessId,
+      orderId,
+      pendingReservation.tableId,
+      pendingReservation.tableName,
+      pendingReservation.scheduledFor,
+      pendingReservation.endsAt,
+      TABLE_RESERVATION_DURATION_MINUTES,
+      createdAt,
+      createdAt,
+    )
+    : null
   const statements = [
     ...policyGuards,
+    ...(reservationTableGuard ? [reservationTableGuard] : []),
     ...(tableTabGuard ? [tableTabGuard, tableTabStatement] : []),
     orderStatement,
     contactSnapshotStatement,
+    ...(reservationStatement ? [reservationStatement] : []),
   ]
   for (const item of pricedItems) {
     statements.push(db.prepare(`INSERT INTO order_items (id, business_id, order_id, product_id, name_snapshot, category_snapshot, size_snapshot, quantity, catalog_price_cents, unit_price_cents, price_reason, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
@@ -551,6 +617,8 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
       orderDate: input.orderDate,
       createdAt,
       type: input.type,
+      scheduledFor: scheduledFor || '',
+      scheduleLabel: scheduledFor ? (pendingReservation ? 'RESERVA' : 'AGENDADO') : '',
       customerIdentityType: customerIdentity.type,
       tableIdentifier,
       hasOptionalClient: Boolean(clientId),
@@ -579,27 +647,40 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
         method: paymentAllocations?.length === 1 ? paymentLabels.get(paymentAllocations[0].methodCode) : '',
       },
     })
+    const automaticAvailableAt = resolveAutomaticOrderPrintAvailableAt({
+      type: input.type,
+      customerIdentityType: customerIdentity.type,
+      orderDate: input.orderDate,
+      createdAt,
+      scheduledFor,
+    }, scheduledOperations?.data?.timing)
     statements.push(prepareAutomaticPrintJobStatement(db, businessId, {
       orderId,
       copies: automaticCopies,
       document: printDocument,
       createdAt,
-      availableAt: createdAt,
+      availableAt: automaticAvailableAt,
     }))
   }
 
-  if (policyGuards.length || tableTabGuard) statements.push(clearSettingsAssertions(db, policyTxId))
+  if (policyGuards.length || tableTabGuard || reservationTableGuard) statements.push(clearSettingsAssertions(db, policyTxId))
 
   try {
     await db.batch(statements)
   } catch (error) {
     const collided = await db.prepare('SELECT id FROM orders WHERE business_id = ? AND idempotency_key = ? LIMIT 1').bind(businessId, idempotencyKey).first()
     if (collided?.id) return loadOrderById(db, businessId, collided.id)
+    if (String(error?.message || '').includes('TABLE_RESERVATION_CONFLICT')) {
+      throw repositoryError(409, 'TABLE_RESERVATION_CONFLICT', 'Esta mesa já possui uma reserva nesse horário. Escolha outra mesa ou outro horário.')
+    }
     if (/TABLE_TAB_NOT_OPEN/i.test(String(error?.message || ''))) {
       throw repositoryError(409, 'TABLE_TAB_CHANGED', 'A comanda mudou ou foi encerrada. Atualize os dados e tente novamente.')
     }
     if (pendingTableTab && String(error?.message || '').includes('SETTINGS_INVALID')) {
       throw repositoryError(409, 'TABLE_TAB_CHANGED', 'A comanda mudou ou foi encerrada. Atualize os dados e tente novamente.')
+    }
+    if (pendingReservation && String(error?.message || '').includes('SETTINGS_INVALID')) {
+      throw repositoryError(409, 'TABLE_INACTIVE', 'A mesa está inativa. Atualize os dados e tente novamente.')
     }
     if (String(error?.message || '').includes('POLICY_CHANGED')) {
       rethrowPolicyChange(error)

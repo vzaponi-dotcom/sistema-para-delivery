@@ -138,3 +138,32 @@ test('display name appends size only when product name does not already contain 
   assert.equal(orderCart.getOrderItemDisplayName({ name: 'Marmita P', size: 'P' }), 'Marmita P')
   assert.equal(orderCart.getOrderItemDisplayName({ name: 'Coca-Cola', size: 'Lata' }), 'Coca-Cola Lata')
 })
+
+
+test('Local reservation payload keeps scheduledFor but never carries an open table-tab identity', () => {
+  const reserved = buildOrderPayload({
+    customerIdentity: { type: 'table', tableId: 'table-1' },
+    type: 'Local',
+    orderDate: '2026-10-01',
+    items: [{ productId: 'p1', quantity: 1, note: '' }],
+    deliveryFee: 0,
+    adjustment: { type: 'none', mode: 'fixed', value: 0, reason: '' },
+    scheduledFor: '2026-10-01T20:00:00.000Z',
+    expectedTableTabId: 'tab-open',
+  })
+  assert.equal(reserved.scheduledFor, '2026-10-01T20:00:00.000Z')
+  assert.equal(Object.hasOwn(reserved, 'expectedTableTabId'), false)
+
+  const immediate = buildOrderPayload({
+    customerIdentity: { type: 'table', tableId: 'table-1' },
+    type: 'Local',
+    orderDate: '2026-09-29',
+    items: [{ productId: 'p1', quantity: 1, note: '' }],
+    deliveryFee: 0,
+    adjustment: { type: 'none', mode: 'fixed', value: 0, reason: '' },
+    scheduledFor: null,
+    expectedTableTabId: 'tab-open',
+  })
+  assert.equal(immediate.expectedTableTabId, 'tab-open')
+  assert.equal(Object.hasOwn(immediate, 'scheduledFor'), false)
+})

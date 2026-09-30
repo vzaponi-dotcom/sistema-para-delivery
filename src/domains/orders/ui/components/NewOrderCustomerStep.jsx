@@ -14,10 +14,15 @@ function NewOrderCustomerStep({
   type,
   orderDate,
   todayValue,
+  maxDateValue,
   scheduleMode,
   scheduledTime,
   scheduleVisible,
   scheduleValid,
+  reservationMode = false,
+  scheduleNowAllowed = true,
+  scheduleOptionLabel = 'Agendado',
+  scheduleFieldLabel = 'Quando preparar?',
   quickClient,
   quickClientError,
   disabled,
@@ -74,6 +79,7 @@ function NewOrderCustomerStep({
             selectedTableId={selectedTableId}
             onSelect={onTableSelect}
             disabled={disabled}
+            reservationMode={reservationMode}
           />
         </div>
       )}
@@ -158,7 +164,7 @@ function NewOrderCustomerStep({
         <input
           type="date"
           value={orderDate}
-          max={todayValue}
+          max={maxDateValue || todayValue}
           onChange={(event) => onOrderDateChange(event.target.value)}
           disabled={disabled}
         />
@@ -166,14 +172,14 @@ function NewOrderCustomerStep({
 
       {scheduleVisible && (
         <div className="form-field new-order-schedule-field">
-          <span>Quando preparar?</span>
-          <div className="new-order-schedule-options" role="group" aria-label="Quando preparar">
+          <span>{scheduleFieldLabel}</span>
+          <div className="new-order-schedule-options" role="group" aria-label={scheduleFieldLabel}>
             <button
               type="button"
               className={scheduleMode === 'now' ? 'new-order-schedule-option new-order-type-option selected' : 'new-order-schedule-option new-order-type-option'}
               aria-pressed={scheduleMode === 'now'}
               onClick={() => onScheduleModeChange('now')}
-              disabled={disabled}
+              disabled={disabled || !scheduleNowAllowed}
             >Agora</button>
             <button
               type="button"
@@ -181,7 +187,7 @@ function NewOrderCustomerStep({
               aria-pressed={scheduleMode === 'scheduled'}
               onClick={() => onScheduleModeChange('scheduled')}
               disabled={disabled}
-            >Agendado</button>
+            >{scheduleOptionLabel === 'Agendado' ? <>Agendado</> : scheduleOptionLabel}</button>
           </div>
           {scheduleMode === 'scheduled' && (
             <label className="form-field">
@@ -198,7 +204,7 @@ function NewOrderCustomerStep({
                 disabled={disabled}
                 aria-invalid={!scheduleValid}
               />
-              <small>Esse horário é uma referência de atendimento.</small>
+              <small>{reservationMode ? 'Esse horário identifica a reserva da mesa.' : 'Esse horário é uma referência de atendimento.'}</small>
             </label>
           )}
         </div>

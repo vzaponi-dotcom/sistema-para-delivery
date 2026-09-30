@@ -25,45 +25,89 @@ import {
   canNavigateToNewOrderStep,
   createNewOrderDirtySnapshot,
   getFurthestReachedStep,
+  getNewOrderScheduleState,
   getNewOrderStepAccess,
   getOrderItemCount,
   getOrderItemsSubtotal,
   isNewOrderDraftDirty,
 } from '../domain/newOrderStepFlow.js'
-import { businessDateTimeToIso, isFutureSameDaySchedule } from '../../../../shared/orderTiming.js'
+import { businessDateTimeToIso, getScheduleMaxBusinessDate } from '../../../../shared/orderTiming.js'
 import { ORDER_TYPE_OPTIONS } from '../domain/orderTypeOptions.js'
 
 const emptyAdjustment = () => ({ type: 'none', mode: 'fixed', value: formatBRLCurrencyValue(0), reason: '' })
+const initialAdjustment = (value) => {
+  const source = value || {}
+  if (!['discount', 'surcharge'].includes(source.type)) return emptyAdjustment()
+  const mode = source.mode === 'percentage' ? 'percentage' : 'fixed'
+  return {
+    type: source.type,
+    mode,
+    value: mode === 'fixed'
+      ? formatBRLCurrencyValue(Number(source.value) || 0)
+      : String(Number(source.value) || 0),
+    reason: source.reason || '',
+  }
+}
 
-function NewOrder({ clients, products, tables = [], initialType = 'Entrega', initialTableId = '', expectedTableTabId = '', currency, disabled, canManageClients = true, canAdjustOrders = true, renderPaymentComposition, modalityOptions, defaultModality, onPolicyChanged, onCancel, onCreateClient, onSubmit, onDraftDirtyChange }) {
-  const activeModalityOptions = modalityOptions === undefined ? ORDER_TYPE_OPTIONS : modalityOptions
+function NewOrder({
+  clients,
+  products,
+  tables = [],
+  mode = 'create',
+  reservationContext = null,
+  initialDraft = null,
+  initialType = 'Entrega',
+  initialTableId = '',
+  expectedTableTabId = '',
+  currency,
+  disabled,
+  canManageClients = true,
+  canAdjustOrders = true,
+  renderPaymentComposition,
+  modalityOptions,
+  defaultModality,
+  onPolicyChanged,
+  onCancel,
+  onCreateClient,
+  onSubmit,
+  onDraftDirtyChange,
+}) {
+  const editReservationMode = mode === 'edit-reservation'
+  const activeModalityOptions = editReservationMode
+    ? ORDER_TYPE_OPTIONS.filter((option) => option.value === 'Local')
+    : (modalityOptions === undefined ? ORDER_TYPE_OPTIONS : modalityOptions)
   const activeModalityValues = new Set(activeModalityOptions.map((option) => option.value))
   const initialCommonType = activeModalityValues.has(defaultModality)
     ? defaultModality
     : activeModalityValues.has(initialType)
       ? initialType
       : activeModalityOptions[0]?.value || (modalityOptions === undefined ? initialType : '')
-  const initialStep = initialTableId ? NEW_ORDER_STEPS.PRODUCTS : NEW_ORDER_STEPS.CUSTOMER
+  const initialStep = editReservationMode ? NEW_ORDER_STEPS.CUSTOMER : (initialTableId ? NEW_ORDER_STEPS.PRODUCTS : NEW_ORDER_STEPS.CUSTOMER)
   const [currentStep, setCurrentStep] = useState(initialStep)
   const [maxReachedStep, setMaxReachedStep] = useState(initialStep)
-  const [clientId, setClientId] = useState('')
-  const [clientSearch, setClientSearch] = useState('')
+  const initialClientId = initialDraft?.clientId || ''
+  const initialLocalClientId = initialDraft?.localClientId || ''
+  const initialClientName = clients.find((client) => client.id === initialClientId)?.name || ''
+  const initialLocalClientName = clients.find((client) => client.id === initialLocalClientId)?.name || ''
+  const [clientId, setClientId] = useState(initialClientId)
+  const [clientSearch, setClientSearch] = useState(initialClientName)
   const [clientPickerOpen, setClientPickerOpen] = useState(false)
-  const [type, setType] = useState(initialTableId ? 'Local' : initialCommonType)
-  const [selectedTableId, setSelectedTableId] = useState(initialTableId)
-  const [localClientId, setLocalClientId] = useState('')
-  const [localClientSearch, setLocalClientSearch] = useState('')
-  const [orderDate, setOrderDate] = useState(getBusinessDate())
-  const [scheduleMode, setScheduleMode] = useState('now')
-  const [scheduledTime, setScheduledTime] = useState('')
-  const [items, setItems] = useState([])
-  const [deliveryFee, setDeliveryFee] = useState(() => formatBRLCurrencyValue(0))
-  const [adjustment, setAdjustment] = useState(emptyAdjustment)
+  const [type, setType] = useState(initialDraft?.type || (initialTableId ? 'Local' : initialCommonType))
+  const [selectedTableId, setSelectedTableId] = useState(initialDraft?.selectedTableId || initialTableId)
+  const [localClientId, setLocalClientId] = useState(initialLocalClientId)
+  const [localClientSearch, setLocalClientSearch] = useState(initialLocalClientName)
+  const [orderDate, setOrderDate] = useState(initialDraft?.orderDate || getBusinessDate())
+  const [scheduleMode, setScheduleMode] = useState(initialDraft?.scheduleMode || 'now')
+  const [scheduledTime, setScheduledTime] = useState(initialDraft?.scheduledTime || '')
+  const [items, setItems] = useState(() => (initialDraft?.items || []).map((item) => ({ ...item })))
+  const [deliveryFee, setDeliveryFee] = useState(() => formatBRLCurrencyValue(Number(initialDraft?.deliveryFee) || 0))
+  const [adjustment, setAdjustment] = useState(() => initialAdjustment(initialDraft?.adjustment))
   const [quickClient, setQuickClient] = useState({ open: false, name: '', phone: '' })
   const [quickClientError, setQuickClientError] = useState('')
   const [duplicateClient, setDuplicateClient] = useState(null)
   const [checkoutError, setCheckoutError] = useState('')
   const [policyReviewError, setPolicyReviewError] = useState('')
+  const [manualPrintWarningOpen, setManualPrintWarningOpen] = useState(false)
   const initialDraftSnapshotRef = useRef(null)
   const stepContentRef = useRef(null)
 
@@ -128,6 +172,28 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
     ? [...activeModalityOptions, selectedModalityOption]
     : activeModalityOptions
   const selectedTable = tables.find((table) => table.isActive && table.id === selectedTableId) ?? null
+  const todayValue = getBusinessDate()
+  const maxDateValue = getScheduleMaxBusinessDate(new Date())
+  const scheduledFor = scheduleMode === 'scheduled'
+    ? businessDateTimeToIso(orderDate, scheduledTime)
+    : null
+  const scheduleState = getNewOrderScheduleState({
+    type,
+    orderDate,
+    today: todayValue,
+    scheduleMode,
+    scheduledFor,
+    expectedTableTabId,
+    now: new Date(),
+  })
+  const {
+    visible: scheduleVisible,
+    valid: scheduleValid,
+    reservationMode,
+    nowAllowed: scheduleNowAllowed,
+    scheduledLabel: scheduleOptionLabel,
+    fieldLabel: scheduleFieldLabel,
+  } = scheduleState
 
   const draft = {
     clientId: activeClientId,
@@ -137,8 +203,8 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
     items,
     deliveryFee: type === 'Entrega' ? deliveryFee : formatBRLCurrencyValue(0),
     adjustment,
-    scheduledFor: scheduleMode === 'scheduled' ? businessDateTimeToIso(orderDate, scheduledTime) : null,
-    expectedTableTabId,
+    scheduledFor,
+    expectedTableTabId: reservationMode ? '' : expectedTableTabId,
   }
   const numericDraft = {
     ...draft,
@@ -152,9 +218,6 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
   }
   const preview = calculateOrderPreview(numericDraft)
   const itemCount = getOrderItemCount(items)
-  const scheduledFor = draft.scheduledFor
-  const scheduleVisible = type !== 'Local' && orderDate === getBusinessDate()
-  const scheduleValid = scheduleMode === 'now' || (scheduleVisible && isFutureSameDaySchedule({ type, orderDate, scheduledFor, now: new Date() }))
   const itemsSubtotal = getOrderItemsSubtotal(items)
   const selectedClient = clients.find((client) => client.id === clientId) ?? null
   const selectedLocalClient = clients.find((client) => client.id === localClientId) ?? null
@@ -188,17 +251,36 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
   }
 
   const changeType = (nextType) => {
+    if (editReservationMode && nextType !== 'Local') return false
     setType(nextType)
     setCheckoutError('')
     setPolicyReviewError('')
     closeQuickClient()
-    if (nextType === 'Local') { setScheduleMode('now'); setScheduledTime('') }
+    if (expectedTableTabId && nextType === 'Local') {
+      setScheduleMode('now')
+      setScheduledTime('')
+    } else if (orderDate > todayValue) {
+      setScheduleMode('scheduled')
+    } else if (orderDate < todayValue) {
+      setScheduleMode('now')
+      setScheduledTime('')
+    }
     if (nextType !== 'Entrega') setDeliveryFee(formatBRLCurrencyValue(0))
   }
 
   const changeOrderDate = (value) => {
     setOrderDate(value)
-    if (value !== getBusinessDate()) { setScheduleMode('now'); setScheduledTime('') }
+    if (expectedTableTabId) {
+      setScheduleMode('now')
+      setScheduledTime('')
+      return
+    }
+    if (value > todayValue) {
+      setScheduleMode('scheduled')
+    } else if (value < todayValue) {
+      setScheduleMode('now')
+      setScheduledTime('')
+    }
   }
 
   const selectTable = (tableId) => {
@@ -311,26 +393,71 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
     updateQuickClient(patch.phone === undefined ? patch : { ...patch, phone: formatPhone(patch.phone) })
   }
 
-  const save = async (paymentAllocations) => {
-    if (disabled || !canSubmit) return
+  const save = async (paymentAllocations, bypassManualPrintWarning = false) => {
+    if (disabled || !canSubmit) return false
+    if (editReservationMode
+      && reservationContext?.hasManualPrintHistory
+      && !bypassManualPrintWarning) {
+      setManualPrintWarningOpen(true)
+      return false
+    }
+
     setCheckoutError('')
     const result = await onSubmit(buildOrderPayload(numericDraft, paymentAllocations))
     if (result?.code === 'POLICY_CHANGED') {
       setPolicyReviewError('A política de modalidades foi alterada. Revise o tipo do pedido antes de confirmar novamente.')
       await onPolicyChanged?.()
-      return
+      return false
     }
-    if (!result) setCheckoutError('Não foi possível salvar a venda. Seus dados continuam aqui para tentar novamente.')
+    if (result?.ok === false) {
+      setCheckoutError(result.message || (editReservationMode
+        ? 'Não foi possível salvar as alterações. Seus dados continuam aqui para tentar novamente.'
+        : 'Não foi possível salvar a venda. Seus dados continuam aqui para tentar novamente.'))
+      return false
+    }
+    if (!result) {
+      setCheckoutError(editReservationMode
+        ? 'Não foi possível salvar as alterações. Seus dados continuam aqui para tentar novamente.'
+        : 'Não foi possível salvar a venda. Seus dados continuam aqui para tentar novamente.')
+      return false
+    }
+    return true
   }
 
   return (
     <>
       <PageHeader
         eyebrow="Atendimento"
-        title="Nova venda"
-        description="Informe o atendimento, escolha os produtos e revise tudo antes de salvar."
-        actions={<Button type="button" variant="secondary" onClick={onCancel} disabled={disabled}>Cancelar venda</Button>}
+        title={editReservationMode ? 'Editar reserva' : 'Nova venda'}
+        description={editReservationMode
+          ? `Atualize a reserva${reservationContext?.orderNumber ? ` do pedido #${reservationContext.orderNumber}` : ''} e revise antes de salvar.`
+          : 'Informe o atendimento, escolha os produtos e revise tudo antes de salvar.'}
+        actions={<Button type="button" variant="secondary" onClick={onCancel} disabled={disabled}>
+          {editReservationMode ? 'Cancelar edição' : 'Cancelar venda'}
+        </Button>}
       />
+
+      {manualPrintWarningOpen && (
+        <div className="new-order-error" role="alert">
+          <strong>Esta reserva já foi impressa manualmente.</strong>
+          <span> As alterações atualizam o sistema e a impressão automática futura, mas não alteram o papel já impresso.</span>
+          <div className="form-actions">
+            <Button type="button" variant="secondary" onClick={() => setManualPrintWarningOpen(false)} disabled={disabled}>
+              Continuar editando
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                setManualPrintWarningOpen(false)
+                void save(undefined, true)
+              }}
+              disabled={disabled}
+            >
+              Salvar mesmo assim
+            </Button>
+          </div>
+        </div>
+      )}
 
       {checkoutError && <div className="new-order-error" role="alert">{checkoutError}</div>}
       {(policyReviewError || modalityNeedsReview) && (
@@ -363,11 +490,16 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
             type={type}
             orderTypeOptions={visibleModalityOptions}
             orderDate={orderDate}
-            todayValue={getBusinessDate()}
+            todayValue={todayValue}
+            maxDateValue={maxDateValue}
             scheduleMode={scheduleMode}
             scheduledTime={scheduledTime}
             scheduleVisible={scheduleVisible}
             scheduleValid={scheduleValid}
+            reservationMode={reservationMode}
+            scheduleNowAllowed={scheduleNowAllowed}
+            scheduleOptionLabel={scheduleOptionLabel}
+            scheduleFieldLabel={scheduleFieldLabel}
             quickClient={quickClient}
             quickClientError={quickClientError}
             disabled={disabled}
@@ -375,7 +507,10 @@ function NewOrder({ clients, products, tables = [], initialType = 'Entrega', ini
             canContinue={canContinueCustomer}
             onTypeChange={changeType}
             onOrderDateChange={changeOrderDate}
-            onScheduleModeChange={setScheduleMode}
+            onScheduleModeChange={(mode) => {
+              if (mode === 'now' && !scheduleNowAllowed) return
+              setScheduleMode(mode)
+            }}
             onScheduledTimeChange={setScheduledTime}
             onTableSelect={selectTable}
             onClientSearchChange={handleClientSearchChange}

@@ -52,3 +52,16 @@ test('table management styling remains theme-token based and mobile-safe', async
   assert.match(css, /@media\s*\(max-width:\s*640px\)/)
   assert.match(css, /min-width:\s*0/)
 })
+
+
+test('reserved tables explain the active reservation restriction without hiding current occupancy', async () => {
+  const page = await read('./Tables.jsx')
+
+  assert.match(page, /const hasActiveReservation = Boolean\(table\.nextReservation\)/)
+  assert.match(page, /Reserva ativa/)
+  assert.match(page, /Mova ou cancele a reserva antes de renomear\/desativar\./)
+  assert.match(page, /disabled=\{disabled \|\| hasActiveReservation\}/)
+  assert.match(page, /\{occupied \? 'Ocupada' : 'Livre'\}/)
+  assert.match(page, /moveTable\(index, -1\)/)
+  assert.match(page, /moveTable\(index, 1\)/)
+})

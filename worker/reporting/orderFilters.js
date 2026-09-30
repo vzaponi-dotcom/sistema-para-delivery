@@ -27,6 +27,11 @@ export function buildOrderFilters(businessId, query, alias = 'o') {
   )`, query.paymentMethod, query.paymentMethod)
   if (query.receivable === 'unpaid') add(`${alias}.status <> 'Cancelado' AND ${alias}.total_cents > 0
     AND NOT (${alias}.customer_identity_type = 'table' AND ${alias}.table_tab_id IS NOT NULL)
+    AND NOT EXISTS (
+      SELECT 1 FROM table_reservations pending_reservation
+      WHERE pending_reservation.business_id = ${alias}.business_id
+        AND pending_reservation.order_id = ${alias}.id
+    )
     AND NOT EXISTS (SELECT 1 FROM payments pending_payment WHERE pending_payment.business_id = ${alias}.business_id AND pending_payment.order_id = ${alias}.id)`)
   if (query.search) add(`(${alias}.client_name_snapshot LIKE ? OR CAST(${alias}.order_number AS TEXT) LIKE ? OR ${alias}.client_phone_snapshot LIKE ?)`, `%${query.search}%`, `%${query.search}%`, `%${query.search}%`)
   return { sql: where.join(' AND '), values }

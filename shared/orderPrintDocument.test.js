@@ -140,3 +140,32 @@ test('operation profile logo and contact metadata never enter the canonical orde
   const serialized = JSON.stringify(document)
   assert.doesNotMatch(serialized, /logo-v2|\/api\/business\/logo|PROFILE_PHONE_MARKER|PROFILE_ADDRESS_MARKER/)
 })
+
+
+test('scheduled order print document keeps requested service timestamp and semantic label', () => {
+  const scheduled = createOrderPrintDocument(orderInput({
+    scheduledFor: '2026-09-04T15:00:00.000Z',
+    scheduleLabel: 'AGENDADO',
+  }))
+  const reservation = createOrderPrintDocument(orderInput({
+    type: 'Local',
+    customerIdentityType: 'table',
+    tableIdentifier: 'Mesa 4',
+    customer: { name: 'Hugo' },
+    hasOptionalClient: true,
+    scheduledFor: '2026-09-04T23:00:00.000Z',
+    scheduleLabel: 'RESERVA',
+  }))
+
+  assert.equal(scheduled.order.scheduledFor, '2026-09-04T15:00:00.000Z')
+  assert.equal(scheduled.order.scheduleLabel, 'AGENDADO')
+  assert.equal(reservation.order.scheduledFor, '2026-09-04T23:00:00.000Z')
+  assert.equal(reservation.order.scheduleLabel, 'RESERVA')
+  assert.equal(reservation.customer.name, 'Mesa 4 · Hugo')
+})
+
+test('immediate print document leaves schedule metadata empty', () => {
+  const document = createOrderPrintDocument(orderInput())
+  assert.equal(document.order.scheduledFor, '')
+  assert.equal(document.order.scheduleLabel, '')
+})

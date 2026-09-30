@@ -276,6 +276,31 @@ test('MPT-II bitmap compatibility renders accented Unicode through ESC * 33 inst
   assert.equal(includesBytes(bytes, Uint8Array.from([0x1b, 0x74, MTP5_PROFILE.codePage])), false)
 })
 
+test('scheduled and reservation order tickets print the requested service time explicitly', () => {
+  const scheduled = fixture({
+    scheduledFor: '2026-09-04T15:00:00.000Z',
+    scheduleLabel: 'AGENDADO',
+  })
+  const reservation = fixture({
+    type: 'Local',
+    customerIdentityType: 'table',
+    tableIdentifier: 'Mesa 4',
+    hasOptionalClient: true,
+    customer: { name: 'Hugo' },
+    scheduledFor: '2026-09-04T23:00:00.000Z',
+    scheduleLabel: 'RESERVA',
+  })
+
+  const scheduledBytes = renderEscPos58mm(scheduled, { copies: 1 })
+  const reservationBytes = renderEscPos58mm(reservation, { copies: 1 })
+
+  assert.equal(includesBytes(scheduledBytes, encodeCp860('AGENDADO')), true)
+  assert.equal(includesBytes(scheduledBytes, encodeCp860('Agendado: 04/09/2026 - 12:00')), true)
+  assert.equal(includesBytes(reservationBytes, encodeCp860('RESERVA')), true)
+  assert.equal(includesBytes(reservationBytes, encodeCp860('Reserva: 04/09/2026 - 20:00')), true)
+  assert.equal(includesBytes(reservationBytes, encodeCp860('Mesa 4 · Hugo')), true)
+})
+
 test('one-copy pending pickup ticket omits empty delivery contact fields but keeps values and payment state', () => {
   const document = fixture({
     type: 'Retirada',

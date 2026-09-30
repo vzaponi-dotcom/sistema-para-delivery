@@ -30,6 +30,7 @@ const isRegisteredClientOrder = (order) => Boolean(
 )
 
 const isTableTabOrder = (order) => order?.customerIdentityType === 'table' && Boolean(order?.tableTabId)
+const isReservationOrder = (order) => Boolean(order?.tableReservationId)
 
 const groupKey = (order) => {
   if (isRegisteredClientOrder(order)) return `client:${order.clientId}`
@@ -40,13 +41,13 @@ const groupKey = (order) => {
 export const getPendingReceivableOrders = (orders = [], orderRules) => {
   const { isOrderCancelled, isOrderPaid } = requireOrderRules(orderRules)
   return (Array.isArray(orders) ? orders : [])
-    .filter((order) => !isOrderCancelled(order) && !isOrderPaid(order))
+    .filter((order) => !isOrderCancelled(order) && !isOrderPaid(order) && !isReservationOrder(order))
 }
 
 export const getPaidReceivableOrders = (orders = [], orderRules) => {
   const { isOrderCancelled, isOrderPaid } = requireOrderRules(orderRules)
   return (Array.isArray(orders) ? orders : [])
-    .filter((order) => !isOrderCancelled(order) && isOrderPaid(order) && !isTableTabOrder(order))
+    .filter((order) => !isOrderCancelled(order) && isOrderPaid(order) && !isTableTabOrder(order) && !isReservationOrder(order))
 }
 
 export const getExpectedPaymentDate = (order) => order?.promisedPaymentDate || order?.orderDate || null

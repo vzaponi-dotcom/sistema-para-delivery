@@ -1,3 +1,5 @@
+import { validateOrderSchedule } from '../../../../shared/orderTiming.js'
+
 export const NEW_ORDER_STEPS = Object.freeze({
   CUSTOMER: 'customer',
   PRODUCTS: 'products',
@@ -79,3 +81,32 @@ export const isNewOrderDraftDirty = (draft, initialSnapshot) => (
 export const shouldConfirmNewOrderExit = ({ activeTab, targetTab, draftDirty }) => (
   activeTab === 'new-order' && targetTab !== 'new-order' && Boolean(draftDirty)
 )
+
+export const getNewOrderScheduleState = ({
+  type,
+  orderDate,
+  today,
+  scheduleMode = 'now',
+  scheduledFor,
+  expectedTableTabId = '',
+  now = new Date(),
+} = {}) => {
+  const supported = ['Entrega', 'Retirada', 'Local'].includes(type)
+  const lockedOpenTab = type === 'Local' && Boolean(String(expectedTableTabId || '').trim())
+  const historical = Boolean(orderDate && today && orderDate < today)
+  const futureDate = Boolean(orderDate && today && orderDate > today)
+  const visible = supported && !historical && !lockedOpenTab
+  const reservationMode = visible && type === 'Local' && scheduleMode === 'scheduled'
+  const nowAllowed = supported && !futureDate
+  const scheduledLabel = type === 'Local' ? 'Reservar' : 'Agendado'
+  const fieldLabel = type === 'Local' ? 'Quando atender?' : 'Quando preparar?'
+
+  let valid = false
+  if (scheduleMode === 'now') {
+    valid = supported && nowAllowed
+  } else if (scheduleMode === 'scheduled' && visible) {
+    valid = validateOrderSchedule({ type, orderDate, scheduledFor }, now).ok
+  }
+
+  return { visible, valid, reservationMode, nowAllowed, scheduledLabel, fieldLabel }
+}

@@ -132,3 +132,201 @@ test('shared client receipt stays singular in reporting repository with two link
     { order_id: 'shared-o2', amount_cents: 2000 },
   ])
 })
+
+test('future schedules are selected by order_date, and Local scheduled filters reconcile independently from created_at', async (t) => {
+  const { createReportingRepository } = await import('./repository.js')
+  const { db, sqlite, close } = createSettingsDb()
+  t.after(close)
+
+  sqlite.exec(`
+    INSERT INTO businesses (id, slug, name, created_at, updated_at)
+    VALUES ('future-report', 'future-report', 'Future report', '2026-09-01T00:00:00Z', '2026-09-01T00:00:00Z');
+
+    INSERT INTO orders (
+      id, business_id, order_number, client_name_snapshot, customer_identity_type,
+      order_date, type, status, scheduled_for, is_backdated,
+      subtotal_cents, delivery_fee_cents, adjustment_type, adjustment_mode,
+      adjustment_value, adjustment_amount_cents, total_cents, created_at, finished_at
+    ) VALUES
+      ('created-now', 'future-report', 1, 'Agora', 'registered_client',
+        '2026-09-29', 'Entrega', 'Finalizado', NULL, 0,
+        1000, 0, 'none', 'fixed', 0, 0, 1000, '2026-09-29T12:00:00Z', '2026-09-29T12:20:00Z'),
+      ('future-local', 'future-report', 2, 'Mesa 1', 'table',
+        '2026-10-03', 'Local', 'Finalizado', '2026-10-03T15:00:00Z', 0,
+        2000, 0, 'none', 'fixed', 0, 0, 2000, '2026-09-29T12:05:00Z', '2026-10-03T14:30:00Z'),
+      ('future-local-now', 'future-report', 3, 'Mesa 2', 'table',
+        '2026-10-03', 'Local', 'Finalizado', NULL, 0,
+        3000, 0, 'none', 'fixed', 0, 0, 3000, '2026-09-29T12:10:00Z', '2026-10-03T14:20:00Z'),
+      ('future-delivery', 'future-report', 4, 'Entrega', 'registered_client',
+        '2026-10-03', 'Entrega', 'Finalizado', '2026-10-03T16:00:00Z', 0,
+        4000, 0, 'none', 'fixed', 0, 0, 4000, '2026-09-29T12:15:00Z', '2026-10-03T15:30:00Z');
+  `)
+
+  const repository = createReportingRepository(db)
+  const creationDay = await repository.listOrders('future-report', { from: '2026-09-29', to: '2026-09-29' })
+  const serviceDay = await repository.listOrders('future-report', { from: '2026-10-03', to: '2026-10-03' })
+  const scheduledLocal = await repository.listOperationalOrders('future-report', {
+    from: '2026-10-03',
+    to: '2026-10-03',
+    type: 'Local',
+    schedule: 'scheduled',
+  })
+
+  assert.deepEqual(creationDay.map(({ id }) => id), ['created-now'])
+  assert.deepEqual(serviceDay.map(({ id }) => id), ['future-local', 'future-local-now', 'future-delivery'])
+  assert.deepEqual(scheduledLocal.map(({ id, type, scheduled_for }) => ({ id, type, scheduled_for })), [{
+    id: 'future-local',
+    type: 'Local',
+    scheduled_for: '2026-10-03T15:00:00Z',
+  }])
+})
+
+test('early payment remains on its financial date while the future sale remains on order_date', async (t) => {
+  const { createReportingRepository } = await import('./repository.js')
+  const { db, sqlite, close } = createSettingsDb()
+  t.after(close)
+
+  sqlite.exec(`
+    INSERT INTO businesses (id,slug,name,created_at,updated_at)
+    VALUES ('future-paid','future-paid','Future paid','2026-09-01T00:00:00Z','2026-09-01T00:00:00Z');
+
+    INSERT INTO orders (
+      id,business_id,order_number,client_name_snapshot,customer_identity_type,
+      order_date,type,status,scheduled_for,is_backdated,
+      subtotal_cents,delivery_fee_cents,adjustment_type,adjustment_mode,
+      adjustment_value,adjustment_amount_cents,total_cents,created_at,finished_at
+    ) VALUES (
+      'future-order','future-paid',1,'Ana','registered_client',
+      '2026-10-03','Entrega','Finalizado','2026-10-03T15:00:00Z',0,
+      4000,0,'none','fixed',0,0,4000,'2026-09-29T12:00:00Z','2026-10-03T14:30:00Z'
+    );
+
+    INSERT INTO payment_receipts (id,business_id,total_cents,paid_at,created_at)
+    VALUES ('early-receipt','future-paid',4000,'2026-09-29T15:00:00Z','2026-09-29T15:00:00Z');
+
+    INSERT INTO payment_allocations (id,business_id,receipt_id,method_label,amount_cents,created_at)
+    VALUES ('early-allocation','future-paid','early-receipt','Pix',4000,'2026-09-29T15:00:00Z');
+
+    INSERT INTO payments (id,business_id,order_id,receipt_id,amount_cents,method,paid_at,created_at)
+    VALUES ('early-payment','future-paid','future-order','early-receipt',4000,NULL,'2026-09-29T15:00:00Z','2026-09-29T15:00:00Z');
+  `)
+
+  const repository = createReportingRepository(db)
+  const paymentDay = await repository.loadSales('future-paid', { from: '2026-09-29', to: '2026-09-29' })
+  const serviceDay = await repository.loadSales('future-paid', { from: '2026-10-03', to: '2026-10-03' })
+
+  assert.deepEqual(paymentDay.orders, [])
+  assert.deepEqual(paymentDay.receipts.map(({ id, total_cents }) => ({ id, total_cents })), [{
+    id: 'early-receipt',
+    total_cents: 4000,
+  }])
+  assert.deepEqual(serviceDay.orders.map(({ id, order_date }) => ({ id, order_date })), [{
+    id: 'future-order',
+    order_date: '2026-10-03',
+  }])
+  assert.deepEqual(serviceDay.receipts, [])
+  assert.deepEqual(serviceDay.payments.map(({ order_id, amount_cents }) => ({ order_id, amount_cents })), [{
+    order_id: 'future-order',
+    amount_cents: 4000,
+  }])
+})
+
+test('reporting sources expose reservation identity so receivable analytics can exclude active reservations', async (t) => {
+  const { createReportingRepository } = await import('./repository.js')
+  const { db, sqlite, close } = createSettingsDb()
+  t.after(close)
+  const at = '2026-09-29T12:00:00Z'
+
+  sqlite.exec(`
+    INSERT INTO businesses (id,slug,name,created_at,updated_at)
+    VALUES ('reservation-report','reservation-report','Reservation report','${at}','${at}');
+
+    INSERT INTO tables (id,business_id,name,name_key,sort_order,is_active,created_at,updated_at)
+    VALUES ('table-report','reservation-report','Mesa 1','mesa 1',1,1,'${at}','${at}');
+
+    INSERT INTO orders (
+      id,business_id,order_number,client_name_snapshot,customer_identity_type,
+      order_date,type,status,scheduled_for,is_backdated,
+      subtotal_cents,delivery_fee_cents,adjustment_type,adjustment_mode,
+      adjustment_value,adjustment_amount_cents,total_cents,created_at,finished_at
+    ) VALUES (
+      'reservation-order','reservation-report',1,'Mesa 1','table',
+      '2026-10-03','Local','Finalizado','2026-10-03T15:00:00Z',0,
+      5000,0,'none','fixed',0,0,5000,'${at}','2026-10-03T14:30:00Z'
+    );
+
+    INSERT INTO table_reservations (
+      id,business_id,order_id,table_id,table_name_snapshot,status,
+      scheduled_for,ends_at,duration_minutes,revision,
+      created_at,updated_at
+    ) VALUES (
+      'reservation-report-1','reservation-report','reservation-order','table-report','Mesa 1','reserved',
+      '2026-10-03T15:00:00Z','2026-10-03T17:00:00Z',120,1,'${at}','${at}'
+    );
+  `)
+
+  const repository = createReportingRepository(db)
+  const overview = await repository.loadOverview('reservation-report', { from: '2026-10-03', to: '2026-10-03' })
+  const sales = await repository.loadSales('reservation-report', { from: '2026-10-03', to: '2026-10-03' })
+
+  assert.equal(overview.orders[0].table_reservation_id, 'reservation-report-1')
+  assert.equal(sales.orders[0].table_reservation_id, 'reservation-report-1')
+})
+
+test('detail receivable filter and pending amount exclude active reservation orders', async (t) => {
+  const { createReportingRepository } = await import('./repository.js')
+  const { db, sqlite, close } = createSettingsDb()
+  t.after(close)
+  const at = '2026-09-29T12:00:00Z'
+
+  sqlite.exec(`
+    INSERT INTO businesses (id,slug,name,created_at,updated_at)
+    VALUES ('detail-reservation','detail-reservation','Detail reservation','${at}','${at}');
+
+    INSERT INTO tables (id,business_id,name,name_key,sort_order,is_active,created_at,updated_at)
+    VALUES ('detail-table','detail-reservation','Mesa 1','mesa 1',1,1,'${at}','${at}');
+
+    INSERT INTO orders (
+      id,business_id,order_number,client_name_snapshot,customer_identity_type,
+      order_date,type,status,scheduled_for,is_backdated,
+      subtotal_cents,delivery_fee_cents,adjustment_type,adjustment_mode,
+      adjustment_value,adjustment_amount_cents,total_cents,created_at,finished_at
+    ) VALUES
+      ('detail-reservation-order','detail-reservation',1,'Mesa 1','table',
+        '2026-10-03','Local','Finalizado','2026-10-03T15:00:00Z',0,
+        5000,0,'none','fixed',0,0,5000,'${at}','2026-10-03T14:30:00Z'),
+      ('detail-delivery-order','detail-reservation',2,'Ana','registered_client',
+        '2026-10-03','Entrega','Finalizado','2026-10-03T16:00:00Z',0,
+        4000,0,'none','fixed',0,0,4000,'${at}','2026-10-03T15:30:00Z');
+
+    INSERT INTO table_reservations (
+      id,business_id,order_id,table_id,table_name_snapshot,status,
+      scheduled_for,ends_at,duration_minutes,revision,created_at,updated_at
+    ) VALUES (
+      'detail-reservation-1','detail-reservation','detail-reservation-order','detail-table','Mesa 1','reserved',
+      '2026-10-03T15:00:00Z','2026-10-03T17:00:00Z',120,1,'${at}','${at}'
+    );
+  `)
+
+  const repository = createReportingRepository(db)
+  const all = await repository.listDetail('detail-reservation', {
+    from: '2026-10-03',
+    to: '2026-10-03',
+    page: 1,
+    pageSize: 25,
+    sort: 'date-desc',
+  })
+  const unpaid = await repository.listDetail('detail-reservation', {
+    from: '2026-10-03',
+    to: '2026-10-03',
+    receivable: 'unpaid',
+    page: 1,
+    pageSize: 25,
+    sort: 'date-desc',
+  })
+
+  const reservation = all.items.find(({ id }) => id === 'detail-reservation-order')
+  assert.equal(reservation.table_reservation_id, 'detail-reservation-1')
+  assert.equal(reservation.pendingCents, 0)
+  assert.deepEqual(unpaid.items.map(({ id }) => id), ['detail-delivery-order'])
+})
