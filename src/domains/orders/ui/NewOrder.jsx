@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import './new-order.css'
+import './new-order-refined.css'
 import { ClientDuplicateModal, findClientDuplicates } from '../../customers/index.js'
 import { getBusinessDate } from '../../../../shared/finance.js'
 import { validateCustomerIdentity } from '../../../../shared/orderCustomerIdentity.js'
@@ -424,14 +425,23 @@ function NewOrder({
     return true
   }
 
+  const cartProps = {
+    items, currency, disabled,
+    onUpdate: (lineId, patch) => setItems((current) => updateCartItem(current, lineId, patch)),
+    onNoteChange: (lineId, note) => setItems((current) => editCartItemNote(current, lineId, note)),
+    onNoteCommit: (lineId) => setItems((current) => commitCartItemNote(current, lineId)),
+    onRemove: (lineId) => setItems((current) => removeCartItem(current, lineId)),
+  }
+  const contextProps = { displayName: type === 'Local' ? customerSummary : selectedClient?.name || 'A definir', type, orderDate, scheduledFor: scheduleMode === 'scheduled' && scheduleValid ? draft.scheduledFor : null }
+
   return (
-    <>
+    <div className="new-order-refined">
       <PageHeader
-        eyebrow="Atendimento"
+        eyebrow="Do atendimento ao pedido"
         title={editReservationMode ? 'Editar reserva' : 'Nova venda'}
         description={editReservationMode
           ? `Atualize a reserva${reservationContext?.orderNumber ? ` do pedido #${reservationContext.orderNumber}` : ''} e revise antes de salvar.`
-          : 'Informe o atendimento, escolha os produtos e revise tudo antes de salvar.'}
+          : 'Um pedido bem organizado começa aqui.'}
         actions={<Button type="button" variant="secondary" onClick={onCancel} disabled={disabled}>
           {editReservationMode ? 'Cancelar edição' : 'Cancelar venda'}
         </Button>}
@@ -480,6 +490,8 @@ function NewOrder({
       <div ref={stepContentRef} tabIndex="-1" className="new-order-step-content">
         {currentStep === NEW_ORDER_STEPS.CUSTOMER && (
           <NewOrderCustomerStep
+            customerSummary={customerSummary}
+            contextProps={contextProps}
             clients={clients}
             tables={tables}
             selectedTableId={selectedTableId}
@@ -534,6 +546,8 @@ function NewOrder({
             customerSummary={customerSummary}
             itemCount={itemCount}
             subtotal={itemsSubtotal}
+            cartProps={cartProps}
+            contextProps={contextProps}
             onAdd={(product) => setItems((current) => addCartItem(current, product, ''))}
             onDecrease={(productId) => setItems((current) => decrementCartProduct(current, productId))}
             onBack={() => navigateStep(NEW_ORDER_STEPS.CUSTOMER)}
@@ -543,6 +557,8 @@ function NewOrder({
 
         {currentStep === NEW_ORDER_STEPS.REVIEW && (
           <NewOrderReviewStep
+            contextProps={contextProps}
+            onEditCustomer={() => navigateStep(NEW_ORDER_STEPS.CUSTOMER)}
             customerSummary={customerSummary}
             itemCount={itemCount}
             disabled={disabled}
@@ -586,7 +602,7 @@ function NewOrder({
           confirmLabel="Cadastrar mesmo assim"
         />
       )}
-    </>
+    </div>
   )
 }
 

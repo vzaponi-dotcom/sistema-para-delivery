@@ -5,6 +5,8 @@ import { CATEGORY_ICON_NAMES, categoryForUi } from '../../../catalog/index.js'
 
 function OrderCart({
   items,
+  compact = false,
+  onAddProducts,
   currency,
   disabled = false,
   onUpdate,
@@ -18,14 +20,14 @@ function OrderCart({
   const closeNote = (lineId) => setExpandedNote((current) => (current === lineId ? null : current))
 
   return (
-    <section className="surface-card new-order-cart">
-      <div className="section-heading">
+    <section className={compact ? "new-order-cart new-order-cart-compact" : "surface-card new-order-cart"}>
+      {!compact && <div className="section-heading">
         <div>
-          <span className="section-kicker">Pedido</span>
-          <h2>Carrinho</h2>
+
+          <h2>Revise seu pedido</h2>
         </div>
-        <span className="toolbar-count">{items.reduce((sum, item) => sum + Number(item.quantity || 0), 0)} item(ns)</span>
-      </div>
+        {onAddProducts ? <Button type="button" variant="secondary" onClick={onAddProducts} disabled={disabled}>+ Adicionar itens</Button> : <span className="toolbar-count">{items.reduce((sum, item) => sum + Number(item.quantity || 0), 0)} item(ns)</span>}
+      </div>}
 
       <div className="new-order-cart-lines">
         {items.map((item) => (
@@ -36,9 +38,12 @@ function OrderCart({
 
             <div className="new-order-cart-quantity">
               <div className="new-order-quantity-control" aria-label={`Quantidade de ${item.name}`}>
-                <button type="button" onClick={() => onUpdate(item.lineId, { quantity: Number(item.quantity || 1) - 1 })} disabled={disabled}>−</button>
+                <button type="button" aria-label={`Diminuir quantidade de ${item.name}`} onClick={() => {
+                  if (compact && Number(item.quantity || 1) <= 1) onRemove(item.lineId)
+                  else onUpdate(item.lineId, { quantity: Number(item.quantity || 1) - 1 })
+                }} disabled={disabled}>−</button>
                 <strong>{item.quantity}</strong>
-                <button type="button" onClick={() => onUpdate(item.lineId, { quantity: Number(item.quantity || 1) + 1 })} disabled={disabled}>+</button>
+                <button type="button" aria-label={`Aumentar quantidade de ${item.name}`} onClick={() => onUpdate(item.lineId, { quantity: Number(item.quantity || 1) + 1 })} disabled={disabled}>+</button>
               </div>
               <span>{currency(item.unitPrice)} cada</span>
             </div>
@@ -46,7 +51,7 @@ function OrderCart({
             <div className="new-order-cart-content">
               <div className="new-order-cart-line-heading">
                 <strong>{item.name}</strong>
-                <span>{[item.category, item.size].filter(Boolean).join(' · ')}</span>
+                <span>{[item.category, item.size].filter(Boolean).join(' · ')} · {currency(item.unitPrice)} cada</span>
               </div>
 
               {expandedNote === item.lineId ? (
@@ -69,7 +74,7 @@ function OrderCart({
                 </label>
               ) : item.note ? (
                 <div className="new-order-note-summary">
-                  <span title={item.note}>📝 {item.note}</span>
+                  <span title={item.note}>{item.note}</span>
                   <button type="button" onClick={() => openNote(item.lineId)} disabled={disabled}>Editar observação</button>
                 </div>
               ) : (

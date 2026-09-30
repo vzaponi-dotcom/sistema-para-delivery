@@ -98,3 +98,13 @@ específica antes de receber uma reorganização estrutural equivalente.
 - O layout compacto entra até 1000 px para acomodar a lateral em tablets.
   Validação local: 1440, 834, 390 e 320 px; temas claro/escuro; criação e busca;
   DnD real com sucesso/falha e restauração de foco; regras cobertas por testes.
+
+## Nova venda
+
+- Fluxo aprovado em três etapas: Atendimento, Produtos e Finalizar; identidade compartilhada, temas claro/escuro e resumo contextual com horário de São Paulo.
+- Atendimento com modalidades, cliente, mesa e agendamento existentes; catálogo abre a primeira categoria e mantém busca global.
+- Carrinho lateral editável no desktop e BottomSheet no celular. Quantidade, remoção e observação operam pelo lineId, preservando variantes do mesmo produto.
+- Revisão separa itens e ajustes do resumo financeiro. Ajuste e Formato usam SystemSelect do sistema, alinhados; permissões e máscaras existentes preservadas.
+- Ações fixas mobile substituem a navegação inferior durante a venda; pagamento aberto oculta o atalho de salvar para evitar ações concorrentes.
+- Cinco testes comportamentais cobrem edição por linha, carrinho mobile, permissões, foco durante digitação e remoção de variantes. Revisão independente levou à correção dos dois últimos casos.
+- Componentes reais inspecionados em desktop, 834, 390 e 320 px, claro/escuro, sem overflow horizontal. Ajuste percentual, observação contínua e cancelamento do painel de pagamento conferidos.

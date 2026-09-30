@@ -5,6 +5,7 @@ import {
   formatProductPresentation,
 } from '../../../catalog/index.js'
 import { getCartProductQuantity } from '../../domain/orderCart.js'
+import Icon from '../../../../shared/ui/Icon'
 import Button from '../../../../shared/ui/Button'
 
 function OrderProductCatalog({ products, items = [], currency, disabled = false, onAdd, onDecrease }) {
@@ -16,9 +17,10 @@ function OrderProductCatalog({ products, items = [], currency, disabled = false,
     [products],
   )
 
+  const activeCategory = category || categories[0] || null
   const visibleProducts = useMemo(() => {
     const normalized = search.trim().toLocaleLowerCase('pt-BR')
-    if (!normalized && !category) return []
+    if (!normalized && !activeCategory) return []
 
     return products.filter((product) => {
       const uiCategory = categoryForUi(product.category)
@@ -29,24 +31,24 @@ function OrderProductCatalog({ products, items = [], currency, disabled = false,
         .includes(normalized)
 
       if (normalized) return matchesSearch
-      return uiCategory === category
+      return uiCategory === activeCategory
     })
-  }, [category, products, search])
+  }, [activeCategory, products, search])
 
-  const hasSelection = Boolean(search.trim() || category)
+  const hasSelection = Boolean(search.trim() || activeCategory)
 
   return (
     <section className="surface-card new-order-catalog">
       <div className="section-heading">
         <div>
-          <span className="section-kicker">Catálogo</span>
+
           <h2>Adicionar produtos</h2>
         </div>
         <span className="toolbar-count">{visibleProducts.length} produto(s)</span>
       </div>
 
-      <label className="form-field">
-        <span>Buscar produto</span>
+      <label className="form-field new-order-search-field">
+        <span className="new-order-search-icon"><Icon name="search" size={18} /></span><span className="new-order-sr-only">Buscar produto</span>
         <input
           type="search"
           placeholder="Nome, categoria ou apresentação"
@@ -60,9 +62,9 @@ function OrderProductCatalog({ products, items = [], currency, disabled = false,
           <button
             key={item}
             type="button"
-            className={category === item ? 'new-order-category active' : 'new-order-category'}
+            className={activeCategory === item ? 'new-order-category active' : 'new-order-category'}
             onClick={() => setCategory(item)}
-            aria-pressed={category === item}
+            aria-pressed={activeCategory === item}
           >
             {item}
           </button>
@@ -77,7 +79,8 @@ function OrderProductCatalog({ products, items = [], currency, disabled = false,
           const presentation = formatProductPresentation(product)
           return (
             <article className={isAdded ? 'new-order-product recently-added' : 'new-order-product'} key={product.id}>
-              <div>
+              <span className="new-order-product-icon"><Icon name="products" size={20} /></span>
+              <div className="new-order-product-copy">
                 <strong>{product.name}</strong>
                 <span>{[uiCategory, presentation].filter(Boolean).join(' · ')}</span>
               </div>

@@ -65,7 +65,7 @@ test('existing cart notes stay readable on mobile instead of collapsing into an 
   const cart = await read('./domains/orders/ui/components/OrderCart.jsx')
 
   assert.match(cart, /className="new-order-note-summary"/)
-  assert.match(cart, /<span title=\{item\.note\}>📝 \{item\.note\}<\/span>/)
+  assert.match(cart, /<span title=\{item\.note\}>\{item\.note\}<\/span>/)
   assert.match(cart, />Editar observação<\/button>/)
 
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.new-order-note-summary\s*\{[^}]*display:\s*grid[^}]*gap:\s*3px/s)

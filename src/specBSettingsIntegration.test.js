@@ -110,7 +110,7 @@ test('the App fails closed for a new sale when effective operation settings are 
   assert.equal(modalityButtons.every((button) => button.props['aria-pressed'] !== true), true,
     'unconfirmed fallback modalities must not appear selected as effective policy')
   assert.match(nodeText(screen.root.findByProps({ role: 'alert' })), /modalidades?.*(indisponíve(?:l|is)|revise)/i)
-  assert.equal(buttonNamed(screen.root, 'Continuar →').props.disabled, true)
+  assert.equal(buttonNamed(screen.root, 'Escolher produtos →').props.disabled, true)
 })
 
 function response(body) {

@@ -22,7 +22,7 @@ function AppShell({ businessId, businessName, businessHasLogo = false, businessL
   }, [activeTab])
 
   return (
-    <div className="app-shell">
+    <div className={activeTab === 'new-order' ? 'app-shell app-shell-new-order' : 'app-shell'}>
       <AppTopBar businessId={businessId} businessName={businessName} businessHasLogo={businessHasLogo} businessLogoVersion={businessLogoVersion} onLogout={onLogout} logoutDisabled={logoutDisabled} />
       <Sidebar badges={navigationBadges} />
       <main className="app-main">

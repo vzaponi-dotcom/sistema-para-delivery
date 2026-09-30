@@ -4,29 +4,15 @@ import { formatBRLCurrencyInput } from '../../../../shared/utils/formFormatting.
 import SystemSelect from '../../../../shared/ui/SystemSelect'
 
 const ADJUSTMENT_OPTIONS = [
-  { value: 'none', label: 'Nenhum' },
+  { value: 'none', label: 'Sem ajuste' },
   { value: 'discount', label: 'Desconto' },
   { value: 'surcharge', label: 'Acréscimo' },
 ]
 const ADJUSTMENT_MODE_OPTIONS = [
-  { value: 'fixed', label: 'R$' },
-  { value: 'percentage', label: '%' },
+  { value: 'fixed', label: 'Valor em reais' },
+  { value: 'percentage', label: 'Percentual' },
 ]
-function OrderCheckoutSummary({
-  draft,
-  preview,
-  currency,
-  disabled = false,
-  canSubmit = false,
-  canAdjustOrders = true,
-  allowImmediatePayment = true,
-  onDeliveryFeeChange,
-  onAdjustmentChange,
-  onSavePending,
-  onSavePaid,
-  renderPaymentComposition,
-}) {
-  const [showPayment, setShowPayment] = useState(false)
+export function OrderCheckoutFields({ draft, disabled = false, canAdjustOrders = true, onDeliveryFeeChange, onAdjustmentChange }) {
   const adjustment = draft.adjustment
   const changeAdjustment = (patch) => {
     if (!canAdjustOrders) return false
@@ -46,15 +32,7 @@ function OrderCheckoutSummary({
     </div>
   )
 
-  return (
-    <section className="surface-card new-order-checkout">
-      <div className="section-heading">
-        <div>
-          <span className="section-kicker">Fechamento</span>
-          <h2>Resumo da venda</h2>
-        </div>
-      </div>
-
+  return <div className="new-order-review-fields">
       {draft.type === 'Entrega' && (
         <div className="new-order-checkout-fields">
           <label className="form-field">
@@ -69,25 +47,18 @@ function OrderCheckoutSummary({
           />
           <small className="form-hint">Deixe R$ 0,00 quando não houver taxa.</small>
           </label>
-          {canAdjustOrders && adjustmentTypeField}
+
         </div>
       )}
 
-      <div className="new-order-adjustment">
-        {canAdjustOrders && draft.type !== 'Entrega' && adjustmentTypeField}
+      {canAdjustOrders && <details className="new-order-adjustment" open={adjustment.type !== 'none' ? true : undefined}><summary>Desconto ou acréscimo</summary>
+        <div className="new-order-adjustment-fields">{adjustmentTypeField}
+          <div className="form-field"><span>Formato</span><SystemSelect value={adjustment.mode} options={ADJUSTMENT_MODE_OPTIONS} onChange={(mode) => changeAdjustment({ mode })} disabled={disabled} label="Formato" /></div>
+        </div>
+
 
         {canAdjustOrders && adjustment.type !== 'none' && (
           <div className="new-order-adjustment-fields">
-            <div className="form-field">
-              <span>Modo</span>
-              <SystemSelect
-                value={adjustment.mode}
-                options={ADJUSTMENT_MODE_OPTIONS}
-                onChange={(mode) => changeAdjustment({ mode })}
-                disabled={disabled}
-                label="Modo"
-              />
-            </div>
             <label className="form-field">
               <span>Valor</span>
               {adjustment.mode === 'fixed' ? (
@@ -128,7 +99,38 @@ function OrderCheckoutSummary({
             />
           </label>
         )}
+      </details>}
+
+  </div>
+}
+
+function OrderCheckoutSummary({
+  draft,
+  preview,
+  showFields = true,
+  currency,
+  disabled = false,
+  canSubmit = false,
+  canAdjustOrders = true,
+  allowImmediatePayment = true,
+  onDeliveryFeeChange,
+  onAdjustmentChange,
+  onSavePending,
+  onSavePaid,
+  renderPaymentComposition,
+}) {
+  const [showPayment, setShowPayment] = useState(false)
+  const adjustment = draft.adjustment
+  return (
+    <section className="surface-card new-order-checkout">
+      <div className="section-heading">
+        <div>
+
+          <h2>Resumo da venda</h2>
+        </div>
       </div>
+
+      {showFields && <OrderCheckoutFields {...{ draft, disabled, canAdjustOrders, onDeliveryFeeChange, onAdjustmentChange }} />}
 
       <div className="new-order-totals">
         <div><span>Produtos</span><strong>{currency(preview.subtotal)}</strong></div>
@@ -151,12 +153,14 @@ function OrderCheckoutSummary({
         })
       )}
 
+      <p className="new-order-payment-hint">{allowImmediatePayment ? 'Salvar pedido mantém o pagamento pendente.' : 'O pagamento é registrado pela comanda.'}</p>
       {!showPayment && (
         <div className="new-order-checkout-actions">
-          <Button type="button" variant="secondary" onClick={onSavePending} disabled={disabled || !canSubmit}>Salvar pedido</Button>
-          {allowImmediatePayment && renderPaymentComposition && <Button type="button" onClick={() => setShowPayment(true)} disabled={disabled || !canSubmit}>Salvar e receber</Button>}
+          <Button type="button" onClick={onSavePending} disabled={disabled || !canSubmit}>{draft.type === 'Local' && draft.scheduledFor ? 'Salvar reserva' : 'Salvar pedido'}</Button>
+          {allowImmediatePayment && renderPaymentComposition && <Button type="button" variant="secondary" onClick={() => setShowPayment(true)} disabled={disabled || !canSubmit}>Salvar e receber</Button>}
         </div>
       )}
+      {!showPayment && <div className="new-order-mobile-checkout"><div><small>Total da venda</small><strong>{currency(preview.total)}</strong></div><Button type="button" onClick={onSavePending} disabled={disabled || !canSubmit}>{draft.type === 'Local' && draft.scheduledFor ? 'Salvar reserva' : 'Salvar pedido'}</Button></div>}
     </section>
   )
 }

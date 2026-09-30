@@ -615,7 +615,7 @@ async function prepareLocalOrderForCheckout(renderer) {
   const search = renderer.root.findAllByType('input').find((input) => input.props.placeholder === 'Nome, categoria ou apresentação')
   await act(async () => search.props.onChange({ target: { value: lifecycleProduct.name } }))
   await act(async () => renderer.root.findByProps({ 'aria-label': `Adicionar ${lifecycleProduct.name}` }).props.onClick())
-  await act(async () => buttonNamed(renderer.root, 'Revisar pedido').props.onClick())
+  await act(async () => buttonNamed(renderer.root, 'Revisar pedido →').props.onClick())
 }
 
 test('App renders official Comandas, preserves selection across destinations and blocks offline launches', async (t) => {
@@ -705,7 +705,7 @@ test('an occupied comanda adds another order through the preselected wizard and 
   assert.ok(addOrder, 'occupied command detail exposes its add-order action')
   await act(async () => addOrder.props.onClick())
   assert.match(nodeText(renderer.root.findByProps({ 'aria-current': 'step' })), /Produtos/)
-  assert.match(nodeText(renderer.root.findByProps({ className: 'new-order-step-context' })), /Mesa 7/)
+  assert.match(nodeText(renderer.root.findByProps({ className: 'new-order-context-strip' })), /Mesa 7/)
   await prepareLocalOrderForCheckout(renderer)
   assert.equal(buttonNamed(renderer.root, 'Salvar e receber'), undefined, 'table checkout must only be settled through the comanda')
   await act(async () => buttonNamed(renderer.root, 'Salvar pedido').props.onClick())
@@ -745,7 +745,7 @@ test('an occupied comanda can cancel its preselected wizard without creating an 
   await act(async () => renderer.root.findByProps({ 'aria-label': 'Mesas ativas' }).findAllByType('button')[0].props.onClick())
   await act(async () => buttonNamed(renderer.root.findByProps({ 'aria-label': 'Detalhe da comanda' }), 'Adicionar pedido').props.onClick())
   assert.match(nodeText(renderer.root.findByProps({ 'aria-current': 'step' })), /Produtos/)
-  assert.match(nodeText(renderer.root.findByProps({ className: 'new-order-step-context' })), /Mesa 7/)
+  assert.match(nodeText(renderer.root.findByProps({ className: 'new-order-context-strip' })), /Mesa 7/)
   await act(async () => buttonNamed(renderer.root, 'Cancelar venda').props.onClick())
   assert.match(nodeText(renderer.root.findByProps({ 'aria-label': 'Detalhe da comanda' })), /Comanda 42.*3 itens.*123,45/)
   assert.equal(requests.filter(([path, options]) => path === '/api/orders' && options.method === 'POST').length, 0)
