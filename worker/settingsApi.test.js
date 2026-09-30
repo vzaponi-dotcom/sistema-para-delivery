@@ -28,7 +28,7 @@ test('limited server grants separate settings view from manage and ignore unknow
 })
 
 test('legacy access is explicitly broad only for an authenticated server session', async () => {
-  const context = await resolveSettingsAccess({ businessId: BUSINESS, sessionId: 'legacy' })
+  const context = await resolveSettingsAccess({ businessId: BUSINESS, sessionId: 'legacy', legacy: true, authMode: 'legacy' })
   assert.equal(context.legacy, true)
   assert.equal(context.granted.has('payments.settings.manage'), true)
   await assert.rejects(resolveSettingsAccess(null), { status: 401 })
@@ -40,10 +40,16 @@ test('an installed trusted resolver returning undefined fails closed instead of 
   assert.deepEqual([...context.granted], [])
 })
 
+test('human sessions with omitted grants never inherit legacy capabilities', async () => {
+  const context = await resolveSettingsAccess({ businessId: BUSINESS, sessionId:'human',userId:'user',authMode:'user_only' })
+  assert.equal(context.legacy,false)
+  assert.deepEqual([...context.granted],[])
+})
+
 test('settings mutations use context business and reject browser authority fields', async (t) => {
   const { db, sqlite, close } = createSettingsDb()
   t.after(close)
-  const context = await resolveSettingsAccess({ businessId: BUSINESS, sessionId: 'manager' })
+  const context = await resolveSettingsAccess({ businessId: BUSINESS, sessionId: 'manager', legacy: true, authMode: 'legacy' })
   await assert.rejects(handleSettingsApi(request('/api/settings/operations', 'PUT', {
     businessId: 'other-business', role: 'manager', granted: ['operations.settings.manage'],
     expectedRevision: 1, mutationId: 'forged', data: DEFAULT_OPERATIONS,
@@ -54,7 +60,7 @@ test('settings mutations use context business and reject browser authority field
 test('receipt lookup is scoped to an authorized resource', async (t) => {
   const { db, close } = createSettingsDb()
   t.after(close)
-  const manager = await resolveSettingsAccess({ businessId: BUSINESS, sessionId: 'manager' })
+  const manager = await resolveSettingsAccess({ businessId: BUSINESS, sessionId: 'manager', legacy: true, authMode: 'legacy' })
   await handleSettingsApi(request('/api/settings/operations', 'PUT', {
     expectedRevision: 1, mutationId: 'receipt-1', data: DEFAULT_OPERATIONS,
   }), { DB: db }, manager, new URL('https://delivery.test/api/settings/operations'))

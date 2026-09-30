@@ -1,4 +1,9 @@
-import { clearSessionCookie, createSession, getAuthenticatedSession, revokeSession, sessionCookie, SESSION_MAX_AGE, verifyPin } from './auth.js'
+import { clearSessionCookie, createSession, revokeSession, sessionCookie, SESSION_MAX_AGE, verifyPin } from './auth.js'
+import { authenticateHumanRequest, createUserSession, loadAuthMode, SESSION_DURATIONS } from './access/sessions.js'
+import { normalizeLogin } from './access/roles.js'
+import { verifyHumanPassword } from './access/credentials.js'
+import { checkLoginThrottle, completeLoginAttempt } from './access/loginThrottle.js'
+import { recordSecurityEvent } from './access/audit.js'
 import { createManualMovement, softDeleteManualMovement, updateManualMovement, upsertFinanceSettings } from './financeRepository.js'
 import { parseFinanceSettingsInput, parseManualMovementInput } from './financeValidation.js'
 import { apiError, assertSameOriginMutation, handleError, json, readJson } from './http.js'
@@ -27,6 +32,7 @@ import { handleTableReservationApi } from './tableReservationApi.js'
 import { acceptAccessInvitation } from './access/invitations.js'
 
 const BUSINESS_ID = 'amor-e-sabor'
+const authJson = (body, init = {}) => json(body, { ...init, headers: { 'cache-control': 'no-store', ...init.headers } })
 const LOGIN_RATE_LIMIT_KEY = 'amor-e-sabor:auth-login'
 const LEGACY_PRODUCT_CATEGORIES = {
   Marmita: 'Refeições',
@@ -43,26 +49,86 @@ const assertLoginAllowed = async (env) => {
 
 const login = async (request, env) => {
   assertSameOriginMutation(request)
-  await assertLoginAllowed(env)
   const body = await readJson(request)
+  const authMode = await loadAuthMode(env.DB, BUSINESS_ID)
+  if (authMode === 'enrollment' || authMode === 'user_only') {
+    if (Object.hasOwn(body, 'identifier') || authMode === 'user_only') {
+      const identifier = typeof body.identifier === 'string' ? normalizeLogin(body.identifier) : ''
+      const deviceMode = body.deviceMode === undefined ? 'shared' : body.deviceMode
+      if (!Object.hasOwn(SESSION_DURATIONS, deviceMode)) throw apiError(400, 'INVALID_DEVICE_MODE', 'Modo de dispositivo inválido.')
+      const attempt = await checkLoginThrottle(env.DB, { businessId: BUSINESS_ID, normalizedLogin: identifier,
+        originKey: request.headers.get('CF-Connecting-IP') || 'unknown', now: new Date() })
+      const event = { businessId: BUSINESS_ID, metadata: { deviceMode, authMode } }
+      if (!attempt.allowed) {
+        await recordSecurityEvent(env.DB, { ...event, action: 'login.blocked', result: 'blocked' })
+        throw apiError(429, 'LOGIN_RATE_LIMITED', 'Muitas tentativas de acesso. Aguarde e tente novamente.')
+      }
+      const credential = await env.DB.prepare(`SELECT u.id,u.display_name,c.password_verifier FROM users u
+        JOIN roles r ON r.business_id=u.business_id AND r.id=u.role_id AND r.active=1
+        JOIN user_credentials c ON c.business_id=u.business_id AND c.user_id=u.id AND c.active=1
+        WHERE u.business_id=? AND u.login_normalized=? AND u.active=1`).bind(BUSINESS_ID, identifier).first()
+      // A valid dummy verifier keeps unknown-account work comparable to wrong passwords.
+      const dummy = 'v1$pbkdf2-sha256$100000$AAAAAAAAAAAAAAAAAAAAAA==$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+      const verified = await verifyHumanPassword(typeof body.password === 'string' ? body.password : '', credential?.password_verifier || dummy)
+      if (!credential || !verified) {
+        await recordSecurityEvent(env.DB, { ...event, action: 'login.failure', result: 'failure' })
+        throw apiError(401, 'INVALID_LOGIN', 'Identificador ou senha inválidos.')
+      }
+      let session
+      try { session = await createUserSession(env, { businessId: BUSINESS_ID, userId: credential.id, deviceMode, credentialVerifier: credential.password_verifier }) }
+      catch (error) {
+        if (error.status === 401) await recordSecurityEvent(env.DB, { ...event, action: 'login.failure', result: 'failure' })
+        throw error
+      }
+      const sessionRequest = new Request(request.url, { headers: { cookie: `amor_session=${session.token}` } })
+      const context = await authenticateHumanRequest(sessionRequest, env)
+      if (!context) throw apiError(401, 'INVALID_LOGIN', 'Identificador ou senha inválidos.')
+      await completeLoginAttempt(env.DB, attempt.attemptId, true)
+      await recordSecurityEvent(env.DB, { ...event, action: 'login.success', result: 'success',
+        context: { userId: credential.id, displayName: credential.display_name, sessionId: session.sessionId } })
+      return validateResponseSession(sessionRequest, env, context, authJson({ authenticated: true, businessId: BUSINESS_ID },
+        { headers: { 'set-cookie': sessionCookie(session.token, SESSION_DURATIONS[deviceMode]) } }))
+    }
+  }
+  if (!['legacy', 'enrollment'].includes(authMode)) throw apiError(401, 'INVALID_LOGIN', 'Identificador ou senha inválidos.')
+  await assertLoginAllowed(env)
   const pin = requireNonEmpty(body.pin, 'pin')
   const credential = await env.DB.prepare('SELECT pin_hash FROM auth_credentials WHERE business_id = ? LIMIT 1').bind(BUSINESS_ID).first()
   if (!credential?.pin_hash) throw apiError(503, 'AUTH_NOT_CONFIGURED', 'O acesso por PIN ainda não foi configurado.')
   if (!(await verifyPin(pin, credential.pin_hash))) throw apiError(401, 'INVALID_PIN', 'PIN inválido.')
   const { token } = await createSession(env, BUSINESS_ID)
-  return json({ authenticated: true, businessId: BUSINESS_ID }, { headers: { 'set-cookie': sessionCookie(token, SESSION_MAX_AGE) } })
+  const sessionRequest = new Request(request.url, { headers: { cookie: `amor_session=${token}` } })
+  const context = await authenticateHumanRequest(sessionRequest, env)
+  if (!context) throw apiError(401, 'INVALID_LOGIN', 'Identificador ou senha inválidos.')
+  return validateResponseSession(sessionRequest, env, context, authJson({ authenticated: true, businessId: BUSINESS_ID }, { headers: { 'set-cookie': sessionCookie(token, SESSION_MAX_AGE) } }))
 }
 
-const logout = async (request, env) => { assertSameOriginMutation(request); await revokeSession(request, env); return json({ authenticated: false }, { headers: { 'set-cookie': clearSessionCookie() } }) }
-const resolveRequestContext = async (env, session) => typeof env.resolveCapabilities === 'function'
-  ? resolveSettingsAccess(session, await env.resolveCapabilities(session))
-  : resolveSettingsAccess(session)
+const logout = async (request, env) => { assertSameOriginMutation(request); await revokeSession(request, env); return authJson({ authenticated: false }, { headers: { 'set-cookie': clearSessionCookie() } }) }
+const resolveRequestContext = async (env, session) => resolveSettingsAccess(session,
+  session.legacy && typeof env.resolveCapabilities === 'function' ? await env.resolveCapabilities(session) : session.granted)
+
+const validateResponseSession = async (request, env, session, response) => {
+  let validationRequest = request
+  const url = new URL(request.url)
+  // Only this server-controlled response can rotate its current session.
+  if (url.pathname === '/api/access/me/password' && request.method === 'POST' && response?.ok) {
+    const replacement = response.headers.get('set-cookie')?.match(/^amor_session=([A-Za-z0-9_-]{43});/)
+    if (replacement) validationRequest = new Request(request.url, { headers: { cookie: `amor_session=${replacement[1]}` } })
+  }
+  const current = await authenticateHumanRequest(validationRequest, env)
+  if (!current || current.businessId !== BUSINESS_ID || current.userId !== session.userId) throw apiError(401, 'UNAUTHENTICATED', 'Sua sessão expirou. Entre novamente.')
+  if (current.authMode !== session.authMode || current.roleId !== session.roleId || [...current.granted].sort().join('\n') !== [...session.granted].sort().join('\n')) {
+    throw apiError(403, 'ACCESS_CHANGED', 'Seu acesso mudou. Atualize sua sessão.')
+  }
+  return response
+}
 const sessionStatus = async (request, env) => {
-  const session = await getAuthenticatedSession(request, env)
-  if (!session) return json({ authenticated: false })
+  const session = await authenticateHumanRequest(request, env)
+  if (!session || session.businessId !== BUSINESS_ID) return authJson({ authenticated: false, authMode: await loadAuthMode(env.DB, BUSINESS_ID) })
   const context = await resolveRequestContext(env, session)
-  return json({ authenticated: true, businessId: session.businessId, settingsContextId: context.settingsContextId,
-    capabilities: [...context.granted] })
+  return validateResponseSession(request, env, session, authJson({ authenticated: true, businessId: session.businessId, settingsContextId: context.settingsContextId,
+    capabilities: [...context.granted], user: session.userId ? { id: session.userId, displayName: session.displayName, roleName: session.roleName } : null,
+    authMode: session.authMode, deviceMode: session.deviceMode }))
 }
 const clientInput = (body) => ({ name: requireNonEmpty(body.name, 'name'), phone: optionalText(body.phone), address: optionalText(body.address) })
 const productInput = (body) => {
@@ -90,10 +156,21 @@ const tablePatchInput = (body) => {
 }
 
 const authenticatedApi = async (request, env) => {
-  const session = await getAuthenticatedSession(request, env)
-  if (!session) throw apiError(401, 'UNAUTHENTICATED', 'Sua sessão expirou. Entre novamente.')
+  const session = await authenticateHumanRequest(request, env)
+  if (!session || session.businessId !== BUSINESS_ID) throw apiError(401, 'UNAUTHENTICATED', 'Sua sessão expirou. Entre novamente.')
   const url = new URL(request.url)
   const context = await resolveRequestContext(env, session)
+  if (session.userId && session.authMode === 'enrollment' && !url.pathname.startsWith('/api/access/')) {
+    throw apiError(403, 'ENROLLMENT_ONLY', 'Durante a preparação, use somente a administração de acesso.')
+  }
+  let response, failure
+  try { response = await dispatchAuthenticatedApi(request, env, session, context, url) } catch (error) { failure = error }
+  await validateResponseSession(request, env, session, response)
+  if (failure) throw failure
+  return response
+}
+
+const dispatchAuthenticatedApi = async (request, env, session, context, url) => {
 
   const kitchenTvResponse = await handleKitchenTvAdminApi(request, env, context, url)
   if (kitchenTvResponse) return kitchenTvResponse

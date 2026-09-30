@@ -26,7 +26,7 @@ const bytesToBase64Url = (bytes) => bytesToBase64(bytes).replace(/\+/g, '-').rep
 
 const bytesToHex = (bytes) => Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
 
-const sha256Hex = async (value) => {
+export const sha256Hex = async (value) => {
   const digest = await crypto.subtle.digest('SHA-256', encoder.encode(value))
   return bytesToHex(new Uint8Array(digest))
 }
@@ -48,7 +48,7 @@ const constantTimeEqual = (left, right) => {
   return mismatch === 0
 }
 
-const cookieValue = (request, name) => {
+export const cookieValue = (request, name) => {
   const header = request.headers.get('cookie') || ''
   for (const part of header.split(';')) {
     const [rawName, ...rawValue] = part.trim().split('=')

@@ -25,7 +25,7 @@ test('business profile capabilities are canonical and manage implies view for bo
   assert.equal(limited.granted.has('business.profile.manage'), true)
   assert.equal(limited.granted.has('business.profile.view'), true)
 
-  const broad = await resolveSettingsAccess({ businessId: BUSINESS, sessionId: 'legacy-admin' })
+  const broad = await resolveSettingsAccess({ businessId: BUSINESS, sessionId: 'legacy-admin', legacy: true, authMode: 'legacy' })
   assert.equal(broad.legacy, true)
   assert.equal(broad.granted.has('business.profile.manage'), true)
   assert.equal(broad.granted.has('business.profile.view'), true)

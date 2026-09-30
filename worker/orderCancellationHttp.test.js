@@ -26,6 +26,7 @@ class HttpDb {
           sql,
           values,
           async first() {
+            if (sql.includes('FROM business_auth_state')) return { mode: 'legacy' }
             if (sql.includes('FROM businesses b LEFT JOIN business_operation_settings')) return {
               business_id: db.order.business_id, revision: 1,
               created_at: '2026-09-01T00:00:00.000Z', updated_at: '2026-09-01T00:00:00.000Z',

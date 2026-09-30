@@ -21,6 +21,7 @@ class FakeDb {
       bind(...values) {
         return {
           async first() {
+            if (sql.includes('FROM business_auth_state')) return { mode: 'legacy' }
             if (sql.includes('FROM auth_credentials')) {
               return values[0] === 'amor-e-sabor' ? { pin_hash: db.pinHash } : null
             }
@@ -143,7 +144,7 @@ test('session endpoint is unauthenticated without a cookie', async () => {
   const env = await makeEnv()
   const response = await handleRequest(new Request('https://delivery.example/api/auth/session'), env)
   assert.equal(response.status, 200)
-  assert.deepEqual(await response.json(), { authenticated: false })
+  assert.deepEqual(await response.json(), { authenticated: false, authMode: 'legacy' })
 })
 
 test('invalid PIN is rejected without exposing credentials', async () => {
@@ -193,7 +194,7 @@ test('logout revokes the current session and clears the cookie', async () => {
   assert.match(response.headers.get('set-cookie'), /Max-Age=0/)
 
   const sessionResponse = await handleRequest(new Request('https://delivery.example/api/auth/session', { headers: { cookie: cookiePair } }), env)
-  assert.deepEqual(await sessionResponse.json(), { authenticated: false })
+  assert.deepEqual(await sessionResponse.json(), { authenticated: false, authMode: 'legacy' })
 })
 
 test('login is rate limited before PIN verification', async () => {
