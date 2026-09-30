@@ -137,9 +137,7 @@ export function useClientOrdersPaymentWorkflow({
       )
       if (!ownsMutation() || owner.guard !== getSyncGuard()) return false
 
-      const officialOrders = Array.isArray(result?.orders) ? result.orders : []
-      const movements = Array.isArray(result?.movements) ? result.movements : []
-      if (applyOfficialEffects({ orders: officialOrders, movements }) === false) return false
+      if (applyOfficialEffects(result) === false) return false
 
       if (dialogOwnerRef.current === owner) {
         const clientName = currentOrders[0]?.client || 'cliente'

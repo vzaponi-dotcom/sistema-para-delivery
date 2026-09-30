@@ -495,10 +495,12 @@ function App({ capabilities, renderAccessSurface } = {}) {
     onError: showApiError,
     onStaleTarget: setToastMessage,
   })
-  const getPendingSessionEffects = () => ({
+  const pendingSessionEffectsRef = useRef(null)
+  pendingSessionEffectsRef.current = {
     paymentPending: Boolean(tableTabPayment.busy || tableTabPayment.syncState || orderPayment.dialog?.submitting || clientOrdersPayment.dialog?.submitting),
     printPending: Boolean(printing.busyJobId || printing.jobs.some((job) => ['unknown', 'awaiting_confirmation', 'waiting_confirmation', 'printing'].includes(job.status) || job.physicalOutcome === 'unknown')),
-  })
+  }
+  const getPendingSessionEffects = () => pendingSessionEffectsRef.current
   const handleLogout = () => requestSessionExit(handleSessionLogout, getPendingSessionEffects)
   const handleSwitchUser = () => requestSessionExit(handleSessionLogout, getPendingSessionEffects)
 

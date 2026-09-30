@@ -3,11 +3,23 @@ import test from 'node:test'
 import React from 'react'
 import TestRenderer, { act } from 'react-test-renderer'
 import { useOrderCommands } from './useOrderCommands.js'
+import { projectMutationEffects } from '../../../../worker/access/projections.js'
 
 const orders = [
   { id: 'o-1', type: 'Entrega', status: 'Em preparo' },
   { id: 'o-2', type: 'Retirada', status: 'Em preparo' },
 ]
+
+test('finalizing a pickup evicts it immediately when the authoritative projection removes read access', async () => {
+  let visible = [...orders]
+  const projection = projectMutationEffects({ order: { ...orders[1], status: 'Finalizado' } }, new Set(['orders.view', 'orders.finalize']))
+  assert.deepEqual(projection, { deletedOrderIds: ['o-2'] })
+  const probe = await mountProbe({ orders, api: { updateOrderStatus: async () => projection }, canFinalizeOrders: true, writesBlocked: false,
+    applyOfficialEffects: (effects) => { visible = visible.filter((item) => !effects.deletedOrderIds?.includes(item.id)) }, onSuccess() {}, onError(error) { throw error } })
+  await act(async () => { assert.equal(await probe.getLatest().finalizeOrder('o-2'), true) })
+  assert.deepEqual(visible.map(({ id }) => id), ['o-1'])
+  probe.unmount()
+})
 
 const mountProbe = async (props) => {
   let latest

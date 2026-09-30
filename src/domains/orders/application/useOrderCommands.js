@@ -22,10 +22,10 @@ export function useOrderCommands({
     if (!currentOrder) return false
     setActionKey(`order:status:${orderId}`)
     try {
-      const { order } = await api.updateOrderStatus(orderId, 'Finalizado')
+      const effects = await api.updateOrderStatus(orderId, 'Finalizado')
       if (!ownsMutation()) return false
 
-      if (applyOfficialEffects({ order }) === false) return false
+      if (applyOfficialEffects(effects) === false) return false
       onSuccess(currentOrder.type === 'Entrega' ? 'Pedido saiu para entrega' : 'Pedido finalizado')
       return true
     } catch (error) {

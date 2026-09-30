@@ -32,17 +32,33 @@ async function operation(t, jobs = []) {
     if (path === '/api/auth/logout') { revocations++; return { ok: true, json: async () => ({ authenticated: false }) } }
     const payload = path === '/api/auth/session' ? operationalSession : path === '/api/bootstrap' ? bootstrap : path === '/api/orders' ? { orders: [] } : path === '/api/printing/stations' ? { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] } : String(path).startsWith('/api/printing/jobs?') ? { jobs } : path === '/api/printing/jobs/summary' ? { summary: {} } : null
     assert.ok(payload, `Unexpected ${path}`)
-    return { ok: true, json: async () => payload }
+    return { ok: true, json: async () => payload?.jobs ? { ...payload, jobs: [...payload.jobs] } : payload }
   }
   t.after(() => { globalThis.fetch = previous })
   const { default: App } = await h.load('/src/App.jsx')
   const { renderer } = await h.renderAdminApp(App)
-  return { renderer, revocations: () => revocations }
+  return { h, renderer, revocations: () => revocations }
 }
 const switchUser = async (renderer) => {
   await act(async () => buttonNamed(renderer.root, 'Loja, operação atual').props.onClick())
   await act(async () => buttonNamed(renderer.root, 'Trocar usuário').props.onClick())
 }
+
+test('delayed discard confirmation checks the current uncertain print queue before revoking', async (t) => {
+  const jobs = []
+  const { h, renderer, revocations } = await operation(t, jobs)
+  const { default: PrintingOverlays } = await h.load('/src/domains/printing/ui/PrintingOverlays.jsx')
+  await act(async () => buttonNamed(renderer.root, 'Novo pedido').props.onClick())
+  await act(async () => buttonNamed(renderer.root.findByProps({ 'aria-label': 'Tipo do pedido' }), 'Retirada').props.onClick())
+  await switchUser(renderer)
+  jobs.push({ id: 'j', status: 'awaiting_confirmation', physicalOutcome: 'unknown' })
+  await act(async () => { await renderer.root.findByType(PrintingOverlays).props.printing.refresh() })
+  assert.equal(renderer.root.findByType(PrintingOverlays).props.printing.jobs.length, 1)
+  await act(async () => buttonNamed(renderer.root, 'Descartar venda').props.onClick())
+  assert.equal(revocations(), 0)
+  assert.match(nodeText(renderer.root), /Conclua a reconciliação/)
+  assert.equal(renderer.root.findAllByProps({ 'aria-label': 'Tipo do pedido' }).length, 1)
+})
 test('switch confirms the current dirty order before revocation and clears private wizard state', async (t) => {
   const { renderer, revocations } = await operation(t)
   await act(async () => buttonNamed(renderer.root, 'Novo pedido').props.onClick())

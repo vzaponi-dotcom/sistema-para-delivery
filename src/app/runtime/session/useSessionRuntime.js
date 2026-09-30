@@ -40,11 +40,11 @@ export const useSessionRuntime = ({ api = defaultApi, coordinatorFactory = creat
   }, [clear, setRequestKey])
   const refreshSession = useCallback(async ({ broadcast = false } = {}) => {
     const operation = ++operationRef.current
-    clear(); setAuthState('checking')
+    clear(); setRequestKey(null); setAuthState('checking')
     if (broadcast) coordinatorRef.current?.publish()
     try { return await accept(await api.getSession(), operation) }
     catch { if (operation === operationRef.current) expireSession({ broadcast: false }); return false }
-  }, [accept, api, clear, expireSession])
+  }, [accept, api, clear, expireSession, setRequestKey])
   const refreshSessionRef = useRef(refreshSession)
   refreshSessionRef.current = refreshSession
   useEffect(() => {

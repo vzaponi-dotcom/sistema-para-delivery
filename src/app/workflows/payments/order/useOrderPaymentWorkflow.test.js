@@ -145,17 +145,13 @@ test('double submit sends one canonical allocation request and applies plural au
   })
   assert.deepEqual(calls, [[source.id, [{ methodCode: 'pix', amountCents: 4000 }]]])
 
-  const official = paidEffects(source)
+  const official = { ...paidEffects(source), deletedOrderIds: ['hidden-order'] }
   await act(async () => {
     pending.resolve(official)
     assert.equal(await first, true)
   })
 
-  assert.deepEqual(probe.effects, [{
-    order: official.order,
-    movements: official.movements,
-    tableTab: official.tableTab,
-  }])
+  assert.deepEqual(probe.effects, [official])
   assert.equal(probe.getLatest().dialog, null)
   assert.deepEqual(probe.successes, ['Pagamento recebido via Pix'])
   probe.unmount()

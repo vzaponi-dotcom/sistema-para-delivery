@@ -181,13 +181,13 @@ test('double submit sends one atomic client payment request and applies authorit
   })
   assert.deepEqual(calls, [['c1', ['o1', 'o2'], [{ methodCode: 'pix', amountCents: 6900 }]]])
 
-  const official = paidEffects(source, [{ methodCode: 'pix', amountCents: 6900 }])
+  const official = { ...paidEffects(source, [{ methodCode: 'pix', amountCents: 6900 }]), deletedOrderIds: ['hidden-order'] }
   await act(async () => {
     pending.resolve(official)
     assert.equal(await first, true)
   })
 
-  assert.deepEqual(probe.effects, [{ orders: official.orders, movements: official.movements }])
+  assert.deepEqual(probe.effects, [official])
   assert.equal(probe.getLatest().dialog, null)
   assert.deepEqual(probe.successes, ['Recebimento registrado: 2 pedidos de Fernanda Albuquerque quitados'])
   probe.unmount()

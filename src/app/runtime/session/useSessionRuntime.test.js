@@ -63,6 +63,32 @@ const authenticatedSession = {
   capabilities: ['orders.view'],
 }
 
+for (const authAction of ['handleLogin', 'handleLogout']) test(`refresh clears an old request lock and superseded ${authAction} cannot clear the next lock`, async (t) => {
+  let current, key, setKey, finishLogin, oldLogin, renderer
+  const pendingAuth = () => new Promise((resolve) => { finishLogin = resolve })
+  const api = anonymousApi({ getSession: async () => authenticatedSession, login: pendingAuth, logout: pendingAuth })
+  const coordinatorFactory = () => ({ publish() {}, close() {} })
+  function Probe() {
+    const [requestKey, setRequestKey] = React.useState(null)
+    key = requestKey; setKey = setRequestKey
+    current = useSessionRuntime({ api, requestKey, setRequestKey, coordinatorFactory })
+    return null
+  }
+  await act(async () => { renderer = create(React.createElement(Probe)); await flush() })
+  t.after(() => renderer.unmount())
+  await act(async () => setKey('client:create'))
+  await act(async () => { await current.refreshSession() })
+  assert.equal(key, null)
+  await act(async () => { oldLogin = current[authAction]('1234') })
+  assert.equal(key, authAction === 'handleLogin' ? 'auth:login' : 'auth:logout')
+  await act(async () => { await current.refreshSession() })
+  assert.equal(key, null)
+  await act(async () => setKey('client:new-owner'))
+  await act(async () => { finishLogin(authenticatedSession); await oldLogin })
+  assert.equal(key, 'client:new-owner')
+  assert.equal(current.authState, 'authenticated')
+})
+
 test('human enrollment skips operational bootstrap and exposes trusted login mode', async (t) => {
   let calls = 0
   const harness = await mountHarness(t, {

@@ -129,12 +129,7 @@ export function useTableTabPaymentWorkflow({
       publish()
 
       if (revision === getOfficialRevision()) {
-        const receipt = applyOfficialEffects({
-          orders: result.orders,
-          movements: result.movements,
-          tableTab: result.tableTab,
-          tables: result.tables,
-        })
+        const receipt = applyOfficialEffects(result)
         trySettle(owner, receipt)
       }
 

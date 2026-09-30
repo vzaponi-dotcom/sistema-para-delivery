@@ -108,10 +108,10 @@ export function useOrderPaymentWorkflow({
     forceRender((value) => value + 1)
 
     try {
-      const { order, movements = [], tableTab } = await api.registerOrderPayment(owner.orderId, owner.allocations)
+      const result = await api.registerOrderPayment(owner.orderId, owner.allocations)
       if (!ownsMutation() || owner.guard !== getSyncGuard()) return false
 
-      if (applyOfficialEffects({ order, movements, tableTab }) === false) return false
+      if (applyOfficialEffects(result) === false) return false
 
       if (dialogOwnerRef.current === owner) {
         const accepted = owner.allocations

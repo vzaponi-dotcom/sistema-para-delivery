@@ -16,9 +16,9 @@ export function useOrderPaymentPromise({
     if (!canManagePaymentPromises || writesBlocked) return false
     setRequestKey(`payment-promise:${orderId}`)
     try {
-      const { order } = await api.updatePaymentPromise(orderId, promisedPaymentDate)
+      const effects = await api.updatePaymentPromise(orderId, promisedPaymentDate)
       if (!ownsMutation()) return false
-      if (applyOfficialEffects({ order }) === false) return false
+      if (applyOfficialEffects(effects) === false) return false
       onSuccess(promisedPaymentDate ? 'Data prometida atualizada' : 'Data prometida removida')
       return true
     } catch (error) {
