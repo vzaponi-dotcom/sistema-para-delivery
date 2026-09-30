@@ -14,6 +14,7 @@ import { handleSettingsApi } from './settingsApi.js'
 import { resolveSettingsAccess } from './settingsAccess.js'
 import { requireCapability, requireAnyCapability, authorizeOrderCreate } from './access/authorization.js'
 import { projectMutationEffects, projectOrderList } from './access/projections.js'
+import { printingActor } from './access/printingAuthorization.js'
 import { loadEffectiveBusinessConfig } from './effectiveBusinessConfig.js'
 import { createManualTableTabPrintJob, loadAutomaticPrintJobForOrder } from './orderPrintingRepository.js'
 import { listOrders } from './orderReadRepository.js'
@@ -359,12 +360,16 @@ const dispatchAuthenticatedApi = async (request, env, session, context, url) => 
   }
   const tableTabPrintMatch = url.pathname.match(/^\/api\/table-tabs\/([^/]+)\/print-document$/)
   if (tableTabPrintMatch && request.method === 'GET') {
+    requireCapability(context, 'comandas.view')
+    requireCapability(context, 'printing.execute')
     const detail = await loadOpenTableTabDetail(env.DB, session.businessId, decodeURIComponent(tableTabPrintMatch[1]))
     if (!detail) throw apiError(404, 'TABLE_TAB_NOT_FOUND', 'Comanda aberta n\u00e3o encontrada.')
     return json({ document: createTableTabPrintDocument(detail) })
   }
   const tableTabPrintJobMatch = url.pathname.match(/^\/api\/table-tabs\/([^/]+)\/print-jobs$/)
   if (tableTabPrintJobMatch && request.method === 'POST') {
+    requireCapability(context, 'comandas.view')
+    requireCapability(context, 'printing.execute')
     assertSameOriginMutation(request)
     const body = await readJson(request)
     const tableTabId = decodeURIComponent(tableTabPrintJobMatch[1])
@@ -374,6 +379,7 @@ const dispatchAuthenticatedApi = async (request, env, session, context, url) => 
       tableTabId,
       copies: body.copies,
       document: createTableTabPrintDocument(detail),
+      actorLabel: printingActor(context).displayName,
     })
     return json({ job }, { status: 201 })
   }

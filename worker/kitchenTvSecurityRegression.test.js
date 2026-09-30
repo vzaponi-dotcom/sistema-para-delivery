@@ -35,6 +35,14 @@ test('real code-pairing flow keeps temporary and final TV cookies outside admini
   for (const path of ['/api/bootstrap', '/api/orders', '/api/printing/settings', '/api/settings/operations']) {
     assert.equal((await handleRequest(new Request(`${origin}${path}`, { headers: { cookie: tvCookie } }), env)).status, 401, path)
   }
+  for (const [method,path] of [
+    ['GET','/api/printing/jobs'],['GET','/api/printing/qz/certificate'],['GET','/api/orders/control-order/print-document'],
+    ['POST','/api/printing/qz/sign'],['POST','/api/printing/jobs/claim-next'],['POST','/api/printing/jobs/claim-recovery-next'],
+    ['POST','/api/printing/jobs/job1/retry'],['POST','/api/printing/jobs/job1/resolve-outcome'],['POST','/api/printing/stations/s1/recovery'],
+  ]) {
+    const request = method==='GET' ? new Request(`${origin}${path}`,{headers:{cookie:tvCookie}}) : mutation(path,tvCookie,{stationId:'s1'})
+    assert.equal((await handleRequest(request,env)).status,401,`${method} ${path}`)
+  }
 
   assert.equal((await handleRequest(mutation('/api/kitchen-tv/revoke', adminCookie), env)).status, 200)
   assert.equal((await handleRequest(new Request(`${origin}/api/kitchen-tv/state`, { headers: { cookie: tvCookie } }), env)).status, 401)
@@ -165,7 +173,7 @@ test('kitchen control capability never grants official finalization and terminal
   assert.equal((await handleRequest(apiMutation('/api/kitchen-tv/control/orders/control-order/hidden', adminCookie, 'PUT'), env)).status, 200)
   assert.equal((await handleRequest(apiMutation('/api/orders/control-order/status', adminCookie, 'PATCH', { status: 'Finalizado' }), env)).status, 403)
 
-  grants = new Set(['orders.view', 'orders.finalize'])
+  grants = new Set(['orders.view', 'orders.history', 'orders.finalize'])
   assert.equal((await handleRequest(apiMutation('/api/kitchen-tv/control/page', adminCookie, 'PATCH', { page: 3 }), env)).status, 403)
   const finalized = await handleRequest(apiMutation('/api/orders/control-order/status', adminCookie, 'PATCH', { status: 'Finalizado' }), env)
   assert.equal(finalized.status, 200)

@@ -12,8 +12,10 @@ class D1Sqlite {
       CREATE TABLE auth_credentials (business_id TEXT PRIMARY KEY, pin_hash TEXT NOT NULL);
       CREATE TABLE sessions (
         id TEXT PRIMARY KEY, business_id TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE,
-        created_at TEXT NOT NULL, expires_at TEXT NOT NULL, last_seen_at TEXT NOT NULL, revoked_at TEXT
+        created_at TEXT NOT NULL, expires_at TEXT NOT NULL, last_seen_at TEXT NOT NULL, revoked_at TEXT, user_id TEXT, device_mode TEXT
       );
+      CREATE TABLE business_auth_state (business_id TEXT PRIMARY KEY, mode TEXT);
+      INSERT INTO business_auth_state VALUES ('amor-e-sabor','legacy');
       CREATE TABLE businesses (id TEXT PRIMARY KEY, name TEXT NOT NULL);
       CREATE TABLE business_print_settings (
         business_id TEXT PRIMARY KEY, default_copies INTEGER NOT NULL DEFAULT 2,

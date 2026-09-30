@@ -73,7 +73,7 @@ const prioritize = (db, id) => {
     method: 'POST',
     headers: { origin: 'https://delivery.example' },
   })
-  return handlePrintingApi(request, { DB: db }, { businessId }, url)
+  return handlePrintingApi(request, { DB: db }, { businessId, granted: new Set(['printing.force']), userId: 'u1', displayName: 'Maria', sessionId: 's1' }, url)
 }
 
 test('HTTP prioritize accepts an authenticated central request without station or printer data', async () => {

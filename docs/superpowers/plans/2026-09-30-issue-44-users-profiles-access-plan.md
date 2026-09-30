@@ -133,7 +133,7 @@ Tasks 1–10 are independently testable commits, but do not enable `user_only` o
 
 ### Task 7: Printing permission split and trusted actor source
 
-**Files:** Modify `worker/orderPrintingApi.js`, `worker/orderPrintingRepository.js`, `worker/printAttemptRepository.js`, printing API tests and `src/domains/printing` capability consumers; add `worker/access/printingAuthorization.test.js`.
+**Files:** Modify `worker/orderPrintingApi.js`, `worker/orderPrintingRepository.js`, `worker/orderPrintingCentralClaim.js`, `worker/access/projections.js`, the two comanda print handlers in `worker/index.js`, printing HTTP/physical regression tests, `src/domains/printing/ui/PrintQueue.jsx` and its tests, and the minimal `src/App.jsx` -> orders/history -> `OrderDetail.jsx` force-grant consumers/tests. Add `worker/access/printingAuthorization.js`, `worker/access/printingAuthorization.test.js` and `worker/access/printingTestSupport.js`. Existing `worker/printAttemptRepository.js` receives the trusted label through its unchanged interface; Task 8 owns transactional stable identity events.
 
 **Interfaces:** `printing.execute` grants claim/attempt/complete/fail/retry/reprint/routine recovery and QZ signing; full operational documents also require their matching current order/comanda read grant in every document-bearing response. `printing.queue` grants safe queue metadata, without implicitly granting a complete print snapshot; `printing.discard` grants all discard forms; `printing.force` grants force-print and prioritize; `printing.station.configure` grants configuration. Actor for manual actions is `context.userId/displayName`, never `body.actorLabel`. Automatic actions retain `system` plus station context.
 

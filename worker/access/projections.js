@@ -10,7 +10,7 @@ const PRINT_JOB_METADATA_KEYS = Object.freeze([
   'processingStartedAt', 'processedAt', 'discardedAt', 'attentionReason',
   'actionActorLabel', 'actionAt', 'secondCopyPromptedAt', 'secondCopyRequestedAt', 'secondCopySkippedAt',
 ])
-const projectPrintJobMetadata = (job) => job == null ? job : Object.fromEntries(
+export const projectPrintJobMetadata = (job) => job == null ? job : Object.fromEntries(
   PRINT_JOB_METADATA_KEYS.filter((key) => Object.hasOwn(job, key)).map((key) => [key, job[key]]),
 )
 

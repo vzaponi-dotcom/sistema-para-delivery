@@ -1,4 +1,5 @@
 import { loadPrintJob, resolvePrintStationHealth } from './orderPrintingRepository.js'
+import { printDocumentEligibilitySql } from './access/printingAuthorization.js'
 
 const repositoryError = (status, code, message) => Object.assign(new Error(message), { status, code })
 const timestamp = (value = new Date()) => value instanceof Date ? value.toISOString() : String(value)
@@ -39,7 +40,7 @@ const loadQzExecutor = async (db, businessId, stationId, now) => {
   return station
 }
 
-export const claimNextPrintJob = async (db, businessId, stationId, now = new Date()) => {
+export const claimNextPrintJob = async (db, businessId, stationId, now = new Date(), granted) => {
   const station = await loadQzExecutor(db, businessId, stationId, now)
   if (station.recoveryState !== 'normal') return null
   const at = timestamp(now)
@@ -50,6 +51,7 @@ export const claimNextPrintJob = async (db, businessId, stationId, now = new Dat
     WHERE id = (
       SELECT id FROM print_jobs
       WHERE business_id = ? AND type IN ('order', 'table-tab') AND status = 'pending' AND available_at <= ?
+        AND ${printDocumentEligibilitySql(granted)}
         AND (
           (type = 'table-tab' AND trigger = 'manual')
           OR (type = 'order' AND (
