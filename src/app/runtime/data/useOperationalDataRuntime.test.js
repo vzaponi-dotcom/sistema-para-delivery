@@ -110,6 +110,25 @@ test('projected payment effects can update operational state without finance col
   assert.equal(harness.getCurrent().financeSettings, null)
 })
 
+test('old unauthorized bootstrap and orders errors cannot affect the new session handler', async (t) => {
+  for (const error of [{ status: 401 }, { status: 403, code: 'ACCESS_CHANGED' }]) {
+    const pendingBootstrap = deferred(), pendingOrders = deferred(), notifications = []
+    const harness = await mountHarness(t, { accessContextId: 'a', api: { getBootstrap: () => pendingBootstrap.promise, getOrders: () => pendingOrders.promise }, onUnauthorized: (value) => notifications.push(value) })
+    let bootstrap, orders
+    await act(async () => { bootstrap = harness.getCurrent().refreshBootstrap(); orders = harness.getCurrent().refreshOrders() })
+    await act(async () => harness.update({ accessContextId: 'b' }))
+    await act(async () => { pendingBootstrap.reject(error); pendingOrders.reject(error); await bootstrap; await orders })
+    assert.deepEqual(notifications, [])
+  }
+})
+
+test('current ACCESS_CHANGED refreshes the trusted session through the unauthorized callback', async (t) => {
+  const notifications = [], error = { status: 403, code: 'ACCESS_CHANGED' }
+  const harness = await mountHarness(t, { accessContextId: 'a', api: { getBootstrap: async () => { throw error } }, onUnauthorized: (value) => notifications.push(value) })
+  await act(async () => { await harness.getCurrent().refreshBootstrap() })
+  assert.deepEqual(notifications, [error])
+})
+
 test('projected status effects remove orders outside the current read grants', async (t) => {
   const harness = await mountHarness(t, { api: { getBootstrap: async () => bootstrapFixture(), getOrders: async () => ({ orders: [] }) } })
   await act(async () => { await harness.getCurrent().refreshBootstrap() })

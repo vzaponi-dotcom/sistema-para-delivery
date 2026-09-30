@@ -9,7 +9,7 @@ import { AREA_LABELS, destinationById } from '../navigation/registry.js'
 import OperationMenu from './OperationMenu.jsx'
 import '../../app-top-bar.css'
 
-export default function AppTopBar({ businessId, businessName, businessHasLogo = false, businessLogoVersion = null, onLogout, logoutDisabled = false }) {
+export default function AppTopBar({ businessId, businessName, businessHasLogo = false, businessLogoVersion = null, user, onSwitchUser, onLogout, logoutDisabled = false }) {
   const mobile = useMediaQuery('(max-width: 820px)')
   const { activeTab, granted } = useNavigation()
   const { themePreference, setThemePreference } = useTheme()
@@ -37,7 +37,7 @@ export default function AppTopBar({ businessId, businessName, businessHasLogo = 
         businessName={operationName}
         businessHasLogo={businessHasLogo}
         businessLogoVersion={businessLogoVersion}
-        onLogout={onLogout}
+        user={user} onSwitchUser={onSwitchUser} onLogout={onLogout}
         logoutDisabled={logoutDisabled}
       />
     </div>

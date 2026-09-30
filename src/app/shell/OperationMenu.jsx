@@ -21,8 +21,8 @@ const operationInitials = (value) => {
   return `${[...tokens[0]][0]}${[...tokens.at(-1)][0]}`.toLocaleUpperCase('pt-BR')
 }
 
-export default function OperationMenu({ businessName, businessHasLogo = false, businessLogoVersion = null, showLogo = true, onLogout, logoutDisabled = false }) {
-  const { granted, implemented, requestNavigation } = useNavigation()
+export default function OperationMenu({ businessName, businessHasLogo = false, businessLogoVersion = null, showLogo = true, user, onSwitchUser, onLogout, logoutDisabled = false }) {
+  const { granted, implemented, requestNavigation, authenticated } = useNavigation()
   const operationName = normalizeOperationName(businessName)
   const initials = operationInitials(operationName)
   const rootRef = useRef(null)
@@ -32,6 +32,7 @@ export default function OperationMenu({ businessName, businessHasLogo = false, b
   const identityEntry = resolveNavigationEntry({ id: 'settings-business-profile', label: 'Identidade da operação', icon: 'edit' }, granted, implemented)
   const settingsEntry = resolveNavigationEntry({ area: 'settings', label: 'Configurações', icon: 'settings' }, granted, implemented)
   const deviceEntry = resolveNavigationEntry({ id: 'settings-device', label: 'Preferências deste dispositivo', icon: 'system' }, granted, implemented)
+  const accountEntry = resolveNavigationEntry({ id: 'my-account' }, granted, implemented, { authenticated })
   const restoreFocus = () => {
     if (typeof window !== 'undefined' && window.requestAnimationFrame) window.requestAnimationFrame(() => triggerRef.current?.focus?.())
     else triggerRef.current?.focus?.()
@@ -62,6 +63,9 @@ export default function OperationMenu({ businessName, businessHasLogo = false, b
       <Icon name="arrow-down" size={14} />
     </button>
     {open && <div className="operation-menu-popover" role="menu" aria-label="Operação atual">
+      {user?.displayName && <div className="operation-menu-heading"><strong>{user.displayName}</strong></div>}
+      {accountEntry && <button type="button" role="menuitem" onClick={() => navigate(accountEntry.id)}><Icon name="clients" size={18} />Minha conta</button>}
+      {onSwitchUser && <button type="button" role="menuitem" disabled={logoutDisabled} onClick={() => { close(); onSwitchUser() }}><Icon name="clients" size={18} />Trocar usuário</button>}
       {identityEntry
         ? <button
             type="button"

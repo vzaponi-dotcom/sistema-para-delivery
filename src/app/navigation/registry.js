@@ -1,4 +1,7 @@
 export const NAVIGATION_DESTINATIONS = Object.freeze([
+  Object.freeze({ id: 'my-account', path: '/minha-conta', area: 'account', label: 'Minha conta', mobileEntry: 'more', authenticatedOnly: true }),
+  Object.freeze({ id: 'access-team', path: '/configuracoes/equipe', area: 'access', label: 'Equipe e acessos', mobileEntry: 'more', capability: 'access.users.view' }),
+  Object.freeze({ id: 'access-activity', path: '/configuracoes/atividades', area: 'access', label: 'Atividades', mobileEntry: 'more', capability: 'access.audit.view' }),
   Object.freeze({ id: 'settings-home', path: '/configuracoes', area: 'settings', label: 'Configurações', mobileEntry: 'more', anyCapability: Object.freeze(['business.profile.view', 'operations.settings.view', 'payments.settings.view', 'orders.settings.view', 'finance.categories.view', 'printing.settings.view', 'printing.settings', 'printing.station.view', 'preferences.local']) }),
   Object.freeze({ id: 'settings-business-profile', path: '/configuracoes/identidade', area: 'settings', label: 'Identidade da operação', mobileEntry: 'more', capability: 'business.profile.view' }),
   Object.freeze({ id: 'settings-operations', path: '/configuracoes/operacao', area: 'settings', label: 'Operação', mobileEntry: 'more', capability: 'operations.settings.view' }),
@@ -27,12 +30,13 @@ export const NAVIGATION_DESTINATIONS = Object.freeze([
 export const destinationById = new Map(NAVIGATION_DESTINATIONS.map((item) => [item.id, item]))
 
 export const AREA_DESTINATION_IDS = Object.freeze({
+  access: Object.freeze(['access-team', 'access-activity']),
   orders: Object.freeze(['orders', 'history', 'kitchen-tv-control']),
   finance: Object.freeze(['dashboard', 'reports', 'receivables', 'finance']),
   settings: Object.freeze(['settings-home', 'settings-business-profile', 'settings-operations', 'settings-modalities', 'settings-payments', 'settings-cancellations', 'settings-finance-categories', 'settings-kitchen-tv', 'settings-printing', 'settings-device']),
 })
 
-export const HOME_AREA_ORDER = Object.freeze(['orders', 'finance', 'settings'])
+export const HOME_AREA_ORDER = Object.freeze(['orders', 'finance', 'settings', 'access'])
 export const AREA_LABELS = Object.freeze({ orders: 'Pedidos', finance: 'Financeiro', settings: 'Configurações' })
 
 export const DESKTOP_NAV_GROUPS = Object.freeze([

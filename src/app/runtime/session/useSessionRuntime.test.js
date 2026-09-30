@@ -14,6 +14,7 @@ function createHarness({
   resetOperationalData = () => {},
   refreshBootstrap = async () => {},
   onClearApplicationState = () => {},
+  coordinatorFactory,
 } = {}) {
   let current
   const Harness = () => {
@@ -25,6 +26,7 @@ function createHarness({
       resetOperationalData,
       refreshBootstrap,
       onClearApplicationState,
+      coordinatorFactory,
     })
     return null
   }
@@ -60,6 +62,46 @@ const authenticatedSession = {
   settingsContextId: 'ctx-1',
   capabilities: ['orders.view'],
 }
+
+test('human enrollment skips operational bootstrap and exposes trusted login mode', async (t) => {
+  let calls = 0
+  const harness = await mountHarness(t, {
+    api: anonymousApi({ getSession: async () => ({ ...authenticatedSession, authMode: 'enrollment', user: { id: 'u' }, capabilities: ['access.users.manage'] }) }),
+    refreshBootstrap: async () => { calls++ },
+  })
+  assert.equal(harness.getCurrent().authMode, 'enrollment')
+  assert.equal(harness.getCurrent().operationalAccess, false)
+  assert.equal(calls, 0)
+})
+
+test('another tab session change immediately invalidates current identity before the new trusted reply', async (t) => {
+  let invalidate, finish, reads = 0, publications = 0
+  const harness = await mountHarness(t, { coordinatorFactory: ({ onInvalidate }) => { invalidate = onInvalidate; return { publish: () => publications++, close() {} } }, api: anonymousApi({ getSession: async () => ++reads === 1 ? authenticatedSession : new Promise((resolve) => { finish = resolve }) }) })
+  const generation = harness.getCurrent().sessionGeneration
+  await act(async () => invalidate())
+  assert.equal(harness.getCurrent().authState, 'checking')
+  assert.equal(harness.getCurrent().sessionContext, null)
+  assert.ok(harness.getCurrent().sessionGeneration > generation)
+  await act(async () => { finish({ ...authenticatedSession, user: { id: 'next' } }); await flush() })
+  assert.equal(harness.getCurrent().sessionContext.user.id, 'next')
+  assert.equal(publications, 0)
+})
+
+test('refresh masks the previous session immediately and ignores a late reply after expiry', async (t) => {
+  let resolveRefresh
+  let reads = 0
+  const harness = await mountHarness(t, { api: anonymousApi({ getSession: async () => {
+    if (++reads === 1) return authenticatedSession
+    return new Promise((resolve) => { resolveRefresh = resolve })
+  } }) })
+  let refresh
+  await act(async () => { refresh = harness.getCurrent().refreshSession() })
+  assert.equal(harness.getCurrent().authState, 'checking')
+  assert.equal(harness.getCurrent().sessionContext, null)
+  await act(async () => { harness.getCurrent().expireSession() })
+  await act(async () => { resolveRefresh(authenticatedSession); await refresh })
+  assert.equal(harness.getCurrent().authState, 'anonymous')
+})
 
 test('anonymous initial session skips bootstrap', async (t) => {
   let refreshBootstrapCalls = 0

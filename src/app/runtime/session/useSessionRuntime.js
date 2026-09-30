@@ -1,112 +1,87 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { getSession, login, logout } from '../../../infrastructure/auth/sessionApi.js'
-
+import { createBrowserSessionCoordinator } from './browserSessionCoordinator.js'
 const defaultApi = { getSession, login, logout }
-
-const getLoginErrorMessage = (error) => error?.code === 'INVALID_PIN'
-  ? 'PIN inválido. Confira e tente novamente.'
-  : (error?.message || 'Não foi possível entrar no sistema.')
-
-export const useSessionRuntime = ({
-  api = defaultApi,
-  isOnline = true,
-  requestKey = null,
-  setRequestKey = () => {},
-  resetOperationalData = () => {},
-  refreshBootstrap = async () => {},
-  onClearApplicationState = () => {},
-} = {}) => {
+export const sessionHasOperationalAccess = (session) => Boolean(session?.authenticated && !(session.user?.id && session.authMode === 'enrollment'))
+export const useSessionRuntime = ({ api = defaultApi, coordinatorFactory = createBrowserSessionCoordinator, isOnline = true, requestKey = null, setRequestKey = () => {}, resetOperationalData = () => {}, refreshBootstrap = async () => {}, onClearApplicationState = () => {} } = {}) => {
   const [authState, setAuthState] = useState('checking')
   const [sessionContext, setSessionContext] = useState(null)
   const [sessionGeneration, setSessionGeneration] = useState(0)
+  const [authMode, setAuthMode] = useState(null)
   const [loginError, setLoginError] = useState('')
-
-  useEffect(() => {
-    let cancelled = false
-
-    const initialize = async () => {
-      try {
-        const session = await api.getSession()
-        if (cancelled) return
-        if (!session?.authenticated) {
-          setAuthState('anonymous')
-          return
-        }
-
-        setSessionContext(session)
-        setSessionGeneration((current) => current + 1)
-        setAuthState('authenticated')
-        if (!cancelled) await refreshBootstrap()
-      } catch {
-        if (!cancelled) {
-          setAuthState('anonymous')
-          resetOperationalData()
-        }
-      }
-    }
-
-    void initialize()
-    return () => { cancelled = true }
+  const operationRef = useRef(0)
+  const coordinatorRef = useRef(null)
+  const clear = useCallback((scope) => {
+    setSessionGeneration((value) => value + 1)
+    resetOperationalData(); onClearApplicationState(scope); setSessionContext(null)
+  }, [resetOperationalData, onClearApplicationState])
+  const accept = useCallback(async (session, operation) => {
+    if (operation !== operationRef.current) return false
+    if (['legacy', 'enrollment', 'user_only'].includes(session?.authMode)) setAuthMode(session.authMode)
+    if (!session?.authenticated) { setSessionContext(null); setAuthState('anonymous'); return false }
+    setSessionContext(session); setSessionGeneration((value) => value + 1); setAuthState('authenticated')
+    return operation === operationRef.current
   }, [])
-
-  const handleLogin = useCallback(async (pin) => {
-    if (!isOnline || requestKey !== null) return
-
-    setRequestKey('auth:login')
-    setLoginError('')
+  useEffect(() => {
+    const operation = ++operationRef.current
+    void api.getSession().then((session) => accept(session, operation)).catch(() => {
+      if (operation !== operationRef.current) return
+      resetOperationalData(); setSessionContext(null); setAuthState('anonymous')
+    })
+    return () => { operationRef.current++ }
+  }, [])
+  useEffect(() => {
+    if (authState === 'authenticated' && sessionHasOperationalAccess(sessionContext)) void refreshBootstrap()
+  }, [authState, sessionGeneration])
+  const expireSession = useCallback(({ broadcast = true } = {}) => {
+    operationRef.current++; clear(); setAuthState('anonymous'); setRequestKey(null)
+    setLoginError('Sua sessão expirou. Entre novamente.')
+    if (broadcast) coordinatorRef.current?.publish()
+  }, [clear, setRequestKey])
+  const refreshSession = useCallback(async ({ broadcast = false } = {}) => {
+    const operation = ++operationRef.current
+    clear(); setAuthState('checking')
+    if (broadcast) coordinatorRef.current?.publish()
+    try { return await accept(await api.getSession(), operation) }
+    catch { if (operation === operationRef.current) expireSession({ broadcast: false }); return false }
+  }, [accept, api, clear, expireSession])
+  const refreshSessionRef = useRef(refreshSession)
+  refreshSessionRef.current = refreshSession
+  useEffect(() => {
+    const coordinator = coordinatorFactory({ onInvalidate: () => { void refreshSessionRef.current({ broadcast: false }) } })
+    coordinatorRef.current = coordinator
+    return () => { coordinator.close(); coordinatorRef.current = null }
+  }, [coordinatorFactory])
+  const handleLogin = useCallback(async (credentials) => {
+    if (!isOnline || requestKey !== null) return false
+    const operation = ++operationRef.current
+    setRequestKey('auth:login'); setLoginError('')
     try {
-      const session = await api.login(pin)
-      resetOperationalData()
-      onClearApplicationState('sync')
-      setSessionContext({ authenticated: true, ...session })
-      setSessionGeneration((current) => current + 1)
-      setAuthState('authenticated')
-      await refreshBootstrap()
+      const session = await api.login(credentials)
+      if (operation !== operationRef.current) return false
+      resetOperationalData(); onClearApplicationState('sync')
+      coordinatorRef.current?.publish()
+      return await accept(session, operation)
     } catch (error) {
-      resetOperationalData()
-      onClearApplicationState()
-      setSessionContext(null)
-      setAuthState('anonymous')
-      setLoginError(getLoginErrorMessage(error))
-    } finally {
-      setRequestKey(null)
-    }
-  }, [api, isOnline, onClearApplicationState, refreshBootstrap, requestKey, resetOperationalData, setRequestKey])
-
+      if (operation !== operationRef.current) return false
+      clear(); setAuthState('anonymous')
+      setLoginError(error?.code === 'INVALID_PIN' ? 'PIN inválido. Confira e tente novamente.' : error?.message || 'Não foi possível entrar no sistema.')
+      return false
+    } finally { if (operation === operationRef.current) setRequestKey(null) }
+  }, [accept, api, clear, isOnline, onClearApplicationState, requestKey, resetOperationalData, setRequestKey])
   const handleLogout = useCallback(async () => {
-    if (!isOnline || requestKey !== null) return
-
-    setRequestKey('auth:logout')
+    if (!isOnline || requestKey !== null) return false
+    const operation = ++operationRef.current
+    setRequestKey('auth:logout'); clear(); setAuthState('checking')
     try {
       await api.logout()
-      setSessionGeneration((current) => current + 1)
-      resetOperationalData()
-      onClearApplicationState()
-      setSessionContext(null)
-      setAuthState('anonymous')
-      setLoginError('')
-    } finally {
-      setRequestKey(null)
-    }
-  }, [api, isOnline, onClearApplicationState, requestKey, resetOperationalData, setRequestKey])
-
-  const expireSession = useCallback(() => {
-    setSessionGeneration((current) => current + 1)
-    resetOperationalData()
-    onClearApplicationState()
-    setSessionContext(null)
-    setAuthState('anonymous')
-    setRequestKey(null)
-    setLoginError('Sua sessão expirou. Entre novamente.')
-  }, [onClearApplicationState, resetOperationalData, setRequestKey])
-
-  return {
-    authState,
-    sessionContext,
-    sessionGeneration,
-    loginError,
-    handleLogin,
-    handleLogout,
-    expireSession,
-  }
+      if (operation !== operationRef.current) return false
+      coordinatorRef.current?.publish()
+      setAuthState('anonymous'); setLoginError(''); return true
+    } catch (error) {
+      if (operation === operationRef.current) { setAuthState('anonymous'); setLoginError(error?.message || 'Não foi possível encerrar a sessão. Tente novamente.') }
+      return false
+    } finally { if (operation === operationRef.current) setRequestKey(null) }
+  }, [api, clear, isOnline, requestKey, setRequestKey])
+  return { authState, sessionContext, sessionGeneration, authMode, operationalAccess: sessionHasOperationalAccess(sessionContext), loginError, handleLogin, handleLogout, expireSession, refreshSession }
 }

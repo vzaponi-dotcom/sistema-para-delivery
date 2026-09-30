@@ -8,7 +8,7 @@ test('app keeps the dirty-order confirmation when navigating away from the wizar
   const originalFetch = globalThis.fetch
   globalThis.fetch = async (path) => {
     const responses = {
-      '/api/auth/session': { authenticated: true },
+      '/api/auth/session': { authenticated: true, authMode: 'legacy', user: null, businessId: 'b', settingsContextId: 's', capabilities: ['orders.view', 'orders.create', 'comandas.view'] },
       '/api/bootstrap': {
         tables: [], tableTabs: [], orders: [], clients: [], products: [], movements: [], financeSettings: null,
         effectiveBusinessConfig: {
@@ -21,6 +21,7 @@ test('app keeps the dirty-order confirmation when navigating away from the wizar
       },
       '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
       '/api/printing/jobs?limit=100': { jobs: [] },
+      '/api/printing/jobs/summary': { summary: {} },
     }
     assert.ok(Object.hasOwn(responses, path), `Unexpected request: ${path}`)
     return { ok: true, json: async () => responses[path] }

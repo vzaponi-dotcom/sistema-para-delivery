@@ -79,10 +79,10 @@ import {
 } from './infrastructure/storage/kitchenSoundPreference.js'
 import { getSessionStorage } from './infrastructure/storage/sessionStorage.js'
 
-const IMPLEMENTED_DESTINATIONS = new Set(['orders', 'history', 'kitchen-tv-control', 'new-order', 'comandas', 'print-queue', 'dashboard', 'reports', 'receivables', 'finance', 'clients', 'products', 'tables', 'settings-home', 'settings-business-profile', 'settings-operations', 'settings-modalities', 'settings-payments', 'settings-cancellations', 'settings-finance-categories', 'settings-kitchen-tv', 'settings-printing', 'settings-device'])
+const IMPLEMENTED_DESTINATIONS = new Set(['orders', 'history', 'kitchen-tv-control', 'new-order', 'comandas', 'print-queue', 'dashboard', 'reports', 'receivables', 'finance', 'clients', 'products', 'tables', 'settings-home', 'settings-business-profile', 'settings-operations', 'settings-modalities', 'settings-payments', 'settings-cancellations', 'settings-finance-categories', 'settings-kitchen-tv', 'settings-printing', 'settings-device', 'my-account', 'access-team', 'access-activity'])
 const currency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 
-function App({ capabilities } = {}) {
+function App({ capabilities, renderAccessSurface } = {}) {
   const [requestKey, setRequestKey] = useState(null)
   const [kitchenSoundEnabled, setKitchenSoundEnabled] = useState(readKitchenSoundPreference)
   const [kitchenSoundProfile, setKitchenSoundProfile] = useState(readKitchenSoundProfilePreference)
@@ -104,6 +104,7 @@ function App({ capabilities } = {}) {
     clearApplicationState: () => {},
   })
 
+  const sessionOwnerRef = useRef(null)
   const newOrderDraftTargetsRef = useRef({
     canSubmit: () => false,
     commitOfficialEffects: () => {},
@@ -114,6 +115,7 @@ function App({ capabilities } = {}) {
   })
   const orderCommandTargetsRef = useRef({ onError: () => {} })
   const newOrderDraft = useNewOrderDraft({
+    getAccessOwner: () => sessionOwnerRef.current,
     submitOrder: ordersApi.createOrder,
     submitReservationEdit: tableReservationApi.updateReservation,
     refreshReservation: tableReservationApi.getReservation,
@@ -143,6 +145,9 @@ function App({ capabilities } = {}) {
     authState,
     sessionContext,
     sessionGeneration,
+    authMode,
+    operationalAccess,
+    refreshSession,
     loginError,
     handleLogin,
     handleLogout: handleSessionLogout,
@@ -160,10 +165,12 @@ function App({ capabilities } = {}) {
     () => capabilities === undefined
       ? (Array.isArray(sessionContext?.capabilities)
           ? new Set(sessionContext.capabilities)
-          : legacyCapabilities(authState === 'authenticated'))
+          : legacyCapabilities(authState === 'authenticated' && ['legacy', 'enrollment'].includes(sessionContext?.authMode) && !sessionContext?.user?.id))
       : capabilities,
     [authState, capabilities, sessionContext],
   )
+  const accessContextId = useMemo(() => authState === 'authenticated' ? JSON.stringify([sessionContext?.businessId, sessionContext?.user?.id || 'legacy', sessionContext?.settingsContextId, [...granted].sort(), sessionGeneration]) : null, [authState, sessionContext, granted, sessionGeneration])
+  sessionOwnerRef.current = accessContextId
   const { query, patchQuery, resetQueries } = useQueryContext()
   const policyNavigationBridge = useMemo(() => createPolicyNavigationBridge(), [])
   const {
@@ -178,8 +185,10 @@ function App({ capabilities } = {}) {
     cancelDiscard,
     resetNavigation,
     completeNavigation,
+    requestSessionExit,
   } = useNavigationController({
     granted,
+    authenticated: authState === 'authenticated' && Boolean(sessionContext?.user?.id),
     implemented: IMPLEMENTED_DESTINATIONS,
     checkoutPending: newOrderDraft.checkoutPending,
     dirtyOrder: newOrderDraft.dirty,
@@ -215,12 +224,14 @@ function App({ capabilities } = {}) {
     getOfficialTables,
   } = useOperationalDataRuntime({
     onUnauthorized: handleOperationalUnauthorized,
-    globalSyncEnabled: isOnline && authState === 'authenticated',
-    ordersSyncEnabled: (activeTab === 'orders' || activeTab === 'kitchen-tv-control') && isOnline && authState === 'authenticated',
+    globalSyncEnabled: operationalAccess && isOnline && authState === 'authenticated',
+    ordersSyncEnabled: operationalAccess && (activeTab === 'orders' || activeTab === 'kitchen-tv-control') && isOnline && authState === 'authenticated',
     effectiveConfigVersion: getEffectiveConfigVersion,
+    accessContextId,
   })
   useRouteGate({
-    ready: authState === 'authenticated' && bootstrapState === 'ready',
+    ready: authState === 'authenticated' && (!operationalAccess || bootstrapState === 'ready'),
+    authenticated: authState === 'authenticated' && Boolean(sessionContext?.user?.id),
     granted,
     implemented: IMPLEMENTED_DESTINATIONS,
     onFeedback: setToastMessage,
@@ -239,20 +250,24 @@ function App({ capabilities } = {}) {
   // moving either responsibility back into App.
   sessionRuntimeTargetsRef.current.refreshBootstrap = refreshBootstrap
   sessionRuntimeTargetsRef.current.resetOperationalData = resetOperationalData
+  useEffect(() => {
+    if (operationalAccess && accessContextId && bootstrapState === 'idle') void refreshBootstrap()
+  }, [accessContextId, bootstrapState, operationalAccess, refreshBootstrap])
 
-  const effectiveConfigOwner = useMemo(() => authState === 'authenticated'
+  const effectiveConfigOwner = useMemo(() => operationalAccess && authState === 'authenticated'
     && sessionContext?.businessId
     && sessionContext?.settingsContextId
     && Array.isArray(sessionContext.capabilities)
     ? {
         businessId: sessionContext.businessId,
+        userId: sessionContext.user?.id || 'legacy',
         generation: sessionGeneration,
         settingsContextId: sessionContext.settingsContextId,
         capabilities: [...granted],
       }
-    : null, [authState, granted, sessionContext, sessionGeneration])
+    : null, [authState, granted, operationalAccess, sessionContext, sessionGeneration])
   const effectiveConfig = useEffectiveBusinessConfig({ owner: effectiveConfigOwner, bootstrapConfig: bootstrapEffectiveConfig })
-  const businessConfig = effectiveConfig.config || bootstrapEffectiveConfig
+  const businessConfig = effectiveConfig.config
   const paymentOptions = useMemo(() => businessConfig ? paymentOptionsFromEffective(businessConfig) : [], [businessConfig])
   const defaultPaymentMethod = useMemo(() => businessConfig ? paymentDefaultFromEffective(businessConfig) : '', [businessConfig])
   const cancellationOptions = useMemo(() => businessConfig ? cancellationOptionsFromEffective(businessConfig) : [], [businessConfig])
@@ -389,7 +404,7 @@ function App({ capabilities } = {}) {
     cancelDiscard()
     window.requestAnimationFrame(() => document.querySelector?.('.app-content')?.focus?.())
   }, [cancelDiscard])
-  const printing = usePrintingManager({ authenticated: authState === 'authenticated' && bootstrapState === 'ready', isOnline, onPhysicalJobFailure: handlePhysicalJobFailure })
+  const printing = usePrintingManager({ authenticated: operationalAccess && authState === 'authenticated' && bootstrapState === 'ready', accessContextId, isOnline, onPhysicalJobFailure: handlePhysicalJobFailure })
   const kitchenNow = useKitchenClock(orders, { active: activeTab === 'orders' || activeTab === 'kitchen-tv-control', currentTiming })
   const operationalNow = activeTab === 'orders' ? kitchenNow : new Date()
   const operationalOrderCount = getOperationalOrderCount(orders, operationalNow, currentTiming)
@@ -412,7 +427,8 @@ function App({ capabilities } = {}) {
     resetComandaSelection()
     resetSyncState()
     resetOrderArrivals()
-    newOrderDraft.reset(); refund.close()
+    newOrderDraft.reset(); refund.reset()
+    setToastMessage(''); setSuccessMessage('')
   }
   sessionRuntimeTargetsRef.current.clearApplicationState = clearBusinessData
 
@@ -456,10 +472,13 @@ function App({ capabilities } = {}) {
     onConflict: async () => { await refreshBootstrapSilently() },
   }
 
-  operationalRuntimeTargetsRef.current.onUnauthorized = expireSession
+  operationalRuntimeTargetsRef.current.onUnauthorized = showApiError
 
+  const errorOwnerGuard = getSyncGuard()
   function showApiError(error) {
+    if (sessionOwnerRef.current !== accessContextId || errorOwnerGuard !== getSyncGuard()) return
     if (error?.status === 401) return expireSession()
+    if (error?.status === 403 && error?.code === 'ACCESS_CHANGED') return void refreshSession()
     setToastMessage(error?.message || 'Não foi possível concluir a operação.')
   }
   newOrderDraftTargetsRef.current.onError = showApiError
@@ -476,9 +495,12 @@ function App({ capabilities } = {}) {
     onError: showApiError,
     onStaleTarget: setToastMessage,
   })
-  const handleLogout = async () => {
-    try { await handleSessionLogout() } catch (error) { showApiError(error) }
-  }
+  const getPendingSessionEffects = () => ({
+    paymentPending: Boolean(tableTabPayment.busy || tableTabPayment.syncState || orderPayment.dialog?.submitting || clientOrdersPayment.dialog?.submitting),
+    printPending: Boolean(printing.busyJobId || printing.jobs.some((job) => ['unknown', 'awaiting_confirmation', 'waiting_confirmation', 'printing'].includes(job.status) || job.physicalOutcome === 'unknown')),
+  })
+  const handleLogout = () => requestSessionExit(handleSessionLogout, getPendingSessionEffects)
+  const handleSwitchUser = () => requestSessionExit(handleSessionLogout, getPendingSessionEffects)
 
   const handleKitchenSoundEnabledChange = (enabled) => {
     if (!canUseLocalPreferences) return false
@@ -550,7 +572,9 @@ function App({ capabilities } = {}) {
   const handleEditFutureReservation = async (order) => {
     if (!canCreateOrders || writesBlocked || !order?.tableReservationId) return false
     try {
+      const owner = sessionOwnerRef.current
       const detail = await tableReservationApi.getReservation(order.tableReservationId)
+      if (owner !== sessionOwnerRef.current) return false
       const opened = newOrderDraft.openReservationEdit(detail, { returnDestination: 'orders' })
       if (!opened) return false
       return completeNavigation('new-order')
@@ -578,6 +602,8 @@ function App({ capabilities } = {}) {
     <AppRoot
       isOnline={isOnline}
       authState={authState}
+      authMode={authMode}
+      operationalAccess={operationalAccess}
       loginLoading={requestKey === 'auth:login'}
       loginError={loginError}
       onLogin={handleLogin}
@@ -587,12 +613,20 @@ function App({ capabilities } = {}) {
       toastMessage={toastMessage}
       successMessage={successMessage}
     >
-      <SettingsPolicyBoundary
+      {!operationalAccess ? (
+        <NavigationProvider activeTab={activeTab} granted={granted} authenticated={authState === 'authenticated' && Boolean(sessionContext?.user?.id)} implemented={IMPLEMENTED_DESTINATIONS} moreOpen={moreOpen} requestNavigation={requestNavigation} openMore={openMore} closeMore={closeMore}>
+          <AppShell user={sessionContext?.user} onSwitchUser={handleSwitchUser} onLogout={handleLogout} logoutDisabled={writesBlocked}>
+            {renderAccessSurface
+              ? renderAccessSurface({ section: activeTab, sessionContext, refreshSession, onApiError: showApiError, writesBlocked })
+              : <section><h1>{activeTab === 'access-team' ? 'Equipe e acessos' : 'Minha conta'}</h1><p>Sua conta está ativa; o acesso operacional aguarda liberação.</p></section>}
+          </AppShell>
+        </NavigationProvider>
+      ) : <SettingsPolicyBoundary
         effectiveConfigOwner={effectiveConfigOwner}
         storage={getSessionStorage()}
         navigationBridge={policyNavigationBridge}
         onFeedback={(feedback) => {
-          if (feedback?.status === 401) showApiError(feedback)
+          if (feedback?.status) showApiError(feedback)
           else if (feedback?.message) setToastMessage(feedback.message)
         }}
         onSessionExpired={expireSession}
@@ -601,8 +635,9 @@ function App({ capabilities } = {}) {
           if (policyId === 'businessProfile') void refreshBootstrapSilently()
         }}
       >
-      <NavigationProvider activeTab={activeTab} activeMobileEntry={activeMobileEntry} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} moreOpen={moreOpen} requestNavigation={requestNavigation} openMore={openMore} closeMore={closeMore}>
-      <AppShell businessId={sessionContext?.businessId} businessName={business?.name} businessHasLogo={business?.hasLogo} businessLogoVersion={business?.logoVersion} navigationBadges={{ orders: operationalOrderCount, comandas: openComandaCount, 'print-queue': printing.activeJobCount }} onLogout={handleLogout} logoutDisabled={writesBlocked}>
+      <NavigationProvider authenticated={authState === 'authenticated' && Boolean(sessionContext?.user?.id)} activeTab={activeTab} activeMobileEntry={activeMobileEntry} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} moreOpen={moreOpen} requestNavigation={requestNavigation} openMore={openMore} closeMore={closeMore}>
+      <AppShell user={sessionContext?.user} onSwitchUser={handleSwitchUser} businessId={sessionContext?.businessId} businessName={business?.name} businessHasLogo={business?.hasLogo} businessLogoVersion={business?.logoVersion} navigationBadges={{ orders: operationalOrderCount, comandas: openComandaCount, 'print-queue': printing.activeJobCount }} onLogout={handleLogout} logoutDisabled={writesBlocked}>
+        {['my-account', 'access-team', 'access-activity'].includes(activeTab) && (renderAccessSurface ? renderAccessSurface({ section: activeTab, sessionContext, refreshSession, onApiError: showApiError, writesBlocked }) : <section><h1>{activeTab === 'my-account' ? 'Minha conta' : activeTab === 'access-team' ? 'Equipe e acessos' : 'Atividades'}</h1></section>)}
         {activeTab === 'dashboard' && <DashboardSurface orders={orders} movements={movements} currency={currency} queryState={query.dashboard} onQueryChange={(patch) => patchQuery('dashboard', patch)} />}
         {activeTab === 'reports' && <ReportingWorkspace granted={granted} onOpenClient={canViewClients ? (client) => { patchQuery('clients', { search: client?.name || '' }); requestNavigation('clients') } : null} />}
         {activeTab === 'orders' && <Orders orders={orders} officialOrders={orders} now={kitchenNow} currentTiming={currentTiming} search={query.orders.search} onSearchChange={(search) => patchQuery('orders', { search })} currency={currency} onNewOrder={handleNewOrder} onFinalizeOrder={orderCommands.finalizeOrder} onCancelOrder={orderCommands.cancelOrder} onRegisterPayment={orderPayment.open} paymentDisabled={writesBlocked} paymentOptions={paymentOptions} cancellationOptions={cancellationOptions} cancellationRevision={cancellationRevision} onNavigatePrintQueue={() => requestNavigation('print-queue')} printQueueActiveCount={printing.activeJobCount} granted={granted} newOrderIds={newOrderIds} soundEnabled={kitchenSoundEnabled} onSoundEnabledChange={handleKitchenSoundEnabledChange} printing={printing} onToast={setToastMessage} canCreateOrders={canCreateOrders} canFinalizeOrders={canFinalizeOrders} canCancelOrders={canCancelOrders} canRefundPayments={canRefundPayments} canUseLocalPreferences={canUseLocalPreferences} canViewPrintQueue={canViewPrintQueue} canForcePrinting={canForcePrinting} canExecutePrinting={canExecutePrinting} onEditReservation={handleEditFutureReservation} />}
@@ -686,12 +721,12 @@ function App({ capabilities } = {}) {
         <RegisterRefundDialog open={canRefundPayments && Boolean(refund.refundOrder)} order={refund.refundOrder} paymentOptions={paymentOptions} onClose={refund.close} onConfirm={refund.confirm} submitting={refund.submitting} />
       </AppShell>
       </NavigationProvider>
-      </SettingsPolicyBoundary>
+      </SettingsPolicyBoundary>}
 
       <PrintingOverlays
         printing={printing}
         orders={orders}
-        authenticated={authState === 'authenticated'}
+        authenticated={operationalAccess && authState === 'authenticated'}
         canExecutePrinting={canExecutePrinting}
         canDiscardPrinting={canDiscardPrinting}
         onError={showApiError}

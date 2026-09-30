@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import React from 'react'
+import { act, create } from 'react-test-renderer'
 import {
   createEffectiveBusinessConfigCache,
   shouldAcceptEffectiveReply,
@@ -11,6 +13,25 @@ const owner = (overrides = {}) => ({
   capabilities: ['orders.create', 'printing.execute'], requestId: 0, ...overrides,
 })
 const config = (version, operationsRevision) => ({ version, revisions: { operations: operationsRevision }, operations: { defaultModality: 'Entrega' } })
+
+test('first owner change render masks old config and rejects a captured callback', async (t) => {
+  const renders = []
+  let current
+  const Harness = ({ identity, bootstrap }) => {
+    current = useEffectiveBusinessConfig({ owner: identity, bootstrapConfig: bootstrap })
+    renders.push(current.config?.version ?? null)
+    return null
+  }
+  let renderer
+  await act(async () => { renderer = create(React.createElement(Harness, { identity: owner({ userId: 'a' }), bootstrap: config('private-a', 1) })) })
+  t.after(() => renderer.unmount())
+  const oldAccept = current.accept
+  renders.length = 0
+  await act(async () => renderer.update(React.createElement(Harness, { identity: owner({ userId: 'b', generation: 3 }) })))
+  assert.equal(renders[0], null)
+  await act(async () => { assert.equal(oldAccept(config('late-a', 2)), false) })
+  assert.equal(current.config, null)
+})
 
 test('reply ownership rejects stale request, session, business, context and capability identities', () => {
   const current = owner({ requestId: 8 })

@@ -10,6 +10,21 @@ const deferred = () => {
   return { promise, resolve }
 }
 
+test('changed session owner rejects accepted checkout before dynamic callbacks and never replays', async () => {
+  const pending = deferred()
+  let owner = 'a', submits = 0
+  const events = []
+  const probe = await mountProbe({ getAccessOwner: () => owner, submitOrder: () => { submits++; return pending.promise }, canSubmit: () => true, commitOfficialEffects: () => events.push('effect'), onCommitted: () => events.push('navigation'), onSuccess: () => events.push('success'), onError: () => events.push('error') })
+  await act(async () => probe.getLatest().open({ returnDestination: 'orders' }))
+  let result
+  await act(async () => { result = probe.getLatest().submit({}) })
+  owner = 'b'
+  await act(async () => { pending.resolve({ order: { id: 'old' } }); await result })
+  assert.deepEqual(events, [])
+  assert.equal(submits, 1)
+  probe.unmount()
+})
+
 const mountProbe = async (props) => {
   let latest
   let renderer

@@ -291,6 +291,7 @@ async function printQueueWorkspace(t, { canExecutePrinting, canDiscardPrinting }
   }
   const renderer = await h.render(PrintQueue, {
     orders: [preparingOrder], printing, canExecutePrinting, canDiscardPrinting,
+    canForcePrinting: canExecutePrinting,
     queryState: { search: '', status: '', trigger: '', sortBy: 'createdAt', sortDir: 'desc', page: 1, pageSize: 10 }, onQueryChange() {},
   })
   await act(flush)

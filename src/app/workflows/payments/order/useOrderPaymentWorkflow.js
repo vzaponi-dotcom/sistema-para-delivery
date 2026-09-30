@@ -1,3 +1,4 @@
+import { useMutationOwner } from '../../../runtime/session/useMutationOwner.js'
 import { useCallback, useRef, useState } from 'react'
 import {
   canReceiveStandaloneOrder,
@@ -29,6 +30,7 @@ export function useOrderPaymentWorkflow({
   onSuccess = () => {},
   onError = () => {},
 } = {}) {
+  const ownsMutation = useMutationOwner(applyOfficialEffects)
   const sequenceRef = useRef(0)
   const dialogOwnerRef = useRef(null)
   const [dialogOwner, setDialogOwner] = useState(null)
@@ -107,9 +109,9 @@ export function useOrderPaymentWorkflow({
 
     try {
       const { order, movements = [], tableTab } = await api.registerOrderPayment(owner.orderId, owner.allocations)
-      if (owner.guard !== getSyncGuard()) return false
+      if (!ownsMutation() || owner.guard !== getSyncGuard()) return false
 
-      applyOfficialEffects({ order, movements, tableTab })
+      if (applyOfficialEffects({ order, movements, tableTab }) === false) return false
 
       if (dialogOwnerRef.current === owner) {
         const accepted = owner.allocations
@@ -121,19 +123,22 @@ export function useOrderPaymentWorkflow({
       }
       return true
     } catch (error) {
-      if (owner.guard !== getSyncGuard()) return false
+      if (!ownsMutation() || owner.guard !== getSyncGuard()) return false
       if (error?.status === 409 || !Number.isInteger(error?.status) || error.status >= 500) {
         await refreshOfficialData()
       }
-      if (owner.guard !== getSyncGuard()) return false
+      if (!ownsMutation() || owner.guard !== getSyncGuard()) return false
       if (dialogOwnerRef.current === owner) onError(error)
       return false
     } finally {
-      owner.submitting = false
-      clearRequestKey(owner)
-      if (dialogOwnerRef.current === owner) forceRender((value) => value + 1)
+      if (ownsMutation()) {
+        owner.submitting = false
+        clearRequestKey(owner)
+        if (dialogOwnerRef.current === owner) forceRender((value) => value + 1)
+      }
     }
   }, [
+    ownsMutation,
     allocations,
     api,
     applyOfficialEffects,

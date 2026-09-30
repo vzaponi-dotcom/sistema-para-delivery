@@ -67,7 +67,7 @@ test('manager exposes the authoritative active print-job count from the existing
   assert.match(source, /const \[activeJobCount, setActiveJobCount\] = useState\(0\)/)
   assert.match(source, /setActiveJobCount\(Math\.max\(0, Number\(summaryPayload\?\.summary\?\.active\) \|\| 0\)\)/)
   assert.match(source, /setActiveJobCount\(0\)/)
-  assert.match(source, /\bactiveJobCount,\s*\n/)
+  assert.match(source, /\bactiveJobCount: stateContextRef\.current === accessContextId \? activeJobCount : 0/)
   assert.match(source, /getPrintQueueSummary\(\)/)
   assert.doesNotMatch(source, /ACTIVE_PRINT_JOB_POLL/)
 })

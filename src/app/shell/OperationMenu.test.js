@@ -4,16 +4,16 @@ import React from 'react'
 import { act } from 'react-test-renderer'
 import { workspaceHarness, buttonNamed, nodeText } from '../../test-support/renderWorkspace.js'
 
-const implemented = new Set(['orders', 'settings-home', 'settings-business-profile', 'settings-device'])
-const renderMenu = async (t, { granted = new Set(['operations.settings.view', 'preferences.local']), onLogout = () => {}, logoutDisabled = false, businessName = 'Pizzaria Bella', businessHasLogo = false, businessLogoVersion = null } = {}) => {
+const implemented = new Set(['orders', 'settings-home', 'settings-business-profile', 'settings-device', 'my-account'])
+const renderMenu = async (t, { granted = new Set(['operations.settings.view', 'preferences.local']), authenticated = false, user, onSwitchUser, onLogout = () => {}, logoutDisabled = false, businessName = 'Pizzaria Bella', businessHasLogo = false, businessLogoVersion = null } = {}) => {
   const h = await workspaceHarness(t)
   const { NavigationProvider } = await h.load('/src/app/navigation/NavigationContext.jsx')
   const { default: OperationMenu } = await h.load('/src/app/shell/OperationMenu.jsx')
   const navigations = []
   const renderer = await h.render(NavigationProvider, {
-    activeTab: 'orders', granted, implemented, moreOpen: false,
+    activeTab: 'orders', granted, authenticated, implemented, moreOpen: false,
     requestNavigation: (id) => navigations.push(id), openMore() {}, closeMore() {},
-    children: React.createElement(OperationMenu, { businessName, businessHasLogo, businessLogoVersion, onLogout, logoutDisabled }),
+    children: React.createElement(OperationMenu, { businessName, businessHasLogo, businessLogoVersion, user, onSwitchUser, onLogout, logoutDisabled }),
   }, { createNodeMock: (element) => element.props?.className === 'operation-menu-trigger'
     ? { focus: h.recordFocus }
     : element.props?.role === 'dialog' ? { querySelectorAll: () => [], querySelector: () => null } : {} })
@@ -29,6 +29,18 @@ test('operation shortcuts respect official navigation and close after navigation
   await act(async () => buttonNamed(renderer.root, 'Preferências deste dispositivo').props.onClick())
   assert.deepEqual(navigations, ['settings-device'])
   assert.equal(buttonNamed(renderer.root, 'Configurações'), undefined)
+})
+
+test('individual user menu exposes account and switch independently of role name', async (t) => {
+  let switches = 0
+  const { renderer, navigations } = await renderMenu(t, { granted: new Set(), authenticated: true, user: { id: 'u', displayName: 'Ana', roleName: 'unknown-profile' }, onSwitchUser: () => switches++ })
+  await act(async () => buttonNamed(renderer.root, 'Pizzaria Bella, operação atual').props.onClick())
+  assert.match(nodeText(renderer.root), /Ana/)
+  await act(async () => buttonNamed(renderer.root, 'Minha conta').props.onClick())
+  assert.deepEqual(navigations, ['my-account'])
+  await act(async () => buttonNamed(renderer.root, 'Pizzaria Bella, operação atual').props.onClick())
+  await act(async () => buttonNamed(renderer.root, 'Trocar usuário').props.onClick())
+  assert.equal(switches, 1)
 })
 
 test('restricted operation has no settings shortcuts', async (t) => {

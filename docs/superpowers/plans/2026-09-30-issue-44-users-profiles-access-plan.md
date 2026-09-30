@@ -157,7 +157,7 @@ Tasks 1–10 are independently testable commits, but do not enable `user_only` o
 
 ### Task 9: Human login, switch and session-safe frontend runtime
 
-**Files:** Modify `src/infrastructure/auth/sessionApi.js`, `src/app/runtime/session/useSessionRuntime.js`, `src/app/shell/LoginScreen.jsx`, `src/app/shell/AppRoot.jsx`, `src/app/shell/OperationMenu.jsx`, `src/app/shell/AppShell.jsx`, `src/App.jsx` and adjacent tests.
+**Files:** Modify `src/infrastructure/auth/sessionApi.js`, `src/app/runtime/session/useSessionRuntime.js`, `src/app/shell/LoginScreen.jsx`, `src/app/shell/AppRoot.jsx`, `src/app/shell/OperationMenu.jsx`, `src/app/shell/AppShell.jsx`, `src/App.jsx` and adjacent tests. Also modify `src/app/shell/AppTopBar.jsx`, navigation registry/resolution/controller/context/route gate, `src/app/useEffectiveBusinessConfig.js`, operational runtime error dispatch, existing order/customer/catalog/finance/table-service command owners, existing payment/refund workflows, existing printing manager ownership, browser session coordination and adjacent behavioral/regression tests.
 
 **Interfaces:** `login({ identifier, password, deviceMode })`; `src/App.jsx` composes `handleSwitchUser` through the existing draft/payment/print guards before the session runtime revokes and clears the current login; session context carries user, grants and generation. Operation menu shows name, Minha conta, Trocar usuário and Sair. Anonymous screen never shows previous user's data.
 

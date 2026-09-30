@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { getEffectiveConfig } from '../infrastructure/api/effectiveConfigApi.js'
 
 const capabilityKey = (capabilities = []) => [...new Set(capabilities)].sort().join('\u001f')
@@ -6,6 +6,7 @@ const ownerIdentity = (value) => {
   const owner = value || {}
   return [
   owner.businessId || '',
+  owner.userId || '',
   Number(owner.generation) || 0,
   owner.settingsContextId || '',
   capabilityKey(owner.capabilities),
@@ -89,14 +90,19 @@ export function createEffectiveBusinessConfigCache({ load = getEffectiveConfig }
 export function useEffectiveBusinessConfig({ owner, bootstrapConfig, load = getEffectiveConfig } = {}) {
   const [cache] = useState(() => createEffectiveBusinessConfigCache({ load }))
   const [state, setState] = useState(cache.getState)
-  useEffect(() => cache.subscribe(setState), [cache])
+  useLayoutEffect(() => cache.subscribe(setState), [cache])
   useEffect(() => { cache.setLoad(load) }, [cache, load])
-  useEffect(() => {
+  const renderOwner = ownerIdentity(owner)
+  const currentOwnerRef = useRef(renderOwner)
+  const stateOwnerRef = useRef(null)
+  currentOwnerRef.current = renderOwner
+  useLayoutEffect(() => {
+    stateOwnerRef.current = renderOwner
     cache.setOwner(owner)
     if (bootstrapConfig) cache.accept(bootstrapConfig, owner)
   }, [bootstrapConfig, cache, owner])
-  const accept = useCallback((value, replyOwner) => cache.accept(value, replyOwner), [cache])
-  const refresh = useCallback(() => cache.refresh(), [cache])
+  const accept = useCallback((value, replyOwner = owner) => currentOwnerRef.current === renderOwner && cache.accept(value, replyOwner), [cache, owner, renderOwner])
+  const refresh = useCallback(() => currentOwnerRef.current === renderOwner ? cache.refresh() : Promise.resolve(false), [cache, renderOwner])
   const reset = useCallback(() => cache.reset(), [cache])
-  return { ...state, accept, refresh, reset }
+  return { ...(stateOwnerRef.current === renderOwner ? state : { config: null, status: owner ? 'loading' : 'idle', error: null }), accept, refresh, reset }
 }

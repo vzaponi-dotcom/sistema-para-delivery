@@ -1,3 +1,4 @@
+import { useMutationOwner } from '../../../app/runtime/session/useMutationOwner.js'
 import { useCallback } from 'react'
 import { validateTransferIntent } from '../domain/tableTransfer.js'
 import { tableServiceApi } from '../infrastructure/tableServiceApi.js'
@@ -23,68 +24,81 @@ export function useTableServiceCommands({
   onError = () => {},
   onStaleTarget = () => {},
 } = {}) {
+  const ownsMutation = useMutationOwner(applyOfficialEffects)
   const createTable = useCallback(async (name) => {
     if (!canManageTables || writesBlocked) return false
     setRequestKey('table:create')
     try {
       const result = await api.createTable({ name })
-      applyOfficialEffects({ tables: result.tables })
+      if (!ownsMutation()) return false
+
+      if (applyOfficialEffects({ tables: result.tables }) === false) return false
       onSuccess(successMessages.create)
       return true
     } catch (error) {
+      if (!ownsMutation()) return false
       onError(error)
       return false
     } finally {
-      setRequestKey(null)
+      if (ownsMutation()) setRequestKey(null)
     }
-  }, [api, applyOfficialEffects, canManageTables, onError, onSuccess, setRequestKey, writesBlocked])
+  }, [ownsMutation, api, applyOfficialEffects, canManageTables, onError, onSuccess, setRequestKey, writesBlocked])
 
   const renameTable = useCallback(async (tableId, name) => {
     if (!canManageTables || writesBlocked) return false
     setRequestKey(`table:rename:${tableId}`)
     try {
       const result = await api.updateTable(tableId, { name })
-      applyOfficialEffects({ tables: result.tables })
+      if (!ownsMutation()) return false
+
+      if (applyOfficialEffects({ tables: result.tables }) === false) return false
       onSuccess(successMessages.rename)
       return true
     } catch (error) {
+      if (!ownsMutation()) return false
       onError(error)
       return false
     } finally {
-      setRequestKey(null)
+      if (ownsMutation()) setRequestKey(null)
     }
-  }, [api, applyOfficialEffects, canManageTables, onError, onSuccess, setRequestKey, writesBlocked])
+  }, [ownsMutation, api, applyOfficialEffects, canManageTables, onError, onSuccess, setRequestKey, writesBlocked])
 
   const setTableActive = useCallback(async (tableId, isActive) => {
     if (!canManageTables || writesBlocked) return false
     setRequestKey(`table:active:${tableId}`)
     try {
       const result = await api.updateTable(tableId, { isActive })
-      applyOfficialEffects({ tables: result.tables })
+      if (!ownsMutation()) return false
+
+      if (applyOfficialEffects({ tables: result.tables }) === false) return false
       onSuccess(isActive ? successMessages.activate : successMessages.deactivate)
       return true
     } catch (error) {
+      if (!ownsMutation()) return false
       onError(error)
       return false
     } finally {
-      setRequestKey(null)
+      if (ownsMutation()) setRequestKey(null)
     }
-  }, [api, applyOfficialEffects, canManageTables, onError, onSuccess, setRequestKey, writesBlocked])
+  }, [ownsMutation, api, applyOfficialEffects, canManageTables, onError, onSuccess, setRequestKey, writesBlocked])
 
   const reorderTables = useCallback(async (tableIds) => {
     if (!canManageTables || writesBlocked) return false
     setRequestKey('table:reorder')
     try {
       const result = await api.reorderTables(tableIds)
-      applyOfficialEffects({ tables: result.tables })
+      if (!ownsMutation()) return false
+
+      if (applyOfficialEffects({ tables: result.tables }) === false) return false
       return true
     } catch (error) {
+      if (!ownsMutation()) return false
       onError(error)
       return false
     } finally {
-      setRequestKey(null)
+      if (ownsMutation()) setRequestKey(null)
     }
-  }, [api, applyOfficialEffects, canManageTables, onError, setRequestKey, writesBlocked])
+  }, [ownsMutation, api, applyOfficialEffects, canManageTables, onError, setRequestKey, writesBlocked])
 
   const transferTableTab = useCallback(async (sourceTableId, destinationTableId, expectedTableTabId) => {
     if (writesBlocked || !canTransfer) return false
@@ -103,17 +117,22 @@ export function useTableServiceCommands({
     setRequestKey(`table:transfer:${sourceTableId}`)
     try {
       const result = await api.transferTableTab(sourceTableId, destinationTableId, expectedTableTabId)
-      applyOfficialEffects({ tables: result.tables, tableTab: result.tableTab })
+      if (!ownsMutation()) return false
+
+      if (applyOfficialEffects({ tables: result.tables, tableTab: result.tableTab }) === false) return false
       onSuccess(successMessages.transfer)
       return true
     } catch (error) {
+      if (!ownsMutation()) return false
       if (error?.status === 409) await refreshOfficialData()
+      if (!ownsMutation()) return false
       onError(error)
       return false
     } finally {
-      setRequestKey(null)
+      if (ownsMutation()) setRequestKey(null)
     }
   }, [
+    ownsMutation,
     api,
     applyOfficialEffects,
     canTransfer,

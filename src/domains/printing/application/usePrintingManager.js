@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   acknowledgeSecondCopyPrompt as acknowledgeSecondCopyPromptApi,
   claimNextPrintJob,
@@ -164,7 +164,7 @@ export const buildPrintStationHeartbeatHealth = ({
   }
 }
 
-export const usePrintingManager = ({ authenticated = false, isOnline = true, onPhysicalJobFailure } = {}) => {
+export const usePrintingManager = ({ authenticated = false, accessContextId = null, isOnline = true, onPhysicalJobFailure } = {}) => {
   const platform = detectPrintStationPlatform()
   const transportKind = getPrintingTransportKind(platform)
   const supported = isPrintingTransportSupported(platform)
@@ -204,6 +204,16 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
   const qzSecurityConfiguredRef = useRef(false)
   const qzReadinessRef = useRef(qzTransport?.readiness ?? null)
   const initializationRef = useRef(0)
+  const accessContextRef = useRef(accessContextId)
+  const stateContextRef = useRef(accessContextId)
+  const ownsAccess = useCallback(() => accessContextRef.current === accessContextId, [accessContextId])
+  if (accessContextRef.current !== accessContextId) initializationRef.current++
+  accessContextRef.current = accessContextId
+  useLayoutEffect(() => {
+    if (stateContextRef.current === accessContextId) return
+    stateContextRef.current = accessContextId
+    setJobs([]); setStations([]); setActiveJobCount(0); setLastError(null)
+  }, [accessContextId])
   const heartbeatInFlightRef = useRef(false)
   const heartbeatSequenceRef = useRef(0)
   const [physicalJobFailureNotifier] = useState(createPhysicalJobFailureNotifier)
@@ -346,11 +356,12 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
 
   const refresh = useCallback(async ({ generation: expectedGeneration } = {}) => {
     if (!authenticated) return { stations: [], jobs: [] }
+    const readGeneration = initializationRef.current
     const [stationPayload, jobPayload, summaryPayload] = await Promise.all([getPrintStations(), getPrintJobs({ limit: 100 }), getPrintQueueSummary()])
     const nextStations = Array.isArray(stationPayload?.stations) ? stationPayload.stations : []
     const nextJobs = Array.isArray(jobPayload?.jobs) ? jobPayload.jobs : []
-    if (expectedGeneration !== undefined && expectedGeneration !== initializationRef.current) {
-      return { stations: nextStations, jobs: nextJobs, summary: summaryPayload?.summary ?? {}, stale: true }
+    if (readGeneration !== initializationRef.current || accessContextRef.current !== accessContextId || (expectedGeneration !== undefined && expectedGeneration !== initializationRef.current)) {
+      return { stations: [], jobs: [], summary: {}, stale: true }
     }
     setStations(nextStations)
     setJobs(nextJobs)
@@ -363,7 +374,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
       if (serverStation) updateLocalStation(serverStation)
     }
     return { stations: nextStations, jobs: nextJobs, summary: summaryPayload?.summary ?? {} }
-  }, [authenticated, physicalJobFailureNotifier, updateLocalStation])
+  }, [accessContextId, authenticated, physicalJobFailureNotifier, updateLocalStation])
 
   const resolveConfiguredQzPrinter = useCallback(async (stationId) => {
     if (!isQz || !stationId) return null
@@ -513,7 +524,10 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
   }, [resolveConfiguredQzPrinter, transportKind])
 
   const executeClaimedJob = useCallback(async (job, port, { clearBlockOnSuccess = false, preparePort } = {}) => {
-    if (!job) return null
+    if (!job || accessContextRef.current !== accessContextId) return null
+    const executionGeneration = initializationRef.current
+    const ownsExecution = () => executionGeneration === initializationRef.current && accessContextRef.current === accessContextId
+    const requireExecution = () => { if (!ownsExecution()) throw printerError('QZ_OBSERVATION_LOST', 'A sessão mudou. Confira o resultado na fila de impressão.') }
     updateBusyJob(job.id)
     try {
       const result = await runClaimedPrintJob({
@@ -529,6 +543,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
         }),
         transport: async (_selectedPort, bytes) => {
           if (typeof preparePort === 'function') await preparePort()
+          requireExecution()
           if (transportKind === 'qz') return qzTransport.print(configuredPrinterNameRef.current, bytes)
           throw printerError('PRINT_QUEUE_ONLY', 'Esta estação não executa impressão física.')
         },
@@ -537,6 +552,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
           markSubmitting: async (attemptId, stationId) => (await markPrintAttemptSubmitting(attemptId, stationId)).attempt,
           sendBytes: async (bytes, { jobName }) => {
             if (typeof preparePort === 'function') await preparePort()
+            requireExecution()
             return qzTransport.print(configuredPrinterNameRef.current, bytes, { jobName })
           },
           awaitOutcome: (jobName) => qzStatusMonitorRef.current
@@ -550,6 +566,7 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
           }),
         } : null,
       })
+      if (!ownsExecution()) return result
       if (result.status === 'printed') {
         if (transportKind === 'qz') {
           updateQzConnected(Boolean(qzTransport?.isConnected()))
@@ -571,10 +588,12 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
       }
       return result
     } finally {
-      updateBusyJob(null)
-      try { await refresh() } catch (error) { reportError(error) }
+      if (ownsExecution()) {
+        updateBusyJob(null)
+        try { await refresh() } catch (error) { reportError(error) }
+      }
     }
-  }, [notifyPhysicalJobFailure, refresh, reportError, transportKind, updateBlocked, updateBusyJob, updatePrinterQueueFound, updateQzConnected, updateTransportReady])
+  }, [accessContextId, notifyPhysicalJobFailure, refresh, reportError, transportKind, updateBlocked, updateBusyJob, updatePrinterQueueFound, updateQzConnected, updateTransportReady])
 
   const testPrint = useCallback(() => runExclusivePrintOperation({
     acquire: acquirePrintOperation,
@@ -623,9 +642,10 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     const nextState = nextRecoveryState({ recoveryState: station.recoveryState, action })
     if (nextState === (station.recoveryState ?? 'normal')) return station
     const response = await setPrintStationRecovery(station.id, nextState)
+    if (!ownsAccess()) return null
     if (response?.station) updateLocalStation(response.station)
     return response?.station ?? station
-  }, [updateLocalStation])
+  }, [ownsAccess, updateLocalStation])
 
   const printNextRecovery = useCallback(() => runExclusivePrintOperation({
     acquire: acquirePrintOperation,
@@ -648,14 +668,17 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
           preparePort: getExplicitPort,
         }),
       })
+      if (!ownsAccess()) return null
       if (result) {
         const refreshed = await refresh()
+        if (!ownsAccess()) return null
         const recoveredJob = refreshed?.jobs?.find((job) => job.id === result.jobId) ?? null
         const current = localStationRef.current
         if (result.status === 'printed' && ['printed', 'discarded'].includes(recoveredJob?.status)
           && Number(refreshed?.summary?.safeBacklog || 0) === 0 && current?.id
           && current.recoveryState === 'deferred' && !current?.recoveryJobId) {
           const response = await setPrintStationRecovery(current.id, 'normal')
+          if (!ownsAccess()) return null
           if (response?.station) updateLocalStation(response.station)
         }
         return { ...result, job: recoveredJob }
@@ -664,17 +687,19 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
       const current = localStationRef.current
       if (current?.id && current.recoveryState === 'active' && !current.recoveryJobId) {
         const response = await setPrintStationRecovery(current.id, 'normal')
+        if (!ownsAccess()) return null
         if (response?.station) updateLocalStation(response.station)
       }
       await refresh()
       return null
     },
-  }), [acquirePrintOperation, executeClaimedJob, getExplicitPort, refresh, releasePrintOperation, updateLocalStation])
+  }), [ownsAccess, acquirePrintOperation, executeClaimedJob, getExplicitPort, refresh, releasePrintOperation, updateLocalStation])
 
   const startRecovery = useCallback(async () => {
     await transitionRecovery('start')
+    if (!ownsAccess()) return null
     return printNextRecovery()
-  }, [printNextRecovery, transitionRecovery])
+  }, [ownsAccess, printNextRecovery, transitionRecovery])
 
   const deferRecovery = useCallback(() => transitionRecovery('defer'), [transitionRecovery])
 
@@ -683,13 +708,15 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
   const discardRecoveryBacklog = useCallback(async () => {
     const station = localStationRef.current
     const response = await discardPendingPrintJobs()
+    if (!ownsAccess()) return null
     if (station?.id && (station.recoveryState ?? 'normal') !== 'normal') {
       const recovered = await setPrintStationRecovery(station.id, 'normal')
+      if (!ownsAccess()) return null
       if (recovered?.station) updateLocalStation(recovered.station)
     }
     await refresh()
     return response
-  }, [refresh, updateLocalStation])
+  }, [ownsAccess, refresh, updateLocalStation])
 
   const requestDiscardPendingJobs = useCallback(async () => {
     const response = await discardOperationalPrintJobs('Operador')
@@ -739,9 +766,10 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
   }), [acquirePrintOperation, executeClaimedJob, getExplicitPort, releasePrintOperation])
 
   const applyJobMutation = useCallback((response, options) => {
+    if (accessContextRef.current !== accessContextId) return null
     if (response?.job) setJobs((current) => mergePrintJobMutation(current, response.job, options))
     return response
-  }, [])
+  }, [accessContextId])
 
   const requestPrintNow = useCallback(async (jobOrId, { refreshManager = true } = {}) => {
     const jobId = typeof jobOrId === 'string' ? jobOrId : jobOrId?.id
@@ -1003,9 +1031,9 @@ export const usePrintingManager = ({ authenticated = false, isOnline = true, onP
     transportKind,
     localStation,
     stations,
-    jobs,
-    activeJobCount,
-    latestJobByOrderId,
+    jobs: stateContextRef.current === accessContextId ? jobs : [],
+    activeJobCount: stateContextRef.current === accessContextId ? activeJobCount : 0,
+    latestJobByOrderId: stateContextRef.current === accessContextId ? latestJobByOrderId : new Map(),
     printerState,
     printerBlocked,
     busyJobId,

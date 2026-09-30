@@ -15,28 +15,29 @@ export function resolveRouteCorrection({
   pathname,
   matchedDestination,
   granted,
+  authenticated = false,
   implemented,
 }) {
   if (pathname === '/') {
-    const home = resolveHome(granted, implemented)
+    const home = resolveHome(granted, implemented, { authenticated })
     return home ? { destination: home, feedbackStatus: null } : null
   }
 
   if (!matchedDestination) {
-    const home = resolveHome(granted, implemented)
+    const home = resolveHome(granted, implemented, { authenticated })
     return home ? { destination: home, feedbackStatus: 'unknown' } : null
   }
 
-  const resolution = resolveDestination(matchedDestination, granted, implemented)
+  const resolution = resolveDestination(matchedDestination, granted, implemented, { authenticated })
   if (resolution.status === 'allowed') return null
 
   const destination = destinationById.get(matchedDestination)
   const areaIds = AREA_DESTINATION_IDS[destination?.area] || []
   const isAreaRoot = areaIds[0] === matchedDestination
   const areaFallback = isAreaRoot
-    ? resolveArea(destination.area, granted, implemented)
+    ? resolveArea(destination.area, granted, implemented, { authenticated })
     : null
-  const fallback = areaFallback || resolveHome(granted, implemented)
+  const fallback = areaFallback || resolveHome(granted, implemented, { authenticated })
   if (!fallback) return null
 
   return {
@@ -48,6 +49,7 @@ export function resolveRouteCorrection({
 export function useRouteGate({
   ready,
   granted,
+  authenticated = false,
   implemented,
   onFeedback,
 }) {
@@ -62,6 +64,7 @@ export function useRouteGate({
       pathname: location.pathname,
       matchedDestination,
       granted,
+      authenticated,
       implemented,
     })
     if (!correction) return
@@ -75,6 +78,7 @@ export function useRouteGate({
     navigate(targetPath, { replace: true })
   }, [
     granted,
+    authenticated,
     implemented,
     location.pathname,
     matchedDestination,

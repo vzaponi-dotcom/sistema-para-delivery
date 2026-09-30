@@ -2,6 +2,20 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createSessionApi } from './sessionApi.js'
 
+test('individual login defaults to shared mode and sends personal only by explicit choice', async () => {
+  const bodies = []
+  const api = createSessionApi({ request: async (path, options) => {
+    if (path.endsWith('/login')) { bodies.push(JSON.parse(options.body)); return {} }
+    return { authenticated: true, businessId: 'b', settingsContextId: 's', capabilities: [], user: { id: 'u' } }
+  } })
+  await api.login({ identifier: 'ana', password: 'long password' })
+  await api.login({ identifier: 'ana', password: 'long password', deviceMode: 'personal' })
+  assert.deepEqual(bodies, [
+    { identifier: 'ana', password: 'long password', deviceMode: 'shared' },
+    { identifier: 'ana', password: 'long password', deviceMode: 'personal' },
+  ])
+})
+
 test('login posts the PIN then confirms the authenticated context', async () => {
   const calls = []
   const api = createSessionApi({
