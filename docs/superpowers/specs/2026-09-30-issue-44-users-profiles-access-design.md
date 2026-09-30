@@ -6,7 +6,7 @@
 
 **Base inspecionada:** `feature/issue-34-reporting-center` em `4c9dc297fdc8f9fcd005aafb67abc823503a55f9`
 
-**Estado:** desenho conversacional aprovado; documento aguardando revisão do usuário.
+**Estado:** Spec e plano aprovados; implementação autorizada em 2026-09-30.
 **Natureza:** esta Spec define comportamento e contratos. A aprovação do desenho autorizou escrever este documento; implementação, migração remota, merge e deploy exigem suas etapas próprias.
 
 ## 1. Resultado pretendido

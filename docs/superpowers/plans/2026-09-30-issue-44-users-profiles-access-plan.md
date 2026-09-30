@@ -39,7 +39,7 @@ These five cases are easy to miss when implementing the Spec. Their owning tasks
 
 | Unit | Files | Responsibility |
 |---|---|---|
-| Schema/catalog | `migrations/0032_users_profiles_access.sql`, `shared/settingsAccess.js`, `worker/access/roles.js` | Tenant-bound records, explicit default role grants, known capability keys. |
+| Schema/catalog | `migrations/0035_users_profiles_access.sql`, `shared/settingsAccess.js`, `worker/access/roles.js` | Tenant-bound records, explicit default role grants, known capability keys. |
 | Credentials/invites | `worker/access/credentials.js`, `worker/access/invitations.js`, `worker/access/passwordBlocklist.js` | Password verification and single-use enrollment/reset. |
 | Sessions | `worker/auth.js`, `worker/access/sessions.js`, `worker/index.js` | Business auth mode, human cookie, user context, revocation and legacy isolation. |
 | Access administration | `worker/access/users.js`, `worker/access/api.js` | Manager user operations, own password change, invariants, invitations. |
@@ -59,7 +59,7 @@ Tasks 1–10 are independently testable commits, but do not enable `user_only` o
 
 ### Task 1: D1 schema and explicit built-in role grants
 
-**Files:** Create `migrations/0032_users_profiles_access.sql`, `worker/access/roles.js`, `worker/access/roles.test.js`, `worker/access/migration.test.js`; modify `shared/settingsAccess.js`.
+**Files:** Create `migrations/0035_users_profiles_access.sql`, `worker/access/roles.js`, `worker/access/roles.test.js`, `worker/access/migration.test.js`; modify `shared/settingsAccess.js`.
 
 **Interfaces:** `normalizeLogin(input: string): string`; `seedBuiltinRoles(db, businessId: string, now: Date): Promise<void>`; `loadRoleGrants(db, businessId: string, roleId: string): Promise<Set<string>>`. Seed `manager` with every known grant explicitly and `operator` with the exact Spec §6 list. Add `clients.create/update/delete`, `printing.force`, `orders.backdate`, `access.users.view/manage`, `access.audit.view`; retire `clients.manage` only after consumers migrate.
 
@@ -67,7 +67,7 @@ Tasks 1–10 are independently testable commits, but do not enable `user_only` o
 - [ ] **Step 2: Run red.** `node --test worker/access/migration.test.js worker/access/roles.test.js` → FAIL for missing migration/modules.
 - [ ] **Step 3: Implement migration and interfaces.** Include `users`, `user_credentials`, `roles`, `role_capabilities`, `access_invites`, `login_attempts`, `audit_events`, `business_auth_state`, nullable `sessions.user_id` and `sessions.device_mode`. Use tenant-scoped composite keys/FKs where cross-business assignment is possible; index bounded login-attempt cleanup and audit queries.
 - [ ] **Step 4: Run green.** Same command → PASS; `node --test worker/businessProfileMigration.test.js` → PASS.
-- [ ] **Step 5: Commit.** `git add migrations/0032_users_profiles_access.sql shared/settingsAccess.js worker/access/roles.js worker/access/roles.test.js worker/access/migration.test.js`; `git commit -m "feat(access): add users and role grants schema"`.
+- [ ] **Step 5: Commit.** `git add migrations/0035_users_profiles_access.sql shared/settingsAccess.js worker/access/roles.js worker/access/roles.test.js worker/access/migration.test.js`; `git commit -m "feat(access): add users and role grants schema"`.
 
 ### Task 2: Passwords, invites and initial manager enrollment
 
