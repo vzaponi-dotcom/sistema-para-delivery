@@ -22,7 +22,7 @@ const receiptCapability = Object.freeze({
 
 export async function handleSettingsApi(request, env, context, url = new URL(request.url)) {
   if (url.pathname === '/api/settings/effective' && request.method === 'GET') {
-    const effective = await loadEffectiveBusinessConfig(env.DB, context.businessId, context.granted)
+    const effective = await loadEffectiveBusinessConfig(env.DB, context.businessId, context.granted, context.userId)
     return json(url.searchParams.get('knownVersion') === effective.version
       ? { effectiveConfigVersion: effective.version }
       : effective)

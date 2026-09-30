@@ -123,7 +123,7 @@ test('reservation list rejects unknown filters, invalid status and invalid date 
 
 test('reservation detail returns official reservation, order and automatic print metadata', async () => {
   const db = seed()
-  const response = await call(db, '/api/table-reservations/reservation-1', ['comandas.view'])
+  const response = await call(db, '/api/table-reservations/reservation-1', ['comandas.view', 'orders.view', 'printing.queue'])
   assert.equal(response.status, 200)
   const body = await response.json()
 
@@ -141,6 +141,20 @@ test('reservation detail returns official reservation, order and automatic print
     () => call(db, '/api/table-reservations/foreign-reservation', ['comandas.view']),
     (error) => error.status === 404 && error.code === 'TABLE_RESERVATION_NOT_FOUND',
   )
+})
+
+test('reservation reads project nested orders printing metadata and history by their grants', async () => {
+  const db = seed()
+  const tabOnly = await (await call(db, '/api/table-reservations/reservation-1', ['comandas.view'])).json()
+  assert.equal(tabOnly.reservation.id, 'reservation-1')
+  assert.equal(Object.hasOwn(tabOnly, 'order'), false)
+  assert.equal(Object.hasOwn(tabOnly, 'printJob'), false)
+  assert.equal(Object.hasOwn(tabOnly, 'hasManualPrintHistory'), false)
+  db.exec("UPDATE orders SET status='Cancelado' WHERE id='order-2'")
+  const history = await (await call(db, '/api/table-reservations', ['orders.history'])).json()
+  assert.deepEqual(history.reservations.map(({ id }) => id), ['reservation-2'])
+  const active = await (await call(db, '/api/table-reservations', ['orders.view'])).json()
+  assert.deepEqual(active.reservations.map(({ id }) => id), ['reservation-1'])
 })
 
 test('bootstrap exposes only nextReservation on tables and never a 90-day reservation collection', async () => {

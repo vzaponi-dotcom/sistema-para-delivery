@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { getBootstrap } from '../../../infrastructure/api/bootstrapApi.js'
 import { ordersApi } from '../../../domains/orders/index.js'
 import { createCollectionSyncGuard, removeById, upsertById, upsertManyById } from './dataSync.js'
@@ -49,6 +49,7 @@ export function useOperationalDataRuntime({
   globalSyncEnabled = false,
   ordersSyncEnabled = false,
   effectiveConfigVersion = null,
+  accessContextId = null,
 } = {}) {
   const [business, setBusiness] = useState(null)
   const [bootstrapEffectiveConfig, setBootstrapEffectiveConfig] = useState(null)
@@ -69,6 +70,11 @@ export function useOperationalDataRuntime({
   const effectiveConfigVersionRef = useRef(effectiveConfigVersion)
   const onUnauthorizedRef = useRef(onUnauthorized)
   const apiRef = useRef(api)
+  const accessContextRef = useRef(accessContextId)
+  const stateAccessContextRef = useRef(accessContextId)
+  const renderGuard = syncGuardRef.current
+  // Invalidate at render time, before an older read or mutation can commit.
+  accessContextRef.current = accessContextId
 
   useEffect(() => { effectiveConfigVersionRef.current = effectiveConfigVersion }, [effectiveConfigVersion])
   useEffect(() => { onUnauthorizedRef.current = onUnauthorized }, [onUnauthorized])
@@ -101,6 +107,7 @@ export function useOperationalDataRuntime({
   const applyOfficialEffects = useCallback(({
     order,
     orders: nextOrders,
+    deletedOrderIds,
     movement,
     movements: nextMovements,
     deletedMovementId,
@@ -113,8 +120,9 @@ export function useOperationalDataRuntime({
     product,
     deletedProductId,
   }) => {
+    if (accessContextRef.current !== accessContextId || renderGuard !== syncGuardRef.current) return false
     const changed = []
-    if (order || Array.isArray(nextOrders)) changed.push('orders')
+    if (order || Array.isArray(nextOrders) || deletedOrderIds?.length) changed.push('orders')
     if (movement || deletedMovementId || Array.isArray(nextMovements)) changed.push('movements')
     if (nextFinanceSettings !== undefined) changed.push('financeSettings')
     if (table || Array.isArray(nextTables)) changed.push('tables')
@@ -126,6 +134,7 @@ export function useOperationalDataRuntime({
     if (changed.some((key) => PAYMENT_COLLECTIONS.includes(key))) officialRevisionRef.current += 1
     if (order) setOrders((current) => upsertById(current, order))
     if (Array.isArray(nextOrders) && nextOrders.length) setOrders((current) => upsertManyById(current, nextOrders))
+    if (Array.isArray(deletedOrderIds) && deletedOrderIds.length) setOrders((current) => current.filter(({ id }) => !deletedOrderIds.includes(id)))
     if (movement) setMovements((current) => upsertById(current, movement))
     if (Array.isArray(nextMovements) && nextMovements.length) setMovements((current) => upsertManyById(current, nextMovements))
     if (deletedMovementId) setMovements((current) => removeById(current, deletedMovementId))
@@ -147,11 +156,12 @@ export function useOperationalDataRuntime({
         tables: nextTables,
       },
     }
-  }, [commitTables])
+  }, [accessContextId, commitTables, renderGuard])
 
   const refreshBootstrap = useCallback(({ background = false } = {}) => {
     if (bootstrapSyncInFlightRef.current) return bootstrapSyncInFlightRef.current
     const guard = syncGuardRef.current
+    const readAccessContext = accessContextRef.current
     const token = guard.beginRead(DATA_COLLECTIONS)
     if (!background) setBootstrapState('loading')
 
@@ -159,12 +169,12 @@ export function useOperationalDataRuntime({
       try {
         const configVersion = readEffectiveConfigVersion(effectiveConfigVersionRef.current)
         const data = await apiRef.current.getBootstrap(background ? configVersion : undefined)
-        if (guard !== syncGuardRef.current) return false
+        if (guard !== syncGuardRef.current || readAccessContext !== accessContextRef.current) return false
         const receipt = applyBootstrapCollections(data, token)
         if (!background) setBootstrapState('ready')
         return receipt
       } catch (error) {
-        if (guard !== syncGuardRef.current) return false
+        if (guard !== syncGuardRef.current || readAccessContext !== accessContextRef.current) return false
         if (error?.status === 401) onUnauthorizedRef.current(error)
         else if (!background) setBootstrapState('error')
         return false
@@ -183,16 +193,17 @@ export function useOperationalDataRuntime({
   const refreshOrders = useCallback(async () => {
     if (ordersSyncInFlightRef.current) return ordersSyncInFlightRef.current
     const guard = syncGuardRef.current
+    const readAccessContext = accessContextRef.current
     const token = guard.beginRead(['orders'])
     const read = async () => {
       try {
         const data = await apiRef.current.getOrders()
-        if (guard !== syncGuardRef.current || !Array.isArray(data?.orders) || !guard.canApply(token, 'orders')) return false
+        if (guard !== syncGuardRef.current || readAccessContext !== accessContextRef.current || !Array.isArray(data?.orders) || !guard.canApply(token, 'orders')) return false
         officialRevisionRef.current += 1
         setOrders(data.orders)
         return data.orders
       } catch (error) {
-        if (guard === syncGuardRef.current && error?.status === 401) onUnauthorizedRef.current(error)
+        if (guard === syncGuardRef.current && readAccessContext === accessContextRef.current && error?.status === 401) onUnauthorizedRef.current(error)
         return false
       } finally {
         if (guard === syncGuardRef.current) ordersSyncInFlightRef.current = false
@@ -221,6 +232,12 @@ export function useOperationalDataRuntime({
     setFinanceSettings(null)
   }, [])
 
+  useLayoutEffect(() => {
+    if (stateAccessContextRef.current === accessContextId) return
+    stateAccessContextRef.current = accessContextId
+    resetOperationalData()
+  }, [accessContextId, resetOperationalData])
+
   useEffect(() => {
     if (!globalSyncEnabled || bootstrapState !== 'ready') return undefined
     return createRefreshSubscription({
@@ -237,26 +254,30 @@ export function useOperationalDataRuntime({
     })
   }, [bootstrapState, ordersSyncEnabled, refreshOrders])
 
-  return useMemo(() => ({
-    business,
-    bootstrapState,
-    bootstrapEffectiveConfig,
-    clients,
-    products,
-    orders,
-    tables,
-    tableTabs,
-    movements,
-    financeSettings,
-    refreshBootstrap,
-    refreshBootstrapSilently,
-    refreshOrders,
-    applyOfficialEffects,
-    resetOperationalData,
-    getSyncGuard: () => syncGuardRef.current,
-    getOfficialRevision: () => officialRevisionRef.current,
-    getOfficialTables: () => officialTablesRef.current,
-  }), [
+  return useMemo(() => {
+    const currentAccess = stateAccessContextRef.current === accessContextId
+    return {
+      business: currentAccess ? business : null,
+      bootstrapState: currentAccess ? bootstrapState : 'idle',
+      bootstrapEffectiveConfig: currentAccess ? bootstrapEffectiveConfig : null,
+      clients: currentAccess ? clients : [],
+      products: currentAccess ? products : [],
+      orders: currentAccess ? orders : [],
+      tables: currentAccess ? tables : [],
+      tableTabs: currentAccess ? tableTabs : [],
+      movements: currentAccess ? movements : [],
+      financeSettings: currentAccess ? financeSettings : null,
+      refreshBootstrap,
+      refreshBootstrapSilently,
+      refreshOrders,
+      applyOfficialEffects,
+      resetOperationalData,
+      getSyncGuard: () => syncGuardRef.current,
+      getOfficialRevision: () => officialRevisionRef.current,
+      getOfficialTables: () => stateAccessContextRef.current === accessContextRef.current ? officialTablesRef.current : [],
+    }
+  }, [
+    accessContextId,
     applyOfficialEffects,
     business,
     bootstrapEffectiveConfig,

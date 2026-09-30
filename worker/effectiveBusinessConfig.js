@@ -26,13 +26,13 @@ const LOADERS = Object.freeze({ operations: loadOperations, paymentMethods: load
 const selectedDomains = (granted) => Object.entries(DOMAIN_NEEDS)
   .filter(([, needs]) => needs.some((capability) => granted?.has(capability))).map(([domain]) => domain)
 const capabilityIdentity = (granted) => [...(granted instanceof Set ? granted : [])].sort()
-const digestVersion = async (revisions, granted) => {
-  const payload = JSON.stringify({ revisions: Object.entries(revisions).sort(([a], [b]) => a.localeCompare(b)), granted: capabilityIdentity(granted) })
+const digestVersion = async (revisions, granted, businessId, userId) => {
+  const payload = JSON.stringify({ businessId, userId, revisions: Object.entries(revisions).sort(([a], [b]) => a.localeCompare(b)), granted: capabilityIdentity(granted) })
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(payload))
   return `v1-${Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('').slice(0, 24)}`
 }
 
-export async function readEffectiveConfigVersion(db, businessId, granted) {
+export async function readEffectiveConfigVersion(db, businessId, granted, userId = null) {
   const domains = selectedDomains(granted)
   const results = domains.length ? await db.batch(domains.map((domain) => db.prepare(REVISION_SQL[domain]).bind(businessId))) : []
   const revisions = {}
@@ -41,7 +41,7 @@ export async function readEffectiveConfigVersion(db, businessId, granted) {
     if (!Number.isSafeInteger(revision) || revision < 0) throw settingsError('SETTINGS_UNAVAILABLE', 503)
     revisions[domain] = revision
   })
-  return { version: await digestVersion(revisions, granted), revisions }
+  return { version: await digestVersion(revisions, granted, businessId, userId), revisions }
 }
 
 const project = (domain, resource) => {
@@ -57,12 +57,12 @@ const project = (domain, resource) => {
     .map(({ id, type, label }) => ({ id, type, label })) }
 }
 
-export async function loadEffectiveBusinessConfig(db, businessId, granted) {
+export async function loadEffectiveBusinessConfig(db, businessId, granted, userId = null) {
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const before = await readEffectiveConfigVersion(db, businessId, granted)
+    const before = await readEffectiveConfigVersion(db, businessId, granted, userId)
     const domains = Object.keys(before.revisions)
     const resources = await Promise.all(domains.map((domain) => LOADERS[domain](db, businessId)))
-    const after = await readEffectiveConfigVersion(db, businessId, granted)
+    const after = await readEffectiveConfigVersion(db, businessId, granted, userId)
     if (before.version !== after.version) continue
     const effective = { version: after.version, revisions: after.revisions }
     domains.forEach((domain, index) => { effective[domain] = project(domain, resources[index]) })

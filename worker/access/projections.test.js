@@ -1,0 +1,162 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { createSettingsDb } from '../test-support/settingsDb.js'
+import { seedBuiltinRoles } from './roles.js'
+import { createUserSession } from './sessions.js'
+import { handleRequest } from '../index.js'
+import { createOrder, updateOrderStatus } from '../repositories.js'
+import { canReadOrder, projectMutationEffects } from './projections.js'
+import { getBusinessDate } from '../../shared/finance.js'
+
+const BUSINESS = 'amor-e-sabor'
+const request = (token, path, method = 'GET', body) => new Request(`https://delivery.test${path}`, {
+  method, headers: { cookie: `amor_session=${token}`, origin: 'https://delivery.test', 'content-type': 'application/json', 'idempotency-key': crypto.randomUUID() },
+  ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+})
+async function setup(t) {
+  const fixture = createSettingsDb(); t.after(fixture.close)
+  const { db, sqlite } = fixture, timestamp = new Date().toISOString()
+  await seedBuiltinRoles(db, BUSINESS, new Date())
+  sqlite.exec("UPDATE business_auth_state SET mode='user_only'")
+  const tokens = {}
+  for (const name of ['manager', 'operator', 'operator2', 'empty', 'history', 'active', 'tables']) {
+    const roleId = ['manager', 'operator', 'operator2'].includes(name) ? `${BUSINESS}:${name === 'operator2' ? 'operator' : name}` : name
+    if (roleId === name) sqlite.prepare('INSERT INTO roles(id,business_id,code,name,created_at,updated_at) VALUES(?,?,?,?,?,?)').run(name, BUSINESS, name, name, timestamp, timestamp)
+    sqlite.prepare('INSERT INTO users(id,business_id,display_name,login_normalized,role_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?)').run(name, BUSINESS, name, name, roleId, timestamp, timestamp)
+    sqlite.prepare('INSERT INTO user_credentials(business_id,user_id,password_verifier,password_changed_at,created_at,updated_at) VALUES(?,?,?,?,?,?)').run(BUSINESS, name, 'test-verifier', timestamp, timestamp, timestamp)
+    tokens[name] = (await createUserSession({ DB: db }, { businessId: BUSINESS, userId: name })).token
+  }
+  for (const [role, capability] of [['history', 'orders.history'], ['active', 'orders.view'], ['tables', 'tables.view']]) {
+    sqlite.prepare('INSERT INTO role_capabilities(business_id,role_id,capability) VALUES(?,?,?)').run(BUSINESS, role, capability)
+  }
+  sqlite.prepare("INSERT INTO products(id,business_id,category,size,name,price_cents,active,created_at,updated_at) VALUES('product',?,'Meals','','Prato',2500,1,?,?)").run(BUSINESS, timestamp, timestamp)
+  sqlite.prepare("INSERT INTO clients(id,business_id,name,phone,address,created_at,updated_at) VALUES('client',?,'Ana','','',?,?)").run(BUSINESS, timestamp, timestamp)
+  sqlite.prepare("INSERT INTO tables(id,business_id,name,name_key,sort_order,is_active,created_at,updated_at) VALUES('table',?,'Mesa 1','mesa 1',1,1,?,?)").run(BUSINESS, timestamp, timestamp)
+  const input = (key, type = 'Retirada') => ({
+    customerIdentity: type === 'Local' ? { type: 'table', tableId: 'table', clientId: null } : { type: 'registered_client', clientId: 'client' },
+    type, orderDate: '2026-09-30', items: [{ productId: 'product', quantity: 1, note: '' }], deliveryFeeCents: 0,
+    adjustment: { type: 'none', mode: 'fixed', storedValue: 0, reason: '' }, paymentAllocations: null, idempotencyKey: key,
+  })
+  const active = await createOrder(db, BUSINESS, input('active'))
+  const history = await createOrder(db, BUSINESS, input('history'))
+  await updateOrderStatus(db, BUSINESS, history.id)
+  const local = await createOrder(db, BUSINESS, input('local', 'Local'))
+  return { ...fixture, env: { DB: db }, tokens, active, history, local, input }
+}
+async function read(env, token, path, method, body) {
+  const response = await handleRequest(request(token, path, method, body), env)
+  const text = await response.text(), data = JSON.parse(text)
+  assert.equal(response.status, method === 'POST' ? 201 : 200, text)
+  return data
+}
+
+test('private operational responses cannot be cached across access contexts', async (t) => {
+  const { env, tokens } = await setup(t)
+  for (const path of ['/api/bootstrap', '/api/orders', '/api/settings/effective']) {
+    const response = await handleRequest(request(tokens.operator, path), env)
+    assert.equal(response.status, 200)
+    assert.equal(response.headers.get('cache-control'), 'no-store')
+  }
+})
+
+test('operator raw bootstrap and refresh retain operational amounts and omit managerial collections', async (t) => {
+  const { env, tokens, active, history, local } = await setup(t)
+  const first = await read(env, tokens.operator, '/api/bootstrap?businessId=other')
+  assert.equal(first.business.id, BUSINESS)
+  assert.deepEqual(new Set(first.orders.map(({ id }) => id)), new Set([active.id, history.id, local.id]))
+  assert.equal(first.orders.find(({ id }) => id === active.id).total, 25)
+  assert.equal(first.tableTabs.length, 1)
+  for (const key of ['movements', 'financeSettings', 'balances', 'reports', 'receipts']) assert.equal(Object.hasOwn(first, key), false, key)
+  const refresh = await read(env, tokens.operator, `/api/bootstrap?knownEffectiveConfigVersion=${first.effectiveConfigVersion}`)
+  assert.equal(Object.hasOwn(refresh, 'effectiveBusinessConfig'), false)
+  assert.equal(Object.hasOwn(refresh, 'movements'), false)
+  const manager = await read(env, tokens.manager, '/api/bootstrap')
+  assert.ok(Array.isArray(manager.movements)); assert.equal(Object.hasOwn(manager, 'financeSettings'), true)
+})
+
+test('empty and status-specific grants project bootstrap and direct order reads', async (t) => {
+  const { env, tokens, active, history, local } = await setup(t)
+  const empty = await read(env, tokens.empty, '/api/bootstrap')
+  for (const key of ['clients', 'products', 'orders', 'tables', 'tableTabs', 'movements', 'financeSettings']) assert.equal(Object.hasOwn(empty, key), false, key)
+  assert.deepEqual(Object.keys(empty.effectiveBusinessConfig).sort(), ['revisions', 'version'])
+  for (const [role, expected] of [['history', [history.id]], ['active', [active.id, local.id]]]) {
+    for (const path of ['/api/bootstrap', '/api/orders?businessId=other']) {
+      const data = await read(env, tokens[role], path)
+      assert.deepEqual(new Set(data.orders.map(({ id }) => id)), new Set(expected))
+    }
+  }
+  const tables = await read(env, tokens.tables, '/api/bootstrap')
+  assert.equal(Object.hasOwn(tables, 'tableTabs'), false)
+  assert.equal(Object.hasOwn(tables.tables[0], 'openTableTab'), false)
+  assert.equal(Object.hasOwn(tables.tables[0], 'nextReservation'), false)
+})
+
+test('order table-tab and client batch payment confirmations omit movement rows', async (t) => {
+  const { env, tokens, active, history, local, sqlite, db, input } = await setup(t)
+  const second = await createOrder(db, BUSINESS, input('second-client-order'))
+  await updateOrderStatus(db, BUSINESS, second.id)
+  for (const path of [`/api/orders/${active.id}/payment`, '/api/clients/client/receivables/payment', `/api/table-tabs/${local.tableTabId}/payment`]) {
+    const data = await read(env, tokens.operator, path, 'POST', {
+      allocations: [{ methodCode: 'cash', amountCents: path.includes('receivables') ? 5000 : 2500 }], ...(path.includes('receivables') ? { orderIds: [history.id, second.id] } : {}),
+    })
+    assert.equal(Object.hasOwn(data, 'movements'), false)
+    assert.equal(Object.hasOwn(data, 'financeSettings'), false)
+    assert.ok(data.payment || data.payments?.length)
+    for (const order of data.orders || [data.order]) assert.equal(order.paymentStatus, 'Pago')
+  }
+  assert.equal(sqlite.prepare('SELECT count(*) n FROM payments').get().n, 4)
+  assert.equal(sqlite.prepare('SELECT count(*) n FROM movements').get().n, 3)
+})
+
+test('effective versions are isolated by trusted user and current grants on both endpoints', async (t) => {
+  const { env, tokens, sqlite } = await setup(t)
+  const first = await read(env, tokens.operator, '/api/bootstrap')
+  const other = await read(env, tokens.operator2, `/api/bootstrap?knownEffectiveConfigVersion=${first.effectiveConfigVersion}`)
+  assert.notEqual(other.effectiveConfigVersion, first.effectiveConfigVersion)
+  assert.ok(other.effectiveBusinessConfig)
+  const effective = await read(env, tokens.operator2, `/api/settings/effective?knownVersion=${first.effectiveConfigVersion}`)
+  assert.equal(effective.version, other.effectiveConfigVersion)
+  sqlite.exec("UPDATE users SET role_id='empty' WHERE id='operator'")
+  const changed = await read(env, tokens.operator, `/api/bootstrap?knownEffectiveConfigVersion=${first.effectiveConfigVersion}`)
+  assert.notEqual(changed.effectiveConfigVersion, first.effectiveConfigVersion)
+  assert.equal(Object.hasOwn(changed, 'orders'), false)
+})
+
+test('shared order read policy fails closed and separates active cancelled and finished states', () => {
+  for (const [status, active, history] of [['Em preparo', true, false], ['Finalizado', false, true], ['Cancelado', false, true], ['unknown', false, false]]) {
+    assert.equal(canReadOrder({ status }, new Set(['orders.view'])), active)
+    assert.equal(canReadOrder({ status }, new Set(['orders.history'])), history)
+    assert.equal(canReadOrder({ status }, new Set()), false)
+  }
+  assert.equal(canReadOrder(null, new Set(['orders.view', 'orders.history'])), false)
+})
+
+test('mutation projection cannot expose unknown administrative collections or ungranted effects', () => {
+  const payload = { order: { id: 'active', status: 'Em preparo' }, orders: [{ id: 'closed', status: 'Cancelado' }],
+    client: { id: 'client' }, product: { id: 'product' }, table: { id: 'table' }, tableTab: { id: 'tab' },
+    movement: { id: 'movement' }, movements: [], financeSettings: {}, receipts: [{}], balances: {}, reports: {}, receipt: { revision: 1 } }
+  assert.deepEqual(projectMutationEffects(payload, new Set()), { deletedOrderIds: ['active', 'closed'] })
+  assert.deepEqual(projectMutationEffects(payload, new Set(['orders.history'])), { orders: [{ id: 'closed', status: 'Cancelado' }], deletedOrderIds: ['active'] })
+})
+
+test('finalizing without history read returns an eviction effect rather than a terminal order', async (t) => {
+  const { env, tokens, sqlite, active } = await setup(t)
+  sqlite.prepare('INSERT INTO role_capabilities(business_id,role_id,capability) VALUES(?,?,?)').run(BUSINESS, 'active', 'orders.finalize')
+  const data = await read(env, tokens.active, `/api/orders/${active.id}/status`, 'PATCH', { status: 'Finalizado' })
+  assert.deepEqual(data, { deletedOrderIds: [active.id] })
+})
+
+test('ordinary paid order creation with canonical none adjustment projects its persisted effects', async (t) => {
+  const { env, tokens, sqlite } = await setup(t)
+  const data = await read(env, tokens.operator, '/api/orders', 'POST', {
+    customerIdentity: { type: 'registered_client', clientId: 'client' }, type: 'Retirada', orderDate: getBusinessDate(new Date()),
+    items: [{ productId: 'product', quantity: 1 }], adjustment: { type: 'none', mode: 'fixed', value: 0, reason: '' },
+    paymentAllocations: [{ methodCode: 'cash', amountCents: 2500 }],
+  })
+  assert.equal(data.order.paymentStatus, 'Pago')
+  assert.equal(data.order.total, 25)
+  assert.equal(Object.hasOwn(data, 'movements'), false)
+  assert.equal(Object.hasOwn(data, 'financeSettings'), false)
+  assert.equal(sqlite.prepare('SELECT count(*) n FROM movements WHERE order_id=?').get(data.order.id).n, 1)
+})
+

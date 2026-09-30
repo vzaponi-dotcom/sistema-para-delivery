@@ -4,6 +4,7 @@ import { loadOrderById } from './repositories.js'
 import { cancelOrder } from './orderCancellation.js'
 import { listTables } from './tableRepository.js'
 import { requireCapability, authorizeOrderCreate } from './access/authorization.js'
+import { projectMutationEffects } from './access/projections.js'
 import { confirmTableReservationArrival } from './tableReservationArrival.js'
 import { validateCheckoutInput } from './orderCheckout.js'
 import { updateTableReservation } from './tableReservationUpdate.js'
@@ -17,7 +18,7 @@ const FILTER_KEYS = new Set(['status', 'from', 'to', 'tableId'])
 
 const requireReservationRead = (context) => {
   const granted = context?.granted
-  if (granted?.has('orders.view') || granted?.has('comandas.view')) return
+  if (granted?.has('orders.view') || granted?.has('orders.history') || granted?.has('comandas.view')) return
   throw apiError(403, 'FORBIDDEN', 'Você não pode acessar as reservas.')
 }
 
@@ -51,11 +52,12 @@ const parseFilters = (searchParams) => {
 
 export const handleTableReservationApi = async (request, env, context, url = new URL(request.url)) => {
   if (!url.pathname.startsWith('/api/table-reservations')) return null
+  const effectsJson = (payload) => json(projectMutationEffects(payload, context.granted))
 
   if (url.pathname === '/api/table-reservations' && request.method === 'GET') {
     requireReservationRead(context)
     const reservations = await listTableReservations(env.DB, context.businessId, parseFilters(url.searchParams))
-    return json({ reservations })
+    return effectsJson({ reservations })
   }
 
   const detailMatch = /^\/api\/table-reservations\/([^/]+)$/.exec(url.pathname)
@@ -72,7 +74,7 @@ export const handleTableReservationApi = async (request, env, context, url = new
         .bind(context.businessId, reservation.orderId).first(),
     ])
     if (!order) throw apiError(404, 'TABLE_RESERVATION_NOT_FOUND', 'Reserva não encontrada.')
-    return json({
+    return effectsJson({
       reservation,
       order,
       printJob,
@@ -104,7 +106,7 @@ export const handleTableReservationApi = async (request, env, context, url = new
       { ...validated, expectedRevision: body.expectedRevision },
       now,
     )
-    return json({
+    return effectsJson({
       ...result,
       tables: await listTables(env.DB, context.businessId),
     })
@@ -130,7 +132,7 @@ export const handleTableReservationApi = async (request, env, context, url = new
       { expectedRevision: body.expectedRevision, mutationId },
       now,
     )
-    return json({
+    return effectsJson({
       ...result,
       tables: await listTables(env.DB, context.businessId),
     })
@@ -170,7 +172,7 @@ export const handleTableReservationApi = async (request, env, context, url = new
       },
     )
     const closedReservation = await loadTableReservationById(env.DB, context.businessId, reservation.id)
-    return json({
+    return effectsJson({
       ...result,
       reservation: closedReservation,
       tables: await listTables(env.DB, context.businessId),

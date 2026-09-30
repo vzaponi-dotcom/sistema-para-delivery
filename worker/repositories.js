@@ -1,4 +1,5 @@
 import { formatClientPhone, normalizeClientPhone } from '../shared/clientIdentity.js'
+import { projectBootstrap } from './access/projections.js'
 import { getBusinessDate } from '../shared/finance.js'
 import { createOrderPrintDocument } from '../shared/orderPrintDocument.js'
 import { resolveAutomaticOrderPrintAvailableAt, resolvePrintCopies } from '../shared/printContextPolicy.js'
@@ -136,7 +137,7 @@ const productSnapshotSize = (row) => {
   return presentation === 'Unidade' ? 'Un' : presentation
 }
 
-export const loadBootstrap = async (db, businessId, effectiveBusinessConfig) => {
+export const loadBootstrap = async (db, businessId, effectiveBusinessConfig, granted) => {
   const business = await db.prepare(`SELECT
       b.id,
       b.name,
@@ -169,7 +170,7 @@ export const loadBootstrap = async (db, businessId, effectiveBusinessConfig) => 
     current.push(mapOrderItemRow(itemRow))
     itemsByOrder.set(itemRow.order_id, current)
   }
-  return {
+  const payload = {
     business: business
       ? {
           id: business.id,
@@ -187,6 +188,7 @@ export const loadBootstrap = async (db, businessId, effectiveBusinessConfig) => 
     financeSettings,
     ...(effectiveBusinessConfig ? { effectiveBusinessConfig } : {}),
   }
+  return granted instanceof Set ? projectBootstrap(payload, granted) : payload
 }
 
 const findClientRow = (db, businessId, id) => db.prepare(`SELECT id, name, phone, address FROM clients WHERE id = ? AND business_id = ? LIMIT 1`).bind(id, businessId).first()
