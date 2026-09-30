@@ -83,7 +83,7 @@ Tasks 1–10 are independently testable commits, but do not enable `user_only` o
 
 ### Task 3: User-bound login, session modes and revocation
 
-**Files:** Create `worker/access/sessions.js`, `worker/access/sessions.test.js`, `worker/access/loginThrottle.js`, `worker/access/loginThrottle.test.js`; modify `worker/auth.js`, `worker/auth.test.js`, `worker/index.js`, `worker/settingsAccess.js`.
+**Files:** Create `worker/access/sessions.js`, `worker/access/sessions.test.js`, `worker/access/loginThrottle.js`, `worker/access/loginThrottle.test.js`, the minimal `worker/access/audit.js` security-event helper and its focused test; modify `worker/auth.js`, `worker/auth.test.js`, `worker/index.js`, `worker/settingsAccess.js`. Task 8 extends the same audit module for business events.
 
 **Interfaces:** `createUserSession(env, { businessId, userId, deviceMode, now }): Promise<{ token, sessionId, expiresAt }>`; `authenticateHumanRequest(request, env, now): Promise<AccessContext|null>` where `AccessContext = { businessId, userId, sessionId, displayName, roleName, granted: Set<string>, deviceMode }`; `revokeUserSessions(db, businessId, userId, now): Promise<void>`; `checkLoginThrottle(db, { businessId, normalizedLogin, originKey, now }): Promise<{ allowed, retryAfterSeconds }>` records account/origin attempts without account enumeration. `/api/auth/login` accepts `{ identifier, password, deviceMode }` in `enrollment`/`user_only`; `/api/auth/session` returns user and current grants. Legacy PIN is accepted only in `legacy`/`enrollment`, with no `access.*` grants.
 
@@ -149,7 +149,7 @@ Tasks 1–10 are independently testable commits, but do not enable `user_only` o
 
 - [ ] **Step 1: Write failing tests.** Mutation and event either both commit or both roll back; created order/payment/refund/transfer/print action retains stable actor ID and display snapshot; password/token never appears in event; operator cannot query activity; paging/filtering stays within business. Include forged `actorLabel` and repeated idempotency key: no duplicate business event. Failed login, blocked login, session revocation and access denial create minimal security events without secrets.
 - [ ] **Step 2: Run red.** `node --test worker/access/audit.test.js worker/access/activityApi.test.js` → FAIL.
-- [ ] **Step 3: Add audit statements to existing D1 transactions.** Keep event payload small; use compensating transaction boundary only where existing mutation spans effects that cannot be batched, and make outcome explicit. Read activity through indexed, bounded queries.
+- [ ] **Step 3: Add audit statements to existing D1 transactions.** Keep event payload small. Official D1 mutation and audit must share the same batch and fail together; compensation cannot replace that atomicity. Physical print effects record intent and observed outcome separately without claiming uncertain delivery was confirmed. Read activity through indexed, bounded queries.
 - [ ] **Step 4: Run green.** Same command plus `node --test worker/orderCancellationHttp.test.js worker/orderPrintingHttp.test.js` → PASS.
 - [ ] **Step 5: Commit.** Commit Task 8 files with `feat(access): record authoritative action history`.
 
@@ -157,7 +157,7 @@ Tasks 1–10 are independently testable commits, but do not enable `user_only` o
 
 **Files:** Modify `src/infrastructure/auth/sessionApi.js`, `src/app/runtime/session/useSessionRuntime.js`, `src/app/shell/LoginScreen.jsx`, `src/app/shell/AppRoot.jsx`, `src/app/shell/OperationMenu.jsx`, `src/app/shell/AppShell.jsx`, `src/App.jsx` and adjacent tests.
 
-**Interfaces:** `login({ identifier, password, deviceMode })`; `useSessionRuntime` exposes `handleSwitchUser` that uses existing guarded logout flow; session context carries user, grants and generation. Operation menu shows name, Minha conta, Trocar usuário and Sair. Anonymous screen never shows previous user's data.
+**Interfaces:** `login({ identifier, password, deviceMode })`; `src/App.jsx` composes `handleSwitchUser` through the existing draft/payment/print guards before the session runtime revokes and clears the current login; session context carries user, grants and generation. Operation menu shows name, Minha conta, Trocar usuário and Sair. Anonymous screen never shows previous user's data.
 
 - [ ] **Step 1: Write failing UI/runtime tests.** Login defaults shared and sends identifier/password/mode; personal is opt-in; permission change and 401/403 navigation cannot flash restricted page; switch with dirty order asks before discarding; accepted payment and uncertain print are not replayed; stale response from former user is ignored.
 - [ ] **Step 2: Run red.** `node --test src/infrastructure/auth/sessionApi.test.js src/app/runtime/session/useSessionRuntime.test.js src/app/shell/OperationMenu.test.js` → FAIL.
@@ -167,11 +167,11 @@ Tasks 1–10 are independently testable commits, but do not enable `user_only` o
 
 ### Task 10: Team, own account and activity surfaces
 
-**Files:** Create `src/domains/access/infrastructure/accessApi.js`, `src/domains/access/ui/TeamAccess.jsx`, `src/domains/access/ui/ActivityLog.jsx`, `src/domains/access/ui/MyAccount.jsx` and focused tests; modify `src/app/navigation/registry.js`, `src/app/surfaces/settings/SettingsHome.jsx`, `src/app/surfaces/settings/SettingsSurface.jsx`, `src/app/shell/OperationMenu.jsx`, `src/App.jsx`, customer UI command gates.
+**Files:** Create `src/domains/access/infrastructure/accessApi.js`, `src/domains/access/ui/TeamAccess.jsx`, `src/domains/access/ui/ActivityLog.jsx`, `src/domains/access/ui/MyAccount.jsx`, `src/domains/access/ui/InvitationAccept.jsx` and focused tests; modify `src/app/navigation/registry.js`, `src/app/surfaces/settings/SettingsHome.jsx`, `src/app/surfaces/settings/SettingsSurface.jsx`, `src/app/shell/OperationMenu.jsx`, `src/App.jsx`, customer UI command gates.
 
-**Interfaces:** Routes `/configuracoes/equipe`, `/configuracoes/atividades`, `/minha-conta`; access API covers users, invitation/reset, own password and filtered activity. Team page shows immutable V1 profile grant summary, account status and one-time invitation. Activity page paginates/filter server data. Customer create/update controls use separate grants; delete remains manager-only.
+**Interfaces:** Routes `/configuracoes/equipe`, `/configuracoes/atividades`, `/minha-conta`, public `/ativar-conta`; access API covers users, invitation/reset acceptance, own password and filtered activity. Invitation page accepts a pasted one-use token and password, then returns to login without authentication. Team page shows immutable V1 profile grant summary, account status and one-time invitation. Activity page paginates/filter server data. Customer create/update controls use separate grants; delete remains manager-only.
 
-- [ ] **Step 1: Write failing UI tests.** Operator cannot see team/activity controls or open direct URLs; manager can create/deactivate/reset; last-manager 409 preserves view; invite token shown once; activity filters by user/date/type; both roles can change own password; operator can quick-create/edit client but cannot delete.
+- [ ] **Step 1: Write failing UI tests.** Operator cannot see team/activity controls or open direct URLs; manager can create/deactivate/reset; last-manager 409 preserves view; invite token shown once; anonymous recipient sets password with valid invitation and returns to login, invalid/expired/reused tokens produce recoverable feedback; activity filters by user/date/type; both roles can change own password; operator can quick-create/edit client but cannot delete.
 - [ ] **Step 2: Run red.** `node --test src/domains/access/ui/TeamAccess.test.js src/domains/access/ui/ActivityLog.test.js src/domains/access/ui/MyAccount.test.js src/actionCapabilities.test.js` → FAIL.
 - [ ] **Step 3: Implement screens, API adapters and route composition.** Preserve focus, mobile layout, light/dark styles and existing settings draft guards; no profile editor or client-side role authorization.
 - [ ] **Step 4: Run green.** Same command plus `node --test src/app/navigation/registry.test.js src/app/surfaces/settings/SettingsSurface.test.js` → PASS.
@@ -185,7 +185,7 @@ Tasks 1–10 are independently testable commits, but do not enable `user_only` o
 
 - [ ] **Step 1: Write failing tests.** Cutover refuses zero activated managers, incomplete credentials, or empty grants; successful cutover revokes old sessions and rejects old PIN; retry is idempotent; emergency invite is one-use and audited; simulated failure leaves auth mode/legacy sessions unchanged.
 - [ ] **Step 2: Run red.** `node --test worker/access/cutover.test.js scripts/infra/issue-44-access-admin.test.js` → FAIL.
-- [ ] **Step 3: Implement controlled CLI, preflight and atomic state transition.** Run migration/enrollment on staging first; document exact operator steps, communication to employees, backup and no automatic PIN rollback.
+- [ ] **Step 3: Implement controlled CLI, preflight and atomic state transition.** Recheck activated-manager and grant readiness within the same write transaction that changes auth mode and revokes legacy sessions. Run migration/enrollment on staging first; document exact operator steps, communication to employees, backup and no automatic PIN rollback.
 - [ ] **Step 4: Run green.** Same command plus `node --test worker/access/sessions.test.js` → PASS.
 - [ ] **Step 5: Commit.** Commit Task 11 files with `feat(access): add controlled account cutover`.
 
@@ -211,11 +211,13 @@ The test in Task 5 is a literal method/path table, not a text search for `requir
 | `POST /api/tables`; `PUT /api/tables/order`; `PATCH /api/tables/:id` | `tables.manage`. |
 | `POST /api/tables/:id/transfer` | `comandas.transfer`. |
 | `POST /api/clients`; `PATCH /api/clients/:id`; `DELETE /api/clients/:id` | `clients.create`; `clients.update`; `clients.delete`, respectively. |
+| `POST /api/clients/:id/receivables/payment` | `payments.receive` + `clients.view`; project returned effects without finance collections. |
 | `GET /api/orders` | `orders.view` for active, `orders.history` for terminal; deny if neither. |
 | `POST /api/orders` | `orders.create`; additional `payments.receive`, `orders.discount`, `orders.backdate` based on payload. |
 | `PATCH /api/orders/:id/status`; `POST /api/orders/:id/payment` | `orders.finalize`; `payments.receive`. |
 | `PATCH /api/orders/:id/payment-promise`; `POST /api/orders/:id/cancel`; `POST /api/orders/:id/refund` | `finance.promises.manage`; `orders.cancel`; `payments.refund`. |
 | `GET /api/table-tabs/:id`; `POST /api/table-tabs/:id/payment` | `comandas.view`; `comandas.view` + `payments.receive`. |
+| `GET /api/table-reservations`, `/api/table-reservations/:id`; `PUT /api/table-reservations/:id`; `POST /api/table-reservations/:id/confirm-arrival`; `POST /api/table-reservations/:id/(cancel|no-show)` | Order/comanda read grants; `orders.create` with compound payload checks; `orders.create`; `orders.cancel` plus `payments.refund` if requested. |
 | `GET /api/table-tabs/:id/print-document`; `POST /api/table-tabs/:id/print-jobs` | `comandas.view` + `printing.execute`. |
 | `POST /api/movements`; `PATCH/DELETE /api/movements/:id`; `PUT /api/finance-settings` | `finance.movements.manage`. |
 | `POST /api/products`; `PATCH/DELETE /api/products/:id` | `products.manage`. |
@@ -226,7 +228,8 @@ The test in Task 5 is a literal method/path table, not a text search for `requir
 | `GET/PUT /api/printing/settings`; `GET /api/printing/stations`; `PUT /api/printing/stations/:id`; `POST /api/printing/stations/:id/make-primary` | `printing.settings.view/printing.settings`; `printing.station.view`; `printing.station.configure`; `printing.station.configure`. |
 | `GET /api/reporting/overview`, `/operation`, `/sales`, `/products`, `/orders`, `/orders/:id`; `POST /api/reporting/export-model` | `reports.view`; `reports.export`. |
 | `GET /api/kitchen-tv/settings`; `POST /api/kitchen-tv/approve`, `/revoke` | `orders.settings.view`; `orders.settings.manage`. |
-| `POST /api/kitchen-tv/pairing-request`; `GET/POST /api/kitchen-tv/pairing-status`; `GET /api/kitchen-tv/state` | Dedicated TV credential/state machine only; never human profile fallback. |
+| `GET /api/kitchen-tv/control`; `PATCH /api/kitchen-tv/control/page`, `/modality`; `PUT/DELETE /api/kitchen-tv/control/orders/:id/hidden` | `orders.view`; `orders.kitchen.control` for mutations (manager only in V1). |
+| `POST /api/kitchen-tv/pairing-request`; `GET/POST /api/kitchen-tv/pairing-status`; `GET /api/kitchen-tv/state`; `POST /api/kitchen-tv/report` | Dedicated TV credential/state machine only; never human profile fallback. |
 | `GET /api/printing/jobs`, `/jobs/summary` | `printing.queue`. |
 | `GET /api/orders/:id/print-document`; `POST /api/orders/:id/print-jobs` | Matching order read grant + `printing.execute`. |
 | `GET /api/printing/qz/certificate`; `POST /api/printing/qz/sign`; `POST /api/printing/test-jobs` | `printing.execute` and existing station/job eligibility. |
