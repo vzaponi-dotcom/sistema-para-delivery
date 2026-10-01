@@ -62,7 +62,7 @@ test('staging workflow targets only staging resources', () => {
   assert.match(workflow, /npm run d1:migrate:staging/)
   assert.match(workflow, /npm run deploy:staging/)
   assert.match(workflow, /STAGING_PIN/)
-  assert.match(workflow, /sistema-para-delivery-staging\.vzaponi\.workers\.dev/)
+  assert.match(workflow, /staging\.mesiva\.com\.br/)
   assert.doesNotMatch(workflow, /npm run d1:migrate:production/)
   assert.doesNotMatch(workflow, /npm run deploy:production/)
   assert.doesNotMatch(workflow, /amor-e-sabor-delivery --remote/)
