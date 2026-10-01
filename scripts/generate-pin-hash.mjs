@@ -1,6 +1,6 @@
 import { hashPin } from '../worker/auth.js'
 
-const pin = process.env.PIN
+const pin = process.env.PIN?.trim()
 if (!pin) {
   console.error('Defina a variável de ambiente PIN antes de gerar o hash.')
   process.exit(1)

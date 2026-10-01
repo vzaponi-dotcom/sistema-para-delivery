@@ -144,7 +144,12 @@ jobs:
             body: JSON.stringify({ pin: process.env.STAGING_PIN }),
           })
           if (!response.ok) {
-            console.error(`Staging login failed with HTTP ${response.status}`)
+            let detail = ''
+            try {
+              const payload = await response.json()
+              detail = payload?.error?.code ? ` / ${payload.error.code}` : ''
+            } catch {}
+            console.error(`Staging login failed with HTTP ${response.status}${detail}`)
             process.exit(1)
           }
           console.log(`Staging login HTTP ${response.status}`)
