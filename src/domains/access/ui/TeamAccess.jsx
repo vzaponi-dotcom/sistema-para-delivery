@@ -4,6 +4,7 @@ import Button from '../../../shared/ui/Button'
 import PageHeader from '../../../shared/ui/PageHeader'
 import Modal from '../../../shared/ui/Modal'
 import SystemSelect from '../../../shared/ui/SystemSelect'
+import Icon from '../../../shared/ui/Icon'
 import { accessApi } from '../infrastructure/accessApi.js'
 import { useAccessRequest } from './useAccessRequest.js'
 import './access.css'
@@ -23,8 +24,15 @@ export default function TeamAccess({ sessionContext, api = accessApi, onApiError
   const data = state.data || { users: [], roles: [] }
   const blocked = writesBlocked || state.pending
   const roleOptions = data.roles.filter(role => role.active !== false).map(role => ({ value: role.id, label: role.name }))
+  const defaultRole = roleOptions.find(role => role.value === 'operator' || role.value.endsWith(':operator'))?.value || roleOptions[0]?.value || ''
+  const managerRole = roleId => data.roles.some(role => role.id === roleId && role.active !== false && role.capabilities.includes('access.users.manage'))
+  const usableManager = user => user.active && user.credentialState === 'active' && managerRole(user.roleId)
+  const isLastManager = user => usableManager(user) && data.users.filter(usableManager).length === 1
+  const roleName = user => data.roles.find(role => role.id === user.roleId)?.name || user.roleName || 'Perfil não informado'
+  const search = (state.search || '').trim().toLocaleLowerCase('pt-BR')
+  const filteredUsers = data.users.filter(user => (!search || `${user.displayName} ${user.identifier}`.toLocaleLowerCase('pt-BR').includes(search)) && (!state.statusFilter || statusLabel(user) === state.statusFilter))
   const accept = async result => {
-    patch({ data: { ...data, users: [...data.users.filter(user => user.id !== result.user.id), result.user] }, invite: result.invite || null })
+    patch({ data: { ...data, users: [...data.users.filter(user => user.id !== result.user.id), result.user] }, invite: result.invite || null, inviteUser: result.invite ? result.user : null, copied: false })
     if (result.user.id === sessionContext.user?.id) await refreshSession?.()
   }
   const mutate = (operation) => {
@@ -33,31 +41,45 @@ export default function TeamAccess({ sessionContext, api = accessApi, onApiError
   }
   const submit = async event => {
     event.preventDefault()
-    const result = await mutate(() => api.createUser({ ...draft, roleId: draft.roleId || data.roles.find(role => role.active !== false)?.id || '' }))
-    if (result && owns()) setDraft({ displayName: '', identifier: '', roleId: '' })
+    const result = await mutate(() => api.createUser({ ...draft, roleId: draft.roleId || defaultRole }))
+    if (result && owns()) patch({ draft: null, inviting: false })
+  }
+  const requestConfirmation = (kind, user) => {
+    if (!canManage || blocked || !owns() || (isLastManager(user) && (kind === 'reset' || user.active)) || (kind === 'reset' && user.id === sessionContext.user?.id)) return
+    patch({ confirmation: { kind, user }, error: '' })
+  }
+  const confirmMutation = async () => {
+    const confirmation = state.confirmation
+    if (!confirmation || blocked || !owns()) return
+    const user = data.users.find(item => item.id === confirmation.user.id)
+    if (!user || (isLastManager(user) && (confirmation.kind === 'reset' || user.active))) return
+    const result = await mutate(() => confirmation.kind === 'reset' ? api.resetPassword(user.id) : api.updateUser(user.id, { active: !user.active }))
+    if (result && owns()) patch({ confirmation: null })
+  }
+  const copyInvite = async () => {
+    if (!state.invite || !owns()) return
+    try { await navigator.clipboard.writeText(state.invite.token); patch({ copied: true, copyError: '' }) }
+    catch { patch({ copyError: 'Selecione o código e copie manualmente.' }) }
   }
   return <div className="settings-page access-page">
-    <PageHeader eyebrow="Configurações" title="Equipe e acessos" description="Contas individuais e perfis fixos de acesso." />
-    {state.error && <p role="alert">{state.error}</p>}
-    <Button variant="secondary" onClick={load} disabled={state.pending}>Atualizar equipe</Button>
+    <div className="access-page-heading"><PageHeader eyebrow="Configurações" title="Equipe e acessos" description="Organize quem participa da operação e o que cada pessoa pode acessar." /><div className="access-heading-actions"><Button variant="secondary" onClick={load} disabled={state.pending}>Atualizar equipe</Button>{canManage && <Button icon="plus" disabled={blocked || !state.data} onClick={() => patch({ inviting: true, draft: null, error: '' })}>Convidar pessoa</Button>}</div></div>
+    {state.error && !state.inviting && !editing && !state.confirmation && <p className="access-feedback access-feedback-error" role="alert">{state.error}</p>}
     {state.pending && <p role="status">Aguarde…</p>}
-    <section className="surface-card access-section" aria-label="Perfis de acesso">
-      <h2>Perfis de acesso</h2>
-      {data.roles.map(role => <details key={role.id}><summary>{role.name}</summary><ul>{role.capabilities.map(capability => <li key={capability}>{capabilityLabel(capability)}</li>)}</ul></details>)}
-    </section>
-    {canManage && <section className="surface-card access-section"><h2>Convidar pessoa</h2><form className="access-form" onSubmit={submit} aria-busy={Boolean(state.pending)}>
-      <label>Nome<input name="displayName" required value={draft.displayName} onChange={event => setDraft({ ...draft, displayName: event.target.value })} /></label>
-      <label>Identificador<input name="identifier" required autoComplete="off" value={draft.identifier} onChange={event => setDraft({ ...draft, identifier: event.target.value })} /></label>
-      <SystemSelect label="Perfil" options={roleOptions} value={draft.roleId || roleOptions[0]?.value || ''} disabled={Boolean(blocked)} onChange={roleId => setDraft({ ...draft, roleId })} />
-      <Button type="submit" disabled={blocked || !state.data}>Criar convite</Button>
-    </form></section>}
     <section className="surface-card access-section" aria-label="Contas da equipe"><h2>Contas da equipe</h2>
-      {state.data && data.users.length === 0 && <p>Nenhuma conta encontrada.</p>}
-      {data.users.map(user => <article className="access-user" key={user.id}><div><strong>{user.displayName}</strong><p>{user.identifier} · {data.roles.find(role => role.id === user.roleId)?.name || user.roleName} · {statusLabel(user)}</p><small>Último acesso: {user.lastAccessAt ? new Date(user.lastAccessAt).toLocaleString('pt-BR') : 'Ainda não registrado'}</small>{user.invite && <p>Convite {user.invite.status === 'expired' ? 'expirado' : 'pendente'} · Validade: {new Date(user.invite.expiresAt).toLocaleString('pt-BR')}</p>}</div>
-        {canManage && <div className="access-actions"><Button variant="secondary" disabled={blocked} onClick={() => setEditing({ ...user })}>Editar {user.displayName}</Button><Button variant="secondary" disabled={blocked} onClick={() => mutate(() => api.updateUser(user.id, { active: !user.active }))}>{user.active ? 'Desativar' : 'Ativar'} {user.displayName}</Button>{user.id !== sessionContext.user?.id && <Button variant="secondary" disabled={blocked} onClick={() => mutate(() => api.resetPassword(user.id))}>Redefinir senha de {user.displayName}</Button>}</div>}
+      <div className="access-team-filters"><label className="access-search">Buscar pessoa<div><Icon name="search" size={18} /><input name="search" placeholder="Nome ou usuário de acesso" value={state.search || ''} onChange={event => patch({ search: event.target.value })} /></div></label><SystemSelect label="Estado da conta" options={[{ value: '', label: 'Todos os estados' }, ...['Ativa', 'Convite pendente', 'Redefinição pendente', 'Desativada'].map(value => ({ value, label: value }))]} value={state.statusFilter || ''} onChange={statusFilter => patch({ statusFilter })} /></div>
+      <div className="access-list-header" aria-hidden="true"><span>Pessoa</span><span>Perfil</span><span>Estado</span><span>Último acesso</span><span /></div>
+      {state.data && filteredUsers.length === 0 && <div className="access-empty"><Icon name="clients" size={28} /><h3>Nenhuma pessoa encontrada</h3><p>{data.users.length ? 'Tente outro nome ou estado da conta.' : 'Convide a primeira pessoa para participar da operação.'}</p></div>}
+      {filteredUsers.map(user => <article className="access-user" key={user.id}>
+        <div className="access-person"><span className="access-avatar" aria-hidden="true">{user.displayName.trim().split(/\s+/).map(part => part[0]).slice(0, 2).join('').toUpperCase()}</span><div><strong>{user.displayName}</strong>{user.id === sessionContext.user?.id && <span className="access-you">Você</span>}<small>{user.identifier}</small></div></div>
+        <span className="access-user-role">{roleName(user)}</span><span className={`access-status ${!user.active ? 'is-inactive' : user.credentialState === 'active' ? 'is-active' : 'is-pending'}`}>{statusLabel(user)}</span>
+        <div className="access-last-seen"><span className="access-mobile-label">Último acesso: </span>{user.lastAccessAt ? new Date(user.lastAccessAt).toLocaleString('pt-BR') : 'Ainda não entrou'}{user.invite && <small>Convite {user.invite.status === 'expired' ? 'expirado' : 'pendente'} · {new Date(user.invite.expiresAt).toLocaleString('pt-BR')}</small>}</div>
+        {canManage ? <details className="access-row-menu"><summary aria-label={`Ações de ${user.displayName}`}><Icon name="menu" size={18} /></summary><div className="access-row-menu-content"><Button variant="secondary" disabled={blocked} onClick={() => { setEditing({ ...user }); patch({ error: '' }) }}>Editar {user.displayName}</Button><Button variant="secondary" disabled={blocked || isLastManager(user)} onClick={() => requestConfirmation('active', user)}>{user.active ? 'Desativar' : 'Ativar'} {user.displayName}</Button>{user.id !== sessionContext.user?.id && <Button variant="secondary" disabled={blocked || isLastManager(user)} onClick={() => requestConfirmation('reset', user)}>Redefinir senha de {user.displayName}</Button>}{isLastManager(user) && <small>Mantenha pelo menos um gerente com acesso ativo.</small>}</div></details> : <span />}
       </article>)}
     </section>
-    {canManage && editing && <Modal title="Editar conta" onClose={() => setEditing(null)}><label>Nome<input value={editing.displayName} onChange={event => setEditing({ ...editing, displayName: event.target.value })} /></label><SystemSelect label="Perfil" options={roleOptions} value={editing.roleId} disabled={Boolean(blocked)} onChange={roleId => setEditing({ ...editing, roleId })} /><Button disabled={blocked || !editing.displayName.trim()} onClick={async () => { const result = await mutate(() => api.updateUser(editing.id, { displayName: editing.displayName, roleId: editing.roleId })); if (result && owns()) setEditing(null) }}>Salvar conta</Button>{state.error && <p role="alert">{state.error}</p>}</Modal>}
-    {state.invite && <Modal title="Convite de uso único" onClose={() => patch({ invite: null })}><p>Copie este token agora e entregue à pessoa. Ele aparece somente nesta confirmação e vale por 24 horas. A pessoa deve abrir /ativar-conta e colá-lo.</p><pre className="access-token">{state.invite.token}</pre><p>Validade: {new Date(state.invite.expiresAt).toLocaleString('pt-BR')}</p><Button onClick={() => patch({ invite: null })}>Fechar convite</Button></Modal>}
+    <section className="surface-card access-section access-profiles" aria-label="Perfis de acesso"><div><h2>Perfis de acesso</h2><p className="access-muted">Os perfis são fixos nesta versão. Consulte o que cada um permite.</p></div>{data.roles.map(role => <details key={role.id}><summary>{role.name}</summary><ul>{role.capabilities.map(capability => <li key={capability}>{capabilityLabel(capability)}</li>)}</ul></details>)}</section>
+    {canManage && state.inviting && <Modal title="Convidar pessoa" className="access-dialog" onClose={() => { if (!state.pending) patch({ inviting: false, draft: null, error: '' }) }}><p className="access-muted">A pessoa recebe um código para criar a própria senha.</p><form className="access-form" onSubmit={submit} aria-busy={Boolean(state.pending)}><label>Nome<input name="displayName" required disabled={blocked} placeholder="Ex.: Ana Souza" value={draft.displayName} onChange={event => setDraft({ ...draft, displayName: event.target.value })} /></label><label>Usuário de acesso<input name="identifier" required autoComplete="off" autoCapitalize="none" spellCheck={false} disabled={blocked} placeholder="Ex.: ana.atendimento" value={draft.identifier} onChange={event => setDraft({ ...draft, identifier: event.target.value })} /><small>É o identificador que a pessoa usará para entrar. Escolha um nome único, como ana.atendimento.</small></label><SystemSelect label="Perfil" options={roleOptions} value={draft.roleId || defaultRole} disabled={Boolean(blocked)} onChange={roleId => setDraft({ ...draft, roleId })} /><p className="access-callout"><Icon name="shield" size={18} />{managerRole(draft.roleId || defaultRole) ? 'Gerente: acesso à operação, gestão e administração da equipe.' : 'Operador: atendimento, pedidos, comandas e impressão. Sem gestão da equipe ou finanças.'}</p>{state.error && <p className="access-feedback access-feedback-error" role="alert">{state.error}</p>}<Button type="submit" disabled={blocked || !state.data}>{state.pending ? 'Criando…' : 'Criar convite'}</Button></form></Modal>}
+    {canManage && editing && <Modal title="Editar conta" className="access-dialog" onClose={() => { if (!state.pending) setEditing(null) }}><div className="access-form"><label>Nome<input disabled={blocked} value={editing.displayName} onChange={event => setEditing({ ...editing, displayName: event.target.value })} /></label><SystemSelect label="Perfil" options={roleOptions} value={editing.roleId} disabled={Boolean(blocked || isLastManager(data.users.find(user => user.id === editing.id) || editing))} onChange={roleId => setEditing({ ...editing, roleId })} />{isLastManager(data.users.find(user => user.id === editing.id) || editing) && <p className="access-callout">Este é o último gerente com acesso ativo. Ative outro gerente antes de mudar seu perfil.</p>}<Button disabled={blocked || !editing.displayName.trim()} onClick={async () => { const current = data.users.find(user => user.id === editing.id); if (current && isLastManager(current) && !managerRole(editing.roleId)) return; const result = await mutate(() => api.updateUser(editing.id, { displayName: editing.displayName, roleId: editing.roleId })); if (result && owns()) setEditing(null) }}>Salvar conta</Button>{state.error && <p role="alert">{state.error}</p>}</div></Modal>}
+    {canManage && state.confirmation && <Modal title={state.confirmation.kind === 'reset' ? 'Redefinir acesso' : state.confirmation.user.active ? 'Desativar conta' : 'Reativar conta'} className="access-dialog" onClose={() => { if (!state.pending) patch({ confirmation: null, error: '' }) }}><p><strong>{state.confirmation.user.displayName}</strong></p><p className="access-muted">{state.confirmation.kind === 'reset' ? 'As sessões desta pessoa serão encerradas. Você receberá um novo convite para ela criar outra senha.' : state.confirmation.user.active ? 'Esta pessoa perderá acesso à operação e suas sessões serão encerradas.' : 'A conta será reativada. A pessoa poderá entrar se já tiver uma senha ativa.'}</p>{state.error && <p role="alert">{state.error}</p>}<div className="access-actions"><Button variant="secondary" disabled={blocked} onClick={() => patch({ confirmation: null, error: '' })}>Cancelar</Button><Button disabled={blocked} onClick={confirmMutation}>{state.confirmation.kind === 'reset' ? 'Confirmar redefinição' : state.confirmation.user.active ? 'Confirmar desativação' : 'Confirmar reativação'}</Button></div></Modal>}
+    {state.invite && <Modal title="Convite criado" className="access-dialog" onClose={() => patch({ invite: null, inviteUser: null, copied: false, copyError: '' })}><p className="access-callout"><Icon name="check" size={18} />Convite de uso único. Copie o código agora; ele não poderá ser exibido novamente.</p><p className="access-muted">Usuário de acesso</p><strong>{state.inviteUser?.identifier}</strong><p className="access-muted">Código de ativação</p><pre className="access-token">{state.invite.token}</pre><Button variant="secondary" onClick={copyInvite}>{state.copied ? 'Código copiado' : 'Copiar código'}</Button>{state.copyError && <p role="status">{state.copyError}</p>}<ol className="access-invite-steps"><li>Abra <a href="/ativar-conta" target="_blank" rel="noreferrer">a tela de ativação</a> e cole o código.</li><li>Crie e confirme a senha.</li><li>Entre com o usuário <strong>{state.inviteUser?.identifier}</strong> e a senha criada.</li></ol><p className="access-muted">Validade: {new Date(state.invite.expiresAt).toLocaleString('pt-BR')}</p><Button onClick={() => patch({ invite: null, inviteUser: null, copied: false, copyError: '' })}>Fechar convite</Button></Modal>}
   </div>
 }
