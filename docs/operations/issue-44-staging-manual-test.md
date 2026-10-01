@@ -43,7 +43,7 @@ Registrar resultados, navegador/dispositivo, horário e problemas sem senhas/tok
 
 ## Teste na TV física após a issue 44
 
-Em 01/10/2026, o responsável informou que não poderá executar a impressão física. Esse teste permanece não executado por indisponibilidade de equipamento; não é convertido em aprovação. O teste de TV será feito no dispositivo real:
+Em 01/10/2026, o responsável informou que não poderá executar a impressão física. Esse teste permanece não executado por indisponibilidade de equipamento; não é convertido em aprovação. Após receber o roteiro abaixo, confirmou que a TV funcionou normalmente, como antes: **aceite funcional informado pelo responsável**, registrado no QA. O roteiro fica disponível para repetição:
 
 1. No navegador da TV, abra https://staging.mesiva.com.br/cozinha-tv. Use esse mesmo domínio no computador/celular. A TV usa pareamento próprio, sem identificador, senha ou PIN humano.
 2. No computador/celular, entre como Gerente e abra https://staging.mesiva.com.br/configuracoes/tv-da-cozinha. Digite os seis números exibidos na TV e clique em **Conectar TV**. Mantenha a página da TV aberta até concluir. Se já houver pareamento, teste a revogação no passo 6 e conecte novamente.
@@ -52,4 +52,4 @@ Em 01/10/2026, o responsável informou que não poderá executar a impressão f�
 5. Compare os perfis no computador/celular: o Gerente pode administrar a TV e usar **Controle da TV**; o Operador não pode parear/revogar nem alterar página, modalidade ou visibilidade. O Operador pode consultar o controle em somente leitura.
 6. Como Gerente, use **Revogar acesso** e confirme. Na próxima atualização automática da TV, os pedidos devem desaparecer e o painel deve informar falta de autorização. Atualize a página da TV e faça novo pareamento para deixar o ambiente funcional.
 
-Enviar os resultados observados, foto do painel e modelo/navegador da TV. Não enviar códigos de pareamento. TV ainda pendente até receber a evidência do dispositivo real.
+Em futuras execuções, registrar os resultados observados, foto do painel e modelo/navegador da TV. Não enviar códigos de pareamento. O aceite atual foi informado pelo responsável sem foto ou resultados separados por etapa.

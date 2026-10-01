@@ -230,3 +230,7 @@ Private screenshots retain the last-Manager refusal and the cleared second tab. 
 ### Physical device availability — 2026-10-01
 
 The responsible human stated that physical printing cannot be tested with the equipment currently available, but the real TV can be tested. Physical QZ/printing remains unexecuted due to equipment unavailability, not passed. The manual staging guide now provides the exact TV pairing/settings URLs and the real-device order, reload, independent-session, profile-control and revoke/re-pair checks. TV remains pending until actual device results are supplied.
+
+### Human TV acceptance — 2026-10-01
+
+After receiving the physical TV staging test guide, the responsible human confirmed: “deu tudo certo, esta funcionando igual estava anteriormente”. This records a human-reported functional TV acceptance after the issue44 deployment/domain recovery, with no reported regression. The response does not provide separate outcomes for each checklist step, device/browser versions or a photo; no additional per-step evidence is inferred. Physical printing remains unexecuted due to equipment unavailability. Other previously pending recovery, timing and load gates remain unchanged; this is not production/merge approval.
