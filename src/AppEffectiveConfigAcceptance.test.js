@@ -95,6 +95,24 @@ test('normal Novo pedido entry retains confirmed options and requires review if 
   assert.match(nodeText(renderer.root), /Descartar venda em andamento/)
 })
 
+test('direct new-order route owns its dirty draft before switch-user and cancel confirmations', async t => {
+  const { renderer, router } = await mountOperator(t)
+  assertConfirmedModality(renderer)
+  await selectClient(renderer)
+  assert.equal(buttonNamed(renderer.root, 'Escolher produtos →').props.disabled, false)
+  await act(async () => buttonNamed(renderer.root, 'Loja, operação atual').props.onClick())
+  await act(async () => buttonNamed(renderer.root, 'Trocar usuário').props.onClick())
+  assert.match(nodeText(renderer.root), /Descartar venda em andamento/)
+  await act(async () => buttonNamed(renderer.root, 'Continuar na venda').props.onClick())
+  assert.equal(renderer.root.findByProps({ 'aria-label': 'Cliente' }).props.value, 'Ana')
+  assertConfirmedModality(renderer)
+  await act(async () => buttonNamed(renderer.root, 'Cancelar venda').props.onClick())
+  assert.match(nodeText(renderer.root), /Descartar venda em andamento/)
+  await act(async () => buttonNamed(renderer.root, 'Descartar venda').props.onClick())
+  assert.equal(router.state.location.pathname, '/pedidos')
+  assert.equal(renderer.root.findAllByProps({ 'aria-label': 'Tipo do pedido' }).length, 0)
+})
+
 test('identity rediscovery initializes only the current Operator configuration and rejects a late former-owner bootstrap', async t => {
   const { h, renderer, router, setSession, setBootstrap, holdNextBootstrap } = await mountOperator(t)
   let release
