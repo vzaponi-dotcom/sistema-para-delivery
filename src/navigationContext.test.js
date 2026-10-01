@@ -170,14 +170,16 @@ test('controller consumes a resolved policy draft while navigating', async (t) =
 test('App preserva consulta ao navegar e nova sessão rejeita callback da sessão anterior', async (t) => {
   const h = await workspaceHarness(t)
   let settingsContextId = 'context-1'
+  let authenticated = true
   globalThis.fetch = async (path) => {
     if (String(path).startsWith('/api/bootstrap?')) path = '/api/bootstrap'
-    if (path === '/api/auth/login') settingsContextId = 'context-2'
+    if (path === '/api/auth/logout') authenticated = false
+    if (path === '/api/auth/login') { authenticated = true; settingsContextId = 'context-2' }
     const responses = {
-      '/api/auth/session': {
+      '/api/auth/session': authenticated ? {
         authenticated: true, authMode: 'legacy', user: null, deviceMode: null, businessId: 'business-1', settingsContextId,
         capabilities: ['orders.view', 'clients.view'],
-      },
+      } : { authenticated: false, authMode: 'legacy' },
       '/api/auth/logout': {},
       '/api/auth/login': {},
       '/api/bootstrap': { tables: [], tableTabs: [], orders: [], clients: [], products: [], movements: [], financeSettings: null },
