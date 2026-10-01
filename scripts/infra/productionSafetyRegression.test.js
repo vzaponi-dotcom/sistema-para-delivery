@@ -68,7 +68,7 @@ test('staging workflow targets only staging resources', () => {
   assert.doesNotMatch(workflow, /amor-e-sabor-delivery --remote/)
 })
 
-test('staging smoke check tolerates bounded workers.dev propagation delay', () => {
+test('staging smoke check tolerates bounded propagation delay', () => {
   const workflow = readFileSync(stagingWorkflowPath, 'utf8')
   assert.match(workflow, /STAGING_READY_ATTEMPTS:\s*6/)
   assert.match(workflow, /for \(let attempt = 1; attempt <= attempts; attempt \+= 1\)/)
