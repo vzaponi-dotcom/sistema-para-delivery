@@ -317,9 +317,15 @@ test('client receivables payment route validates order ids and allocations befor
   const env=await makeEnv({capabilities:['payments.receive','clients.view']})
   const loginResponse=await login(env)
   const headers=mutationHeaders({cookie:loginResponse.headers.get('set-cookie').split(';')[0]})
-  for(const body of [{orderIds:[],allocations:[]},{orderIds:['order-1'],allocations:[]}]) {
+  for(const [body,expectedMessage] of [
+    [{orderIds:[],allocations:[]},'Selecione entre 2 e 100 pedidos para este recebimento.'],
+    [{orderIds:['order-1','order-2'],allocations:[]},'Composição de pagamento inválida.'],
+  ]) {
     const response=await handleRequest(new Request('https://delivery.example/api/clients/client-1/receivables/payment',{method:'POST',headers,body:JSON.stringify(body)}),env)
     assert.equal(response.status,400)
+    const {error}=await response.json()
+    assert.equal(error.code,'VALIDATION_ERROR')
+    assert.equal(error.message,expectedMessage)
   }
   assert.equal(env.DB.sqlite.prepare('SELECT count(*) n FROM payment_receipts').get().n,0)
   assert.equal(env.DB.sqlite.prepare("SELECT count(*) n FROM audit_events WHERE action='payment.received'").get().n,0)
