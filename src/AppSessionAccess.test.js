@@ -23,7 +23,7 @@ test('actual App blocks switch after account unmount until password response and
   }
   const { default: App } = await h.load('/src/App.jsx')
   const { renderer, router } = await h.renderAdminApp(App, {}, { initialEntries: ['/minha-conta'] })
-  await fill(renderer, 'currentPassword', 'current-password-long'); await fill(renderer, 'password', 'new-password-long-enough')
+  await fill(renderer, 'currentPassword', 'current-password-long'); await fill(renderer, 'password', 'new-password-long-enough'); await fill(renderer, 'confirmPassword', 'new-password-long-enough')
   await act(async () => { renderer.root.findByType('form').props.onSubmit({ preventDefault() {} }) })
   await act(async () => router.navigate('/pedidos'))
   assert.equal(renderer.root.findAllByProps({ name: 'currentPassword' }).length, 0)

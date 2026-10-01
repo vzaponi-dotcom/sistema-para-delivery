@@ -21,6 +21,8 @@
 .access-feedback-error { color: var(--danger); background: var(--danger-soft); }
 .access-team-filters { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 18px; align-items: end; padding: 14px 0 24px; }
 .access-team-filters .system-select { min-width: 0; }
+.access-select-field { display: grid; gap: 7px; min-width: 0; }
+.access-select-field > label { font-size: .84rem; font-weight: 600; }
 .access-search { display: grid; gap: 7px; color: var(--text); font-size: .84rem; font-weight: 600; }
 .access-search > div { position: relative; }
 .access-search svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); }
@@ -78,14 +80,39 @@
   .access-search input, .access-form input { font-size: 16px; }
 }
 .access-form { display: grid; gap: 1rem; max-width: 42rem; }
-.access-form label, .access-section > label { display: grid; gap: .4rem; }
+.access-form label, .access-section > label { display: grid; gap: .4rem; min-width: 0; font-size: .84rem; font-weight: 600; }
 .access-form input, .access-form select, .access-section > label input, .access-section > label select { width: 100%; box-sizing: border-box; padding: .7rem; border: 1px solid var(--border); border-radius: .5rem; color: inherit; background: var(--surface); font: inherit; }
 .access-user { padding: 1rem 0; border-bottom: 1px solid var(--border); }
 .access-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .75rem; }
 .access-token { white-space: pre-wrap; overflow-wrap: anywhere; user-select: all; }
-.access-activity { padding-left: 1.25rem; }
-.access-activity li { padding: .75rem 0; }
+.access-activity-filters { display: grid; grid-template-columns: minmax(130px, 1fr) minmax(130px, .8fr) minmax(130px, .8fr) minmax(150px, 1.2fr) auto; max-width: none; align-items: end; gap: 14px; padding-bottom: 22px; border-bottom: 1px solid var(--border); }
+.access-activity-filters .system-select { min-width: 0; }
+.access-activity-filters input { min-width: 0; }
+.access-activity-day { margin-top: 24px; }
+.access-activity-day > h2 { color: var(--muted); font-size: .8rem; font-weight: 600; }
+.access-activity { padding: 0; margin: 0; list-style: none; }
+.access-activity li { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 8px 14px; padding: 20px 0; border-bottom: 1px solid var(--border); }
 .access-activity small { display: block; }
+.access-event-icon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: var(--primary-soft); color: var(--text); }
+.access-event-copy strong { font-size: .9rem; }
+.access-event-copy p { color: var(--muted); font-size: .83rem; margin: 4px 0 8px; }
+.access-event-actions { display: grid; justify-items: end; align-content: start; gap: 10px; }
+.access-event-actions time { color: var(--muted); font-size: .8rem; font-variant-numeric: tabular-nums; }
+.access-event-reference { grid-column: 2 / -1; color: var(--muted); font-size: .78rem; min-width: 0; }
+.access-event-reference summary { cursor: pointer; padding-block: 12px; }
+.access-event-reference small { padding: 6px 0; overflow-wrap: anywhere; }
+.access-pagination { display: flex; justify-content: flex-end; margin-top: 20px; }
+@media (max-width: 1150px) { .access-activity-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } .access-activity-filters > .button { grid-column: 1 / -1; justify-self: end; } }
+@media (max-width: 500px) {
+  .access-activity-filters { gap: 12px; }
+  .access-activity-filters input { font-size: 16px; }
+  .access-activity-filters > .button { width: 100%; }
+  .access-activity li { grid-template-columns: 32px minmax(0, 1fr); gap: 8px 12px; }
+  .access-event-icon { width: 32px; height: 32px; }
+  .access-event-actions { grid-column: 2; display: flex; align-items: center; flex-wrap: wrap; }
+  .access-event-reference { grid-column: 2; }
+}
+@media (max-width: 400px) { .access-activity-filters { grid-template-columns: minmax(0, 1fr); } }
 .access-activation { width: min(100%, 32rem); box-sizing: border-box; }
 .access-section :focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
 @media (max-width: 600px) { .access-section { padding: 1rem; } .access-actions { display: grid; } }
