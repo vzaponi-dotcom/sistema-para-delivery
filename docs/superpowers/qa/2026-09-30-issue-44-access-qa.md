@@ -297,3 +297,49 @@ Actual browser acceptance on that deployed version passed:
 The before/after screenshots and scoped red/green/review/deploy evidence are retained locally. PR checks [run36887907788](https://github.com/vzaponi-dotcom/sistema-para-delivery/actions/runs/36887907788) also passed all eight test shards and validate on this source SHA. The recovery/load checks remain valid for this frontend-only correction; they were not duplicated unnecessarily.
 
 This completes the authorized recovery/password/invitation, bounded load, two delayed-response scenarios and the resulting frontend regressions in this acceptance round. Physical printing remains unexecuted; TV retains the responsible human's functional acceptance. Full-duration expiry, other adversarial cookie/write schedules, accepted-payment/uncertain-print reconciliation and the simultaneous two-last-Managers scenario are not inferred from these results. Whole Task12 release acceptance and production/merge authorization remain separate.
+
+### Concurrency, controlled expiry and accepted-payment recovery — 2026-10-01
+
+The responsible human explicitly authorized the proposed next staging round. Deployed source remains `8e12361a9f2f5c52960148eb4e3dd0de7a133bea`; no product source, migrations, runtime configuration or production changed in this round. Private application API/real D1 checks completed **11 checks** from 16:29:35 to 16:33:25 UTC; final payment verification completed **one additional check** from 16:38:16 to 16:39:04 UTC. Both processes exited0 with zero cleanup failures. Sanitized evidence and credential-free harness source are retained in restricted operational storage. Passwords, cookies, invitations, verifier/hash values and infrastructure credentials were held only in process memory.
+
+#### Two last usable Managers
+
+A temporary account was created through the normal Manager invitation API and accepted once without automatic login. Its password remained only in memory. Each round started with exactly two active credentialed Managers with `access.users.manage`, using normal individual sessions. Their cross-target PATCH requests were dispatched concurrently.
+
+| Changes requested simultaneously | Actual response pair | Usable Managers afterward |
+|---|---|---:|
+| Deactivate each other | HTTP401/UNAUTHENTICATED and HTTP200 | 1 |
+| Downgrade each other to Operator | HTTP200 and HTTP401/UNAUTHENTICATED | 1 |
+| Deactivate temporary Manager / downgrade original Manager | HTTP200 and HTTP401/UNAUTHENTICATED | 1 |
+
+Exactly one change succeeded in each round. The losing actor's session was revoked by the accepted change; no HTTP409 is claimed for these live pairs. The surviving Manager restored the original account through normal PATCH and login before the next round. No direct role/credential SQL bypass was used. The temporary account was finally downgraded to Operator and deactivated; its audit history remains. Original Gerente/Operador accounts, roles and supplied passwords are intact. The original browser Manager session lost private UI and returned to login without F5 when revoked by the race.
+
+#### Concurrent and interrupted password/login responses
+
+These cases used the temporary account, leaving the original accounts' passwords unchanged in this round:
+
+- Two normal own-password changes from separate valid sessions, with distinct new passwords, produced one HTTP200 and one HTTP401/UNAUTHENTICATED. Both old sessions and the original password were denied; the winning password allowed ordinary login.
+- A successful own-password response body was deliberately discarded after its HTTP200 headers confirmed server commitment; its replacement cookie was not installed in a browser. The old session/password were refused and normal login with the new password recovered access. This tests lost response delivery after commitment, not interruption inside the database transaction.
+- An old-password login raced a password change. The change succeeded; that login returned HTTP401/INVALID_LOGIN, leaving no usable obsolete session. Ordinary login with the new password worked.
+
+The focused command `node --test --test-name-pattern='expire|password|concurrent|revocation|atomic' worker/access/sessions.test.js worker/access/users.test.js` separately passed **11/11**, zero skips/failures. It exercises exact expiry boundaries with a controlled clock, transaction rollback on injected storage failure, concurrent last-Manager protection, credential replacement/revocation and stale session rejection. These local tests are distinguished from live observations.
+
+#### Actual shared/personal session expiry with a shortened deadline
+
+Real individual login created each temporary-account session. Actual D1 `created_at`/`expires_at` differences were exactly **43200 seconds** for shared mode and **604800 seconds** for personal mode; authenticated reads changed neither deadline. A narrow administrative update shortened only the known test session's deadline to six seconds, matching business/user/session/token hash and the original expiry. The session authenticated before that deadline; afterward private bootstrap returned HTTP401 and session discovery reported anonymous `user_only`. An unrelated control session stayed authenticated. Neither a browser session nor another account's session was retimed.
+
+This is actual deployed expiration enforcement with controlled test deadlines, supplemented by exact-clock local boundary tests. **No real 12-hour or seven-day elapsed-period observation is claimed.** Browser cookie installation/expiry schedules beyond the recorded cases remain distinct.
+
+#### Lost order reply and accepted payment during user switching
+
+One fictional order, **#295**, Retirada, **R$18.00**, was created normally as Operator with a unique test note and idempotency key. Its committed HTTP201 response body was deliberately discarded. After logout and fresh normal login, ordinary order reads reconciled the existing unpaid order. Only then an explicit same-key create replay was performed: it returned the same order ID; actual D1 retained **one order and one automatic print job**.
+
+In the real browser, normal Operator UI registered the order's Pix payment. Its HTTP201 response was held at Fetch response stage. A second tab performed normal Trocar usuário/logout; both tabs returned to individual login and removed the old payment dialog/private UI. Normal Manager login in the second tab was confirmed in Minha conta before releasing the old payment response. Interception was then cleared. The primary tab retained the current Manager UI without reopening the old payment dialog. Fresh order detail showed **Pago · Pix**, Criado por/Recebido por Operador de Teste and total received R$18.00.
+
+Independent post-scenario checks confirmed Pago through a fresh Operator API session and exactly **one payment, one receipt, one order-payment movement and one print job**. An explicit duplicate payment attempt as Manager returned HTTP409/`ORDER_ALREADY_PAID` and left all counts unchanged. No automatic payment replay or additional print job was observed. The before/after delivery case does not imply every network-failure schedule; no manual cookie fabrication occurred.
+
+Order #295 is retained as labeled test evidence, paid and in preparation. Its single automatic print job remains awaiting printing; no physical print, retry, force, discard, cancellation or refund was executed. Physical printing/uncertain hardware delivery remains unexecuted as previously agreed. The temporary browser tab was closed, request interception cleared, temporary API sessions logged out, and the original tab left as Manager in Equipe e acessos. UI confirmed both original accounts active and the temporary account deactivated. Preflight was ready and `user_only`/the original cutover timestamp stayed unchanged.
+
+The first private infrastructure attempt failed before any account/order mutation or passed check. A read-only CLI query returned D1 code7403; listing matched the configured staging database and a subsequent SELECT1 succeeded. The cause was not established. The test phase was restarted only after confirming that no mutation had been issued; successful evidence is separate from the retained initial failure. No infrastructure authentication/configuration change was intentionally made.
+
+All scenarios in this authorized round passed without a new product defect. Remaining evidence limits are physical printing/recovery, real elapsed 12-hour/seven-day observation and cookie/network schedules not exercised here. This updates Task12 coverage; it does not authorize merge or production release.

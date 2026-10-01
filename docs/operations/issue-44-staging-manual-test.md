@@ -10,6 +10,8 @@ PR: https://github.com/vzaponi-dotcom/sistema-para-delivery/pull/85
 
 **Correções já publicadas:** o [deploy oficial](https://github.com/vzaponi-dotcom/sistema-para-delivery/actions/runs/36887918691) da versão `8e12361a` passou, com 3157 testes aprovados e um teste exclusivo de Windows ignorado no CI Linux. Modalidades de Nova venda carregam corretamente após login e F5. O rascunho aberto por URL direta agora pede confirmação antes de trocar usuário. A verificação real no navegador passou: manter conserva o rascunho, descartar volta ao login, e a próxima pessoa começa uma venda vazia. Nenhum pedido ou pagamento foi enviado nesses testes de rascunho.
 
+**Rodada seguinte concluída:** três alterações simultâneas entre os dois últimos gerentes deixaram sempre um gerente utilizável. Trocas de senha concorrentes e resposta perdida após gravação passaram. Sessões de teste compartilhada/pessoal expiraram corretamente com prazo encurtado; 12 horas/sete dias foram conferidos no banco e com relógio controlado, sem esperar esses períodos reais. O pedido fictício **#295**, de **R$18,00**, ficou pago uma única vez mesmo após resposta atrasada e troca de usuário. Uma nova tentativa de pagamento foi recusada; há um recibo, um pagamento, uma movimentação e um job de impressão, que aguarda o teste físico. O pedido permanece identificado como teste. A conta temporária de concorrência está desativada; Gerente e Operador originais estão ativos com suas senhas preservadas nesta rodada.
+
 ## Fluxo de ativação do Operador já homologado
 
 1. Entre com o identificador `gerente` e a senha definida na ativação. Deixe “Dispositivo pessoal” desmarcado para testar a sessão compartilhada de até 12 horas.
