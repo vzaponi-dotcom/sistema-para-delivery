@@ -22,20 +22,28 @@ export async function verifyStagingAuth({ baseUrl, pin, attempts = 6, fetchImpl 
   ensure(Number.isInteger(attempts) && attempts > 0 && attempts <= 20, 'Invalid staging readiness attempts.')
   const call = (route, options = {}) => fetchImpl(`${origin}${route}`, { cache: 'no-store', redirect: 'manual', ...options })
   let session
+  let lastReason
   for (let attempt = 1; attempt <= attempts; attempt++) {
     let response
     try { response = await call('/api/auth/session') } catch { /* Bounded propagation retry only. */ }
+    lastReason = response ? `HTTP ${response.status}` : 'network unavailable'
     if (response?.ok) {
-      ensure(response.headers.get('cache-control')?.includes('no-store') && !response.headers.get('set-cookie'), 'Anonymous session must be uncached and must not issue a cookie.')
-      session = await response.json()
-      ensure(anonymous(session), 'Anonymous session must expose only a known auth mode and no identity.')
-      log(`Staging ready on attempt ${attempt}/${attempts}; auth mode ${session.authMode}`)
-      break
+      lastReason = 'Anonymous session must be uncached and must not issue a cookie.'
+      if (response.headers.get('cache-control')?.includes('no-store') && !response.headers.get('set-cookie')) {
+        let candidate
+        try { candidate = await response.json() } catch { /* Old/malformed wire contract is not ready. */ }
+        lastReason = 'Anonymous session must expose only a known auth mode and no identity.'
+        if (anonymous(candidate)) {
+          session = candidate
+          log(`Staging ready on attempt ${attempt}/${attempts}; auth mode ${session.authMode}`)
+          break
+        }
+      }
     }
-    log(`Staging readiness attempt ${attempt}/${attempts}: ${response ? `HTTP ${response.status}` : 'network unavailable'}`)
+    log(`Staging readiness attempt ${attempt}/${attempts}: ${lastReason}`)
     if (attempt < attempts) await sleep(5000)
   }
-  ensure(session, 'Staging did not become ready within the bounded propagation window.')
+  ensure(session, `Staging did not become ready within the bounded propagation window: ${lastReason}`)
 
   const bootstrap = await call('/api/bootstrap')
   ensure(bootstrap.status === 401 && !bootstrap.headers.get('set-cookie') && (await bootstrap.json()).error?.code === 'UNAUTHENTICATED', 'Anonymous bootstrap must be denied.')

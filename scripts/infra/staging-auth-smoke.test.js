@@ -59,6 +59,40 @@ test('readiness retries bounded propagation errors but rejects unknown auth mode
   }
 })
 
+test('readiness waits through stale HTTP 200 wire responses until the current anonymous contract arrives', async t => {
+  const fixture = await setup(t, 'user_only')
+  const stale = [
+    () => Response.json({ authenticated: false }),
+    () => Response.json({ authenticated: false }, { headers: { 'cache-control': 'no-store' } }),
+  ]
+  const delays = []
+  const result = await smoke({ attempts: 3, sleep: async ms => delays.push(ms), fetchImpl: (url, options) => stale.length
+    ? Promise.resolve(stale.shift()()) : fixture.fetchImpl(url, options) })
+  assert.equal(result.authMode, 'user_only')
+  assert.deepEqual(delays, [5000, 5000])
+})
+
+test('persistent invalid HTTP 200 contracts exhaust readiness without reaching login or logging private data', async () => {
+  const invalidResponses = [
+    () => Response.json({ authenticated: false }, { headers: { 'cache-control': 'no-store' } }),
+    () => Response.json({ authenticated: false, authMode: 'user_only' }, { headers: { 'cache-control': 'no-store', 'set-cookie': 'amor_session=PRIVATE-COOKIE' } }),
+    () => Response.json({ authenticated: true, authMode: 'user_only', user: { displayName: 'PRIVATE-NAME' } }, { headers: { 'cache-control': 'no-store' } }),
+    () => new Response('PRIVATE-MALFORMED', { headers: { 'cache-control': 'no-store' } }),
+  ]
+  for (const response of invalidResponses) {
+    let reads = 0
+    const delays = [], logs = []
+    await assert.rejects(smoke({ attempts: 3, log: value => logs.push(value), sleep: async ms => delays.push(ms), fetchImpl: async url => {
+      assert.equal(new URL(url).pathname, '/api/auth/session', 'invalid readiness cannot advance to private/auth APIs')
+      reads++
+      return response()
+    } }), /bounded propagation window/)
+    assert.equal(reads, 3)
+    assert.deepEqual(delays, [5000, 5000])
+    assert.doesNotMatch(logs.join('\n'), /PRIVATE-/)
+  }
+})
+
 for (const mode of ['legacy', 'enrollment', 'user_only']) test(`PIN configuration SQL preserves ${mode} auth mode and only configures pre-cutover credentials`, async t => {
   const fixture = await setup(t, mode)
   const old = fixture.sqlite.prepare("SELECT pin_hash FROM auth_credentials WHERE business_id='amor-e-sabor'").get().pin_hash
