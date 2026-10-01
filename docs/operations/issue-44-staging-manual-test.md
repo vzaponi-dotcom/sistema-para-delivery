@@ -6,6 +6,10 @@ PR: https://github.com/vzaponi-dotcom/sistema-para-delivery/pull/85
 
 **Estado atual:** Gerente e Operador de teste ativados. Staging usa contas individuais; o PIN é recusado. Após o deploy antigo usado para configurar o domínio, a versão com perfis foi restaurada pelo workflow oficial em 01/10/2026. As contas, senhas e o corte original de 30/09/2026 às 23:36 foram preservados. No novo domínio, entre com identificador e senha. Resultados e gates pendentes estão no [QA](../superpowers/qa/2026-09-30-issue-44-access-qa.md).
 
+**Testes adicionais em 01/10/2026:** recuperação do último Gerente, troca/redefinição de senha, reemissão e uso concorrente de convite passaram. No teste de recuperação, a senha do Gerente foi restabelecida para a fornecida pelo responsável; a senha do Operador foi restaurada após a rotação temporária. As duas contas continuam ativas com os perfis originais. Foram realizados 36 logins válidos com até quatro requisições simultâneas, sem erros e com máximo de 2,81 segundos. Login e logout com resposta atrasada em duas abas terminaram com identidade coerente. Isso não substitui a expiração de 12 horas/sete dias nem todos os cenários de cookies e escritas interrompidas. O QA distingue os resultados e os defeitos de frontend encontrados durante esses testes.
+
+**Correções já publicadas:** o [deploy oficial](https://github.com/vzaponi-dotcom/sistema-para-delivery/actions/runs/36887918691) da versão `8e12361a` passou, com 3157 testes aprovados e um teste exclusivo de Windows ignorado no CI Linux. Modalidades de Nova venda carregam corretamente após login e F5. O rascunho aberto por URL direta agora pede confirmação antes de trocar usuário. A verificação real no navegador passou: manter conserva o rascunho, descartar volta ao login, e a próxima pessoa começa uma venda vazia. Nenhum pedido ou pagamento foi enviado nesses testes de rascunho.
+
 ## Fluxo de ativação do Operador já homologado
 
 1. Entre com o identificador `gerente` e a senha definida na ativação. Deixe “Dispositivo pessoal” desmarcado para testar a sessão compartilhada de até 12 horas.

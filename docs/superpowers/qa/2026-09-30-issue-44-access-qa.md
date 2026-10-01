@@ -234,3 +234,66 @@ The responsible human stated that physical printing cannot be tested with the eq
 ### Human TV acceptance — 2026-10-01
 
 After receiving the physical TV staging test guide, the responsible human confirmed: “deu tudo certo, esta funcionando igual estava anteriormente”. This records a human-reported functional TV acceptance after the issue44 deployment/domain recovery, with no reported regression. The response does not provide separate outcomes for each checklist step, device/browser versions or a photo; no additional per-step evidence is inferred. Physical printing remains unexecuted due to equipment unavailability. Other previously pending recovery, timing and load gates remain unchanged; this is not production/merge approval.
+
+### Additional autonomous staging acceptance — 2026-10-01
+
+The responsible human authorized the remaining recovery, session timing and bounded login-load tests. The environment and configured D1 were restricted to staging. No production operation or merge occurred. Sanitized evidence is retained in restricted local operational storage; passwords, invitations, cookies and infrastructure credentials are absent from this document and the evidence files.
+
+#### Recovery and password lifecycle
+
+The functional harness completed **12 checks, zero cleanup failures**, from 15:19:43 to 15:20:55 UTC. It used normal public application APIs for password changes, invitation acceptance and individual login. Emergency issuance used the reviewed `runAdmin` with the configured live D1 binding and an actual private TTY. The one-time delivery callback transferred the invitation directly in memory to the ordinary activation request; this tests the emergency procedure and application acceptance, not a second human terminal-copy exercise.
+
+- Emergency issuance revoked the last Manager's credential and all its unrevoked sessions. Preflight refused the pending state with `NO_USABLE_MANAGER`, while `user_only` stayed active. Conscious reissuance invalidated the previous invitation; only the current invitation was accepted, once, without an automatic session. Normal Manager login then succeeded.
+- The initial load attempt had 4 successful and 4 invalid logins. Read-only diagnosis established that the supplied Operator password matched, but the Manager had changed its password at 14:56:16 UTC. Recovery restored the Manager to the password supplied by the responsible human. The unknown subsequently changed password was not recovered or preserved. These initial invalid logins are excluded from successful latency measurements.
+- An incorrect current password was refused with `CURRENT_PASSWORD_INVALID`. Normal Operator password rotation revoked both prior sessions and refused the old password; its replacement session worked. Normal own-password change then restored the supplied Operator password and revoked that temporary session.
+- A Manager's administrative reset of itself returned `OWN_RESET_FORBIDDEN`; an Operator resetting the Manager returned `FORBIDDEN`.
+- Manager reset made the Operator credential pending and immediately revoked its old session. Reissuing invalidated the prior invitation. Two simultaneous accepts of the current invitation produced exactly one HTTP200 and one HTTP400/`INVALID_INVITATION`; neither issued a session cookie. Ordinary login with the restored Operator password worked.
+- Final state: two active accounts and credentials, original roles, both supplied passwords usable, preflight ready, `user_only` and original cutover timestamp unchanged. Audit counts since test start: two each of emergency issuance, accepted invitations, own-password changes and administrative resets. Temporary API sessions were logged out with zero cleanup failures. No order, payment or physical print was created by this harness.
+
+The first administrative transport attempt returned D1 code7403; the configured account/database were confirmed and a subsequent identical read-only query succeeded. The exact cause of that transient response was not established; no infrastructure credential or configuration was changed.
+
+#### Bounded login load
+
+Successful measurement ran from 15:24:13 to 15:25:39 UTC. Each successful login was followed by normal logout. Both ordinary account logins were also verified afterward; all temporary API sessions were cleaned up.
+
+| Concurrent requests | Samples | Successful | HTTP429 / other errors | p50 | p95 | p99 / maximum |
+|---|---:|---:|---|---:|---:|---:|
+| 1 | 8 | 8 | 0 / 0 | 2364.77 ms | 2580.55 ms | 2580.55 ms |
+| 2 | 12 | 12 | 0 / 0 | 2415.19 ms | 2785.14 ms | 2785.14 ms |
+| 4 | 16 | 16 | 0 / 0 | 2449.20 ms | 2807.31 ms | 2807.31 ms |
+
+Concurrency1 alternated Manager/Operator; concurrency2/4 used Operator to avoid the four existing failed Manager reservations from the earlier password drift. No failure quota or limiter state was deleted. These are external HTTPS end-to-end times including network, D1 and password verification, not isolated Worker CPU. Small-sample p99 equals the observed maximum. No production SLO or capacity beyond the tested four concurrent requests is asserted.
+
+#### Delayed browser responses
+
+Two real Codex browser tabs shared the staging cookie store. Specific login/logout HTTP200 responses were paused at the documented Fetch response stage and then released; interception was cleared afterward. No cookie was fabricated or installed manually.
+
+- Held a successful Manager login response, logged in normally as Operator in the other tab, then released the older response. Both tabs rediscovered Operator, with operational UI and no managerial sidebar; Minha conta identified Operador de Teste.
+- Held an Operator logout response, confirmed normal Manager login in the other tab, then released the old logout response. Both tabs rediscovered Manager; Minha conta identified Gerente responsável. The old logout did not leave the newer trusted login incoherent.
+- Emergency recovery also removed old Manager UI in both tabs without F5.
+
+These observations cover delayed response delivery and identity rediscovery. Response-stage interception does not establish the exact order in which the browser installed Set-Cookie; it is not proof of every adversarial cookie schedule, interrupted password write, full-duration expiry or payment/print reconciliation.
+
+#### Frontend regressions discovered during acceptance
+
+An authenticated Operator reloading `/pedidos/novo` showed unavailable modalities despite HTTP200 bootstrap containing all three confirmed modalities. The App mounted NewOrder before the effective configuration cache accepted that bootstrap; NewOrder retained its initially empty modality. Focused reproduction also found that a valid client draft entered by direct route did not participate in the existing switch-user discard guard. Both corrections are required by the approved operational and draft-isolation spec. Review, official deployment and live retest are recorded in the next checkpoint; these findings are not counted as passed in this checkpoint.
+
+### Scoped frontend correction — 2026-10-01
+
+Commits `b5e82a7d716d384611cc0c18451ac067ad927bff` and `8e12361a9f2f5c52960148eb4e3dd0de7a133bea` correct initial confirmed-config readiness and direct-route draft ownership respectively. Only App and the new real-App regression tests changed. Backend authentication, roles, projections and policy validation were untouched. Missing config still has no invented defaults; a previously selected disabled modality still requires explicit review. Direct entry now uses the same draft controller as Novo pedido.
+
+Separate failing reproductions were retained, followed by a combined focused gate: **49/49 pass**, zero skips/failures, architecture exit0, focused lint exit0 with 13 existing App warnings. Tests cover a full App remount on the direct route, normal entry, configured default and pristine baseline, absent config, disabled selected modality, direct-route keep/discard confirmation and delayed former-owner config after identity rediscovery. Independent scoped review approved spec compliance and quality with no actionable finding. The source commits were pushed to PR85; official deployment and live browser acceptance follow below.
+
+[Official run36887918691](https://github.com/vzaponi-dotcom/sistema-para-delivery/actions/runs/36887918691) completed **success** on executable SHA `8e12361a9f2f5c52960148eb4e3dd0de7a133bea`, Worker version `b4e97864-aa5e-4b03-ae36-9de700c1b5f4`. Linux suite: **3158 total, 3157 pass, zero fail/cancel, one existing Windows-only skip**, 204915.638453 ms. All architecture/lint/build/local and remote migrations/dry-run/deployment gates passed. Auth smoke observed `user_only` on attempt1/6, PIN rejection HTTP401 and anonymous boundaries; all14 SPA/deep-link/asset checks passed. No auth rollback, production change or merge occurred.
+
+Actual browser acceptance on that deployed version passed:
+
+- Fresh normal Operator login, Novo pedido button: all three modalities rendered, confirmed Entrega selected, no unavailable-modality alert. A fictional client and Retirada were selected, one test item added, and the wizard advanced to review. No Salvar pedido/Salvar e receber submission occurred.
+- Switch-user requested discard confirmation. Continuar na venda retained the client, modality and item. Cancelar venda also requested confirmation; confirmed discard returned to Pedidos.
+- Direct `/pedidos/novo` navigation and intentional reload initialized the confirmed default with no previous client. Cancelling that pristine draft returned to Pedidos without a false discard prompt.
+- A new direct-route draft with a different fictional client and Retirada requested the switch-user confirmation. Continuar na venda preserved that client and modality; a subsequent explicit discard cleared private UI and returned to the individual login screen.
+- Normal Manager login then opened a new order with no Operator client/items and the confirmed default. Clean cancellation returned to Pedidos. Both original accounts remain usable; the browser is left in the Manager's team screen. Temporary extra browser tabs were closed and request interception cleared.
+
+The before/after screenshots and scoped red/green/review/deploy evidence are retained locally. PR checks [run36887907788](https://github.com/vzaponi-dotcom/sistema-para-delivery/actions/runs/36887907788) also passed all eight test shards and validate on this source SHA. The recovery/load checks remain valid for this frontend-only correction; they were not duplicated unnecessarily.
+
+This completes the authorized recovery/password/invitation, bounded load, two delayed-response scenarios and the resulting frontend regressions in this acceptance round. Physical printing remains unexecuted; TV retains the responsible human's functional acceptance. Full-duration expiry, other adversarial cookie/write schedules, accepted-payment/uncertain-print reconciliation and the simultaneous two-last-Managers scenario are not inferred from these results. Whole Task12 release acceptance and production/merge authorization remain separate.
