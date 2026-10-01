@@ -3,6 +3,7 @@ import { AUDIT_ACTIONS } from '../../../../shared/auditActions.js'
 import { actorLabel } from '../../../shared/actorLabel.js'
 import Button from '../../../shared/ui/Button'
 import PageHeader from '../../../shared/ui/PageHeader'
+import SystemSelect from '../../../shared/ui/SystemSelect'
 import { accessApi } from '../infrastructure/accessApi.js'
 import { useAccessRequest } from './useAccessRequest.js'
 import './access.css'
@@ -29,9 +30,9 @@ export default function ActivityLog({ sessionContext, api = accessApi, onApiErro
   }
   return <div className="settings-page access-page"><PageHeader eyebrow="Configurações" title="Atividades" description="Ações registradas pelo servidor." />
     <section className="surface-card access-section"><form className="access-form" aria-busy={Boolean(state.pending)} onSubmit={event => { event.preventDefault(); void load() }}>
-      <label>Pessoa<select name="userId" value={filters.userId} onChange={event => setDraft({ ...filters, owner: sessionContext, userId: event.target.value })}><option value="">Todas</option>{state.users?.map(user => <option key={user.id} value={user.id}>{user.displayName}</option>)}</select></label>
+      <SystemSelect label="Pessoa" value={filters.userId} options={[{ value: '', label: 'Todas' }, ...(state.users || []).map(user => ({ value: user.id, label: user.displayName }))]} onChange={userId => setDraft({ ...filters, owner: sessionContext, userId })} />
       {['from', 'to'].map(name => <label key={name}>{name === 'from' ? 'De' : 'Até'}<input type="date" name={name} value={filters[name]} onChange={event => setDraft({ ...filters, owner: sessionContext, [name]: event.target.value })} /></label>)}
-      <label>Tipo<select name="type" value={filters.type} onChange={event => setDraft({ ...filters, owner: sessionContext, type: event.target.value })}><option value="">Todos</option>{AUDIT_ACTIONS.map(action => <option key={action} value={action}>{action}</option>)}</select></label><Button type="submit" disabled={state.pending}>Filtrar</Button>
+      <SystemSelect label="Tipo" value={filters.type} options={[{ value: '', label: 'Todos' }, ...AUDIT_ACTIONS.map(action => ({ value: action, label: action }))]} onChange={type => setDraft({ ...filters, owner: sessionContext, type })} /><Button type="submit" disabled={state.pending}>Filtrar</Button>
     </form>{state.error && <p role="alert">{state.error}</p>}{state.pending && <p role="status">Carregando atividades…</p>}
     <ol className="access-activity">{state.activity?.items.map(item => <li key={item.id}><strong>{actorLabel(item.actor)}</strong><p>{item.action} · {item.outcome}</p><time dateTime={item.occurredAt}>{new Date(item.occurredAt).toLocaleString('pt-BR')}</time>{item.resourceId && <small>{item.resourceType}: {item.resourceId}</small>}{canOpenResource?.(item) && <Button variant="secondary" onClick={() => { if (owns() && canOpenResource(item)) onOpenResource?.(item) }}>Abrir detalhe</Button>}</li>)}</ol>
     {state.activity?.items.length === 0 && <p>Nenhuma atividade encontrada.</p>}<Button variant="secondary" disabled={state.pending || !state.activity?.nextCursor} onClick={() => load(state.activity.nextCursor)}>Próxima página</Button></section>

@@ -3,6 +3,35 @@ import assert from 'node:assert/strict'
 import React from 'react'
 import { setup, manager, users, roles, response, fill, submit, act, nodeText, buttonNamed } from '../../../test-support/accessUi.js'
 
+test('role selection uses the shared control for invitation and editing and blocks writes', async t => {
+  const writes = []
+  const { screen, Component } = await setup(t, 'TeamAccess', { sessionContext: manager }, async (_url, options = {}) => {
+    if (options.method) {
+      const body = JSON.parse(options.body); writes.push(body)
+      return response({ user: { ...users[1], ...(options.method === 'POST' ? { id: 'new', displayName: 'Nova' } : {}), roleId: body.roleId } })
+    }
+    return response({ users, roles })
+  })
+  const choose = async (label) => {
+    await act(async () => screen.root.findByProps({ role: 'combobox', 'aria-label': 'Perfil' }).props.onClick())
+    await act(async () => screen.root.findAllByProps({ role: 'option' }).find(option => nodeText(option) === label).props.onClick())
+  }
+  await fill(screen, 'displayName', 'Nova'); await fill(screen, 'identifier', 'nova')
+  await choose('Operador'); await submit(screen)
+  assert.equal(writes[0].roleId, 'operator')
+  await act(async () => buttonNamed(screen.root, 'Editar Otávio').props.onClick())
+  const modal = () => screen.root.findByProps({ role: 'dialog' })
+  await act(async () => modal().findByProps({ role: 'combobox', 'aria-label': 'Perfil' }).props.onClick())
+  await act(async () => modal().findAllByProps({ role: 'option' }).find(option => nodeText(option) === 'Gerente').props.onClick())
+  await act(async () => buttonNamed(screen.root, 'Salvar conta').props.onClick())
+  assert.equal(writes[1].roleId, 'manager')
+  await act(async () => screen.update(React.createElement(Component, { sessionContext: manager, writesBlocked: true })))
+  assert.equal(screen.root.findByProps({ role: 'combobox', 'aria-label': 'Perfil' }).props.disabled, true)
+  assert.equal(buttonNamed(screen.root, 'Editar Otávio').props.disabled, true)
+  await submit(screen)
+  assert.equal(writes.length, 2)
+})
+
 test('team denies an operator before reading or rendering private users', async t => {
   const { screen } = await setup(t, 'TeamAccess', { sessionContext: { user: { id: 'o' }, capabilities: [] } }, () => assert.fail('denied read'))
   assert.match(nodeText(screen.root), /Acesso negado/)

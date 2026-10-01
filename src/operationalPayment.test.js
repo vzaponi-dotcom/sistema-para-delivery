@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import React from 'react'
 import { act } from 'react-test-renderer'
 import { buttonNamed, nodeText, renderWithNavigation, workspaceHarness } from './test-support/renderWorkspace.js'
-import { legacyCapabilities } from './app/access.js'
+import { authenticatedSession, markSystemNotificationsRead } from './test-support/appSessionFixtures.js'
 
 const flush = () => new Promise((resolve) => setImmediate(resolve))
 const deferred = () => {
@@ -42,12 +42,6 @@ const operationalCapabilities = new Set([
   'payments.receive', 'clients.view', 'finance.receivables', 'finance.overview', 'finance.movements',
   'printing.queue', 'preferences.local',
 ])
-const authenticatedSession = {
-  authenticated: true,
-  businessId: 'amor-e-sabor',
-  settingsContextId: 'test-settings-context',
-  capabilities: [...legacyCapabilities(true)],
-}
 const effectivePaymentConfig = {
   version: 'payment-test-v1', revisions: { operations: 1, paymentMethods: 1 },
   operations: {
@@ -67,6 +61,7 @@ const effectivePaymentConfig = {
 
 async function operationalWorkspace(t, { orders, capabilities = operationalCapabilities } = {}) {
   const h = await workspaceHarness(t)
+  markSystemNotificationsRead(h)
   const state = {
     orders: structuredClone(orders),
     bootstrapOrders: structuredClone(orders),
@@ -74,15 +69,18 @@ async function operationalWorkspace(t, { orders, capabilities = operationalCapab
     paymentPosts: [],
     paymentHandler: null,
     relogged: false,
+    expired: false,
   }
   globalThis.fetch = async (path, options = {}) => {
+    if (String(path).startsWith('/api/bootstrap?')) path = '/api/bootstrap'
     const url = String(path)
     const method = options.method || 'GET'
-    if (url === '/api/auth/session') return response(state.relogged ? authenticatedSession : { authenticated: true })
+    if (url === '/api/auth/session') return response(authenticatedSession)
     if (url === '/api/auth/login' && method === 'POST') { state.relogged = true; return response({}) }
     if (url === '/api/auth/logout' && method === 'POST') return response({})
     if (url === '/api/bootstrap') {
       state.bootstrapCalls += 1
+      if (state.expired) return response({ error: { message: 'Sessão expirada' } }, 401)
       return response({ tables: [], tableTabs: [], orders: structuredClone(state.bootstrapOrders), movements: [], clients: [], products: [], financeSettings: null, effectiveBusinessConfig: effectivePaymentConfig })
     }
     if (url === '/api/orders' && method === 'GET') return response({ orders: structuredClone(state.orders) })
@@ -224,8 +222,10 @@ test('resposta de pagamento da sessão antiga não altera nem desbloqueia o alvo
   await act(async () => buttonNamed(renderer.root, 'Cancelar').props.onClick())
   state.orders = [orderB]
   state.bootstrapOrders = [orderB]
-  await act(async () => renderer.root.findByProps({ className: 'operation-menu-trigger' }).props.onClick())
-  await act(async () => buttonNamed(renderer.root, 'Sair do sistema').props.onClick())
+  // Expiry can interrupt an in-flight payment; deliberate logout is guarded.
+  state.expired = true
+  await act(async () => h.window.dispatchEvent(new Event('focus')))
+  state.expired = false
   const pin = renderer.root.findByProps({ placeholder: 'Digite o PIN' })
   await act(async () => pin.props.onChange({ target: { value: '1234' } }))
   await act(async () => renderer.root.findByType('form').props.onSubmit({ preventDefault() {} }))

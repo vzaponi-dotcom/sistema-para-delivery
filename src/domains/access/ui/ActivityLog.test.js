@@ -8,9 +8,11 @@ test('activity sends exact filters and opaque pagination; changes reset paginati
     requests.push(url)
     return response(url === '/api/access/users' ? { users, roles } : { items: [{ id: 'e1', actor: { type: 'legacy', displayName: 'bogus' }, action: 'order.created', occurredAt: '2026-09-30T12:00:00Z', outcome: 'success' }], nextCursor: 'opaque+/=' })
   })
-  await act(async () => screen.root.findAllByType('select').find(n => n.props.name === 'userId').props.onChange({ target: { value: 'o' } }))
+  await act(async () => screen.root.findByProps({ role: 'combobox', 'aria-label': 'Pessoa' }).props.onClick())
+  await act(async () => screen.root.findAllByProps({ role: 'option' }).find(n => nodeText(n) === 'Otávio').props.onClick())
   await fill(screen, 'from', '2026-09-29'); await fill(screen, 'to', '2026-09-30')
-  await act(async () => screen.root.findAllByType('select').find(n => n.props.name === 'type').props.onChange({ target: { value: 'order.created' } }))
+  await act(async () => screen.root.findByProps({ role: 'combobox', 'aria-label': 'Tipo' }).props.onClick())
+  await act(async () => screen.root.findAllByProps({ role: 'option' }).find(n => nodeText(n) === 'order.created').props.onClick())
   await submit(screen)
   let query = new URL(requests.at(-1), 'http://localhost').searchParams
   assert.equal(query.get('userId'), 'o'); assert.equal(query.get('type'), 'order.created'); assert.equal(query.get('from'), '2026-09-29T00:00:00-03:00'); assert.equal(query.get('to'), '2026-09-30T23:59:59.999-03:00'); assert.equal(query.has('cursor'), false)

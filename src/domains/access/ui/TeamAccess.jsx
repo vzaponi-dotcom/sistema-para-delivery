@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import Button from '../../../shared/ui/Button'
 import PageHeader from '../../../shared/ui/PageHeader'
 import Modal from '../../../shared/ui/Modal'
+import SystemSelect from '../../../shared/ui/SystemSelect'
 import { accessApi } from '../infrastructure/accessApi.js'
 import { useAccessRequest } from './useAccessRequest.js'
 import './access.css'
@@ -20,6 +21,7 @@ export default function TeamAccess({ sessionContext, api = accessApi, onApiError
   if (!canView) return <p role="alert">Acesso negado.</p>
   const data = state.data || { users: [], roles: [] }
   const blocked = writesBlocked || state.pending
+  const roleOptions = data.roles.filter(role => role.active !== false).map(role => ({ value: role.id, label: role.name }))
   const accept = async result => {
     patch({ data: { ...data, users: [...data.users.filter(user => user.id !== result.user.id), result.user] }, invite: result.invite || null })
     if (result.user.id === sessionContext.user?.id) await refreshSession?.()
@@ -45,7 +47,7 @@ export default function TeamAccess({ sessionContext, api = accessApi, onApiError
     {canManage && <section className="surface-card access-section"><h2>Convidar pessoa</h2><form className="access-form" onSubmit={submit} aria-busy={Boolean(state.pending)}>
       <label>Nome<input name="displayName" required value={draft.displayName} onChange={event => setDraft({ ...draft, displayName: event.target.value })} /></label>
       <label>Identificador<input name="identifier" required autoComplete="off" value={draft.identifier} onChange={event => setDraft({ ...draft, identifier: event.target.value })} /></label>
-      <label>Perfil<select name="roleId" value={draft.roleId || data.roles.find(role => role.active !== false)?.id || ''} onChange={event => setDraft({ ...draft, roleId: event.target.value })}>{data.roles.filter(role => role.active !== false).map(role => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label>
+      <SystemSelect label="Perfil" options={roleOptions} value={draft.roleId || roleOptions[0]?.value || ''} disabled={Boolean(blocked)} onChange={roleId => setDraft({ ...draft, roleId })} />
       <Button type="submit" disabled={blocked || !state.data}>Criar convite</Button>
     </form></section>}
     <section className="surface-card access-section" aria-label="Contas da equipe"><h2>Contas da equipe</h2>
@@ -54,7 +56,7 @@ export default function TeamAccess({ sessionContext, api = accessApi, onApiError
         {canManage && <div className="access-actions"><Button variant="secondary" disabled={blocked} onClick={() => setEditing({ ...user })}>Editar {user.displayName}</Button><Button variant="secondary" disabled={blocked} onClick={() => mutate(() => api.updateUser(user.id, { active: !user.active }))}>{user.active ? 'Desativar' : 'Ativar'} {user.displayName}</Button>{user.id !== sessionContext.user?.id && <Button variant="secondary" disabled={blocked} onClick={() => mutate(() => api.resetPassword(user.id))}>Redefinir senha de {user.displayName}</Button>}</div>}
       </article>)}
     </section>
-    {canManage && editing && <Modal title="Editar conta" onClose={() => setEditing(null)}><label>Nome<input value={editing.displayName} onChange={event => setEditing({ ...editing, displayName: event.target.value })} /></label><label>Perfil<select value={editing.roleId} onChange={event => setEditing({ ...editing, roleId: event.target.value })}>{data.roles.filter(role => role.active !== false).map(role => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label><Button disabled={blocked || !editing.displayName.trim()} onClick={async () => { const result = await mutate(() => api.updateUser(editing.id, { displayName: editing.displayName, roleId: editing.roleId })); if (result && owns()) setEditing(null) }}>Salvar conta</Button>{state.error && <p role="alert">{state.error}</p>}</Modal>}
+    {canManage && editing && <Modal title="Editar conta" onClose={() => setEditing(null)}><label>Nome<input value={editing.displayName} onChange={event => setEditing({ ...editing, displayName: event.target.value })} /></label><SystemSelect label="Perfil" options={roleOptions} value={editing.roleId} disabled={Boolean(blocked)} onChange={roleId => setEditing({ ...editing, roleId })} /><Button disabled={blocked || !editing.displayName.trim()} onClick={async () => { const result = await mutate(() => api.updateUser(editing.id, { displayName: editing.displayName, roleId: editing.roleId })); if (result && owns()) setEditing(null) }}>Salvar conta</Button>{state.error && <p role="alert">{state.error}</p>}</Modal>}
     {state.invite && <Modal title="Convite de uso único" onClose={() => patch({ invite: null })}><p>Copie este token agora e entregue à pessoa. Ele aparece somente nesta confirmação e vale por 24 horas. A pessoa deve abrir /ativar-conta e colá-lo.</p><pre className="access-token">{state.invite.token}</pre><p>Validade: {new Date(state.invite.expiresAt).toLocaleString('pt-BR')}</p><Button onClick={() => patch({ invite: null })}>Fechar convite</Button></Modal>}
   </div>
 }

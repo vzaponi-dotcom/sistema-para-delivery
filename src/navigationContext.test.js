@@ -171,10 +171,11 @@ test('App preserva consulta ao navegar e nova sessão rejeita callback da sessã
   const h = await workspaceHarness(t)
   let settingsContextId = 'context-1'
   globalThis.fetch = async (path) => {
+    if (String(path).startsWith('/api/bootstrap?')) path = '/api/bootstrap'
     if (path === '/api/auth/login') settingsContextId = 'context-2'
     const responses = {
       '/api/auth/session': {
-        authenticated: true, businessId: 'business-1', settingsContextId,
+        authenticated: true, authMode: 'legacy', user: null, deviceMode: null, businessId: 'business-1', settingsContextId,
         capabilities: ['orders.view', 'clients.view'],
       },
       '/api/auth/logout': {},
@@ -182,6 +183,7 @@ test('App preserva consulta ao navegar e nova sessão rejeita callback da sessã
       '/api/bootstrap': { tables: [], tableTabs: [], orders: [], clients: [], products: [], movements: [], financeSettings: null },
       '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
       '/api/printing/jobs?limit=100': { jobs: [] },
+      '/api/printing/jobs/summary': { summary: {} },
     }
     assert.ok(Object.hasOwn(responses, path), `Unexpected request: ${path}`)
     return { ok: true, json: async () => responses[path] }

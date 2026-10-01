@@ -3,6 +3,7 @@ import { readdir, readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import test from 'node:test'
+import { handleTableReservationApi } from '../worker/tableReservationApi.js'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const read = (relativePath) => readFile(path.join(root, relativePath), 'utf8')
@@ -39,11 +40,17 @@ test('Issue 82 keeps reservation ownership behind existing public boundaries', a
   assert.doesNotMatch(tableServiceIndex, /domains\/orders/)
 })
 
-test('Issue 82 adds no reservation capability family and reuses existing order capabilities', async () => {
+test('reservations reuse order cancellation and separate refund permission before touching data', async () => {
   const api = await read('worker/tableReservationApi.js')
-  const capabilities = [...api.matchAll(/requireCapability\(context, '([^']+)'\)/g)].map((match) => match[1])
-  assert.deepEqual([...new Set(capabilities)].sort(), ['orders.cancel', 'orders.create', 'orders.discount'])
   assert.doesNotMatch(api, /reservations\.[a-z]/i)
+  for (const action of ['cancel', 'no-show']) {
+    const call = grants => handleTableReservationApi(new Request(`https://delivery.test/api/table-reservations/r/${action}`, {
+      method: 'POST', headers: { Origin: 'https://delivery.test', 'Content-Type': 'application/json' }, body: JSON.stringify({ refundNow: true }),
+    }), { DB: { prepare() { assert.fail('authorization/validation must precede a read or write') } } }, { businessId: 'b', granted: new Set(grants) })
+    await assert.rejects(() => call(['orders.cancel', 'orders.discount']), error => error.status === 403)
+    await assert.rejects(() => call(['payments.refund']), error => error.status === 403)
+    await assert.rejects(() => call(['orders.cancel', 'payments.refund']), error => error.status === 400 && error.code === 'TABLE_RESERVATION_REVISION_REQUIRED')
+  }
 })
 
 test('Issue 82 keeps reservation state out of bootstrap/global runtime collections', async () => {
