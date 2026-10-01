@@ -1,138 +1,29 @@
-import test from 'node:test'
+import test, { afterEach } from 'node:test'
+import { createSettingsDb } from './test-support/settingsDb.js'
+import { APPLICATION_CAPABILITIES } from '../shared/settingsAccess.js'
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
 import { hashPin } from './auth.js'
 import { handleRequest } from './index.js'
 
-class FakeDb {
-  constructor(pinHash) {
-    this.pinHash = pinHash
-    this.sessions = []
-    this.clients = new Map()
-    this.products = new Map()
-    this.orders = new Map()
-    this.tables = new Map()
-    this.tableTabs = new Map()
-  }
-
-  prepare(sql) {
-    const db = this
-    return {
-      bind(...values) {
-        return {
-          async first() {
-            if (sql.includes('FROM business_auth_state')) return { mode: 'legacy' }
-            if (sql.includes('FROM auth_credentials')) {
-              return values[0] === 'amor-e-sabor' ? { pin_hash: db.pinHash } : null
-            }
-            if (sql.includes('FROM sessions')) {
-              return db.sessions.find((session) => session.token_hash === values[0]) ?? null
-            }
-            if (sql.includes('FROM clients')) {
-              const [id, businessId] = values
-              const row = db.clients.get(id)
-              return row?.business_id === businessId ? row : null
-            }
-            if (sql.includes('FROM products')) {
-              const [id, businessId] = values
-              const row = db.products.get(id)
-              return row?.business_id === businessId && row.active !== 0 ? row : null
-            }
-            if (sql.includes('FROM orders')) {
-              const [id, businessId] = values
-              const row = db.orders.get(id)
-              return row?.business_id === businessId ? row : null
-            }
-            return null
-          },
-          async all() {
-            if (sql.includes('FROM tables')) {
-              return {
-                results: [...db.tables.values()]
-                  .filter((table) => table.business_id === values[0])
-                  .map((table) => {
-                    const openTab = [...db.tableTabs.values()].find((tab) => (
-                      tab.business_id === table.business_id
-                      && tab.table_id === table.id
-                      && tab.status === 'open'
-                    ))
-                    return {
-                      ...table,
-                      open_table_tab_id: openTab?.id ?? null,
-                      open_table_tab_number: openTab?.tab_number ?? null,
-                      open_table_tab_opened_at: openTab?.opened_at ?? null,
-                      open_table_tab_order_count: 0,
-                      open_table_tab_item_count: 0,
-                      open_table_tab_total_cents: 0,
-                    }
-                  })
-                  .sort((left, right) => left.sort_order - right.sort_order || left.name.localeCompare(right.name)),
-              }
-            }
-            if (sql.includes('FROM table_tabs')) {
-              return {
-                results: [...db.tableTabs.values()]
-                  .filter((tab) => tab.business_id === values[0])
-                  .sort((left, right) => right.opened_at.localeCompare(left.opened_at)),
-              }
-            }
-            return { results: [] }
-          },
-          async run() {
-            if (sql.includes('INSERT INTO clients')) {
-              const [id, businessId, name, phone, address, createdAt, updatedAt] = values
-              db.clients.set(id, { id, business_id: businessId, name, phone, address, created_at: createdAt, updated_at: updatedAt })
-            } else if (sql.includes('UPDATE clients SET')) {
-              const [name, phone, address, updatedAt, id, businessId] = values
-              const row = db.clients.get(id)
-              if (row?.business_id === businessId) Object.assign(row, { name, phone, address, updated_at: updatedAt })
-            } else if (sql.includes('DELETE FROM clients')) {
-              const [id, businessId] = values
-              const row = db.clients.get(id)
-              if (row?.business_id === businessId) db.clients.delete(id)
-            } else if (sql.includes('INSERT INTO products')) {
-              const [id, businessId, category, size, name, priceCents, createdAt, updatedAt] = values
-              db.products.set(id, { id, business_id: businessId, category, size, name, price_cents: priceCents, active: 1, created_at: createdAt, updated_at: updatedAt })
-            } else if (sql.includes('UPDATE products SET category')) {
-              const [category, size, name, priceCents, updatedAt, id, businessId] = values
-              const row = db.products.get(id)
-              if (row?.business_id === businessId) Object.assign(row, { category, size, name, price_cents: priceCents, updated_at: updatedAt })
-            } else if (sql.includes('UPDATE products SET active = 0')) {
-              const [updatedAt, id, businessId] = values
-              const row = db.products.get(id)
-              if (row?.business_id === businessId) Object.assign(row, { active: 0, updated_at: updatedAt })
-            } else if (sql.includes('INSERT INTO sessions')) {
-              const [id, businessId, tokenHash, createdAt, expiresAt, lastSeenAt] = values
-              db.sessions.push({ id, business_id: businessId, token_hash: tokenHash, created_at: createdAt, expires_at: expiresAt, last_seen_at: lastSeenAt, revoked_at: null })
-            } else if (sql.includes('SET last_seen_at')) {
-              const [lastSeenAt, id, businessId] = values
-              const session = db.sessions.find((item) => item.id === id && item.business_id === businessId
-                && (!sql.includes('revoked_at IS NULL') || !item.revoked_at))
-              if (session) session.last_seen_at = lastSeenAt
-              return { success: true, meta: { changes: session ? 1 : 0 } }
-            } else if (sql.includes('SET revoked_at')) {
-              const [revokedAt, tokenHash] = values
-              const session = db.sessions.find((item) => item.token_hash === tokenHash)
-              if (session) session.revoked_at = revokedAt
-            } else if (sql.includes('UPDATE orders SET promised_payment_date')) {
-              const [promisedPaymentDate, id, businessId] = values
-              const row = db.orders.get(id)
-              if (row?.business_id === businessId) row.promised_payment_date = promisedPaymentDate
-            }
-            return { success: true }
-          },
-        }
-      },
-    }
+const fixtures=[]
+afterEach(()=>{for(const close of fixtures.splice(0))close()})
+const seedRow=(db,table,row)=>{
+  const columns=new Set(db.sqlite.prepare(`PRAGMA table_info(${table})`).all().map(c=>c.name))
+  const values=Object.entries({created_at:'2026-09-30',updated_at:'2026-09-30',...row}).filter(([k])=>columns.has(k))
+  db.sqlite.prepare(`INSERT INTO ${table}(${values.map(([k])=>k).join(',')}) VALUES(${values.map(()=>'?').join(',')})`).run(...values.map(([,v])=>v))
+}
+const makeEnv = async ({ rateLimitSuccess = true, capabilities = [] } = {}) => {
+  const fixture=createSettingsDb();fixtures.push(fixture.close)
+  const DB={...fixture.db,sqlite:fixture.sqlite}
+  DB.sqlite.prepare("INSERT INTO auth_credentials(business_id,pin_hash,created_at,updated_at) VALUES('amor-e-sabor',?,'2026-09-30','2026-09-30')").run(await hashPin('4827',new Uint8Array(16).fill(7)))
+  for(const id of ['other','other-business'])seedRow(DB,'businesses',{id,slug:id,name:id})
+  return {
+    DB,
+    LOGIN_RATE_LIMITER: { limit: async ({ key }) => ({ success: key === 'amor-e-sabor:auth-login' && rateLimitSuccess }) },
+    ASSETS: { fetch: async () => new Response('asset') },
+    resolveCapabilities: async () => new Set(capabilities),
   }
 }
-
-const makeEnv = async ({ rateLimitSuccess = true, capabilities = [] } = {}) => ({
-  DB: new FakeDb(await hashPin('4827', new Uint8Array(16).fill(7))),
-  LOGIN_RATE_LIMITER: { limit: async ({ key }) => ({ success: key === 'amor-e-sabor:auth-login' && rateLimitSuccess }) },
-  ASSETS: { fetch: async () => new Response('asset') },
-  resolveCapabilities: async () => new Set(capabilities),
-})
 
 const mutationHeaders = (extra = {}) => ({ origin: 'https://delivery.example', 'content-type': 'application/json', ...extra })
 
@@ -204,7 +95,7 @@ test('login is rate limited before PIN verification', async () => {
   const response = await login(env)
   assert.equal(response.status, 429)
   assert.equal((await response.json()).error.code, 'LOGIN_RATE_LIMITED')
-  assert.equal(env.DB.sessions.length, 0)
+  assert.equal(env.DB.sqlite.prepare('SELECT count(*) n FROM sessions').get().n, 0)
 })
 
 test('mutations reject a missing or cross-origin Origin header', async () => {
@@ -222,7 +113,7 @@ test('table transfer requires a non-empty string expectedTableTabId without muta
   const env = await makeEnv({ capabilities: ['comandas.transfer'] })
   const loginResponse = await login(env)
   const headers = mutationHeaders({ cookie: loginResponse.headers.get('set-cookie').split(';')[0] })
-  const before = [...env.DB.tableTabs.entries()]
+  const before = env.DB.sqlite.prepare('SELECT * FROM table_tabs').all()
 
   for (const body of [
     {},
@@ -237,7 +128,7 @@ test('table transfer requires a non-empty string expectedTableTabId without muta
     assert.equal(response.status, 400)
     assert.equal((await response.json()).error.code, 'EXPECTED_TABLE_TAB_REQUIRED')
   }
-  assert.deepEqual([...env.DB.tableTabs.entries()], before)
+  assert.deepEqual(env.DB.sqlite.prepare('SELECT * FROM table_tabs').all(), before)
 })
 
 test('table transfer rejects an expected identity that is not the open tab at the source', async () => {
@@ -268,10 +159,11 @@ test('table transfer requires a non-empty destination identity', async () => {
 })
 
 test('authenticated bootstrap returns the shared clean business dataset', async () => {
-  const env = await makeEnv()
-  env.DB.tables.set('table-2', { id: 'table-2', business_id: 'amor-e-sabor', name: 'Mesa 2', sort_order: 2, is_active: 1 })
-  env.DB.tables.set('table-1', { id: 'table-1', business_id: 'amor-e-sabor', name: 'Mesa 1', sort_order: 1, is_active: 1 })
-  env.DB.tableTabs.set('tab-1', {
+  const env = await makeEnv({capabilities:APPLICATION_CAPABILITIES})
+  env.DB.sqlite.exec('DELETE FROM tables')
+  seedRow(env.DB,'tables', { name_key:'mesa 2', id: 'table-2', business_id: 'amor-e-sabor', name: 'Mesa 2', sort_order: 2, is_active: 1 })
+  seedRow(env.DB,'tables', { name_key:'mesa 1', id: 'table-1', business_id: 'amor-e-sabor', name: 'Mesa 1', sort_order: 1, is_active: 1 })
+  seedRow(env.DB,'table_tabs', {
     id: 'tab-1', business_id: 'amor-e-sabor', table_id: 'table-2', table_identifier: 'Mesa 2', status: 'open',
     tab_number: 1042, opened_at: '2026-09-07T12:00:00.000Z', closed_at: null,
   })
@@ -284,13 +176,13 @@ test('authenticated bootstrap returns the shared clean business dataset', async 
   assert.equal(response.status, 200)
   const body = await response.json()
   assert.match(body.effectiveBusinessConfig.version, /^v1-[0-9a-f]{24}$/)
-  assert.deepEqual(body.effectiveBusinessConfig.revisions, {})
+  assert.deepEqual(body.effectiveBusinessConfig.revisions, {cancellationReasons:1,financeCategories:1,operations:1,paymentMethods:1,printingPolicy:1})
   const knownVersion = body.effectiveBusinessConfig.version
   assert.equal(body.effectiveConfigVersion, knownVersion)
   const { effectiveBusinessConfig, effectiveConfigVersion: _effectiveConfigVersion, ...legacy } = body
   assert.ok(effectiveBusinessConfig)
   assert.deepEqual(legacy, {
-    business: { id: 'amor-e-sabor', name: 'Estabelecimento', hasLogo: false, logoVersion: null },
+    business: { id: 'amor-e-sabor', name: 'Amor & Sabor', hasLogo: false, logoVersion: null },
     clients: [],
     products: [],
     orders: [],
@@ -329,7 +221,7 @@ test('authenticated bootstrap returns the shared clean business dataset', async 
 })
 
 test('authenticated client CRUD validates and uses the session business', async () => {
-  const env = await makeEnv({ capabilities: ['clients.create', 'clients.update', 'clients.delete'] })
+  const env = await makeEnv({ capabilities: ['clients.view', 'clients.create', 'clients.update', 'clients.delete'] })
   const loginResponse = await login(env)
   const cookiePair = loginResponse.headers.get('set-cookie').split(';')[0]
   const headers = mutationHeaders({ cookie: cookiePair })
@@ -340,7 +232,7 @@ test('authenticated client CRUD validates and uses the session business', async 
   assert.equal(createResponse.status, 201)
   const created = (await createResponse.json()).client
   assert.equal(created.name, 'Maria')
-  assert.equal(env.DB.clients.get(created.id).business_id, 'amor-e-sabor')
+  assert.equal(env.DB.sqlite.prepare('SELECT business_id FROM clients WHERE id=?').get(created.id).business_id, 'amor-e-sabor')
 
   const patchResponse = await handleRequest(new Request(`https://delivery.example/api/clients/${created.id}`, {
     method: 'PATCH', headers, body: JSON.stringify({ name: 'Maria Silva', phone: '22', address: 'Bairro' }),
@@ -351,11 +243,11 @@ test('authenticated client CRUD validates and uses the session business', async 
     method: 'DELETE', headers,
   }), env)
   assert.equal(deleteResponse.status, 200)
-  assert.equal(env.DB.clients.has(created.id), false)
+  assert.equal(Boolean(env.DB.sqlite.prepare('SELECT id FROM clients WHERE id=?').get(created.id)), false)
 })
 
 test('authenticated product CRUD converts money to cents and soft deletes', async () => {
-  const env = await makeEnv({ capabilities: ['products.manage'] })
+  const env = await makeEnv({ capabilities: ['products.view', 'products.manage'] })
   const loginResponse = await login(env)
   const cookiePair = loginResponse.headers.get('set-cookie').split(';')[0]
   const headers = mutationHeaders({ cookie: cookiePair })
@@ -366,18 +258,18 @@ test('authenticated product CRUD converts money to cents and soft deletes', asyn
   assert.equal(createResponse.status, 201)
   const product = (await createResponse.json()).product
   assert.equal(product.price, 8.5)
-  assert.equal(env.DB.products.get(product.id).price_cents, 850)
+  assert.equal(env.DB.sqlite.prepare('SELECT price_cents FROM products WHERE id=?').get(product.id).price_cents, 850)
 
   const deleteResponse = await handleRequest(new Request(`https://delivery.example/api/products/${product.id}`, {
     method: 'DELETE', headers,
   }), env)
   assert.equal(deleteResponse.status, 200)
-  assert.equal(env.DB.products.get(product.id).active, 0)
+  assert.equal(env.DB.sqlite.prepare('SELECT active FROM products WHERE id=?').get(product.id).active, 0)
 })
 
 test('client and product routes return 404 for records outside the session business', async () => {
   const env = await makeEnv({ capabilities: ['clients.update'] })
-  env.DB.clients.set('other-client', { id: 'other-client', business_id: 'other', name: 'X' })
+  seedRow(env.DB,'clients', { id: 'other-client', business_id: 'other', name: 'X' })
   const loginResponse = await login(env)
   const cookiePair = loginResponse.headers.get('set-cookie').split(';')[0]
   const response = await handleRequest(new Request('https://delivery.example/api/clients/other-client', {
@@ -396,9 +288,10 @@ const paymentPromiseOrder = (overrides = {}) => ({
 })
 
 test('payment-promise PATCH updates an in-business order and rejects invalid, past, and outside-business orders', async () => {
-  const env = await makeEnv({ capabilities: ['finance.promises.manage'] })
-  env.DB.orders.set('order-promise', paymentPromiseOrder())
-  env.DB.orders.set('other-order', paymentPromiseOrder({ id: 'other-order', business_id: 'other-business' }))
+  const env = await makeEnv({ capabilities: ['finance.promises.manage','orders.history'] })
+  seedRow(env.DB,'clients',{id:'c1',business_id:'amor-e-sabor',name:'Maria'})
+  seedRow(env.DB,'orders',paymentPromiseOrder())
+  seedRow(env.DB,'orders',paymentPromiseOrder({ id: 'other-order', business_id: 'other-business',client_id:null,customer_identity_type:'guest_name' }))
   const loginResponse = await login(env)
   const headers = mutationHeaders({ cookie: loginResponse.headers.get('set-cookie').split(';')[0] })
   const request = (id, promisedPaymentDate) => handleRequest(new Request(`https://delivery.example/api/orders/${id}/payment-promise`, {
@@ -420,12 +313,14 @@ test('payment-promise PATCH updates an in-business order and rejects invalid, pa
 })
 
 
-test('client receivables payment route validates order ids and allocations before delegating to the atomic writer', async () => {
-  const source = await readFile(new URL('./index.js', import.meta.url), 'utf8')
-  assert.match(source, /clientReceivablesPaymentMatch/)
-  assert.match(source, /\/api\\\/clients\\\/\(\[\^\/\]\+\)\\\/receivables\\\/payment/)
-  assert.match(source, /validateReceivableOrderIds\(orderIds\)/)
-  assert.match(source, /validatePaymentAllocations\(allocations\)/)
-  assert.match(source, /registerClientOrdersPayment\([\s\S]*session\.businessId/)
-  assert.match(source, /return json\(result, \{ status: 201 \}\)/)
+test('client receivables payment route validates order ids and allocations before writing', async () => {
+  const env=await makeEnv({capabilities:['payments.receive','clients.view']})
+  const loginResponse=await login(env)
+  const headers=mutationHeaders({cookie:loginResponse.headers.get('set-cookie').split(';')[0]})
+  for(const body of [{orderIds:[],allocations:[]},{orderIds:['order-1'],allocations:[]}]) {
+    const response=await handleRequest(new Request('https://delivery.example/api/clients/client-1/receivables/payment',{method:'POST',headers,body:JSON.stringify(body)}),env)
+    assert.equal(response.status,400)
+  }
+  assert.equal(env.DB.sqlite.prepare('SELECT count(*) n FROM payment_receipts').get().n,0)
+  assert.equal(env.DB.sqlite.prepare("SELECT count(*) n FROM audit_events WHERE action='payment.received'").get().n,0)
 })

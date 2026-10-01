@@ -6,7 +6,7 @@ const SPEC_B_MIGRATION = 24
 
 // A local SQLite-backed subset of D1, for repository tests. Batches execute real
 // SQL serially in one transaction, including rollback on deferred FK failures.
-function d1Adapter(sqlite) {
+export function d1Adapter(sqlite) {
   const prepare = (sql, values = []) => {
     const execute = () => {
       const before = sqlite.prepare('SELECT total_changes() AS n').get().n

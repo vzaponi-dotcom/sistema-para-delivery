@@ -1,3 +1,5 @@
+import { d1Adapter } from './test-support/settingsDb.js'
+import { installAuditSchema } from './test-support/auditSchema.js'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { DatabaseSync } from 'node:sqlite'
@@ -70,36 +72,18 @@ class D1Sqlite {
         WHERE type = 'order' AND trigger = 'automatic';
       CREATE TABLE print_job_attempts (
         id TEXT PRIMARY KEY, business_id TEXT NOT NULL, job_id TEXT NOT NULL,
-        attempt_number INTEGER NOT NULL DEFAULT 1, status TEXT NOT NULL DEFAULT 'prepared',
+        station_id TEXT, attempt_number INTEGER NOT NULL DEFAULT 1, status TEXT NOT NULL DEFAULT 'prepared',
         resolution TEXT, submission_started_at TEXT, last_event_at TEXT,
         last_error_code TEXT, last_error_message TEXT, updated_at TEXT
       );
     `)
+    this.sqlite.exec("CREATE TABLE businesses(id TEXT PRIMARY KEY); INSERT INTO businesses VALUES('amor-e-sabor');")
+    installAuditSchema(this.sqlite)
+    Object.assign(this,d1Adapter(this.sqlite))
+    this.exec = sql => this.sqlite.exec(sql)
   }
 
-  prepare(sql) {
-    const database = this.sqlite
-    return {
-      bind(...values) {
-        return {
-          async first() { return database.prepare(sql).get(...values) ?? null },
-          async all() { return { results: database.prepare(sql).all(...values) } },
-          async run() {
-            const result = database.prepare(sql).run(...values)
-            return { success: true, meta: { changes: Number(result.changes || 0) } }
-          },
-        }
-      },
-    }
-  }
 
-  async batch(statements) {
-    const results = []
-    for (const statement of statements) results.push(await statement.run())
-    return results
-  }
-
-  exec(sql) { this.sqlite.exec(sql) }
 }
 
 const businessId = 'amor-e-sabor'

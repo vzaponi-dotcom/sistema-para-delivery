@@ -1,3 +1,5 @@
+import { d1Adapter } from './test-support/settingsDb.js'
+import { installAuditSchema } from './test-support/auditSchema.js'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { DatabaseSync } from 'node:sqlite'
@@ -90,40 +92,12 @@ class D1Sqlite {
       INSERT INTO businesses (id, name) VALUES ('amor-e-sabor', 'Amor & Sabor');
       INSERT INTO business_auth_state (business_id, mode) VALUES ('amor-e-sabor', 'legacy');
     `)
+    installAuditSchema(this.sqlite)
+    Object.assign(this,d1Adapter(this.sqlite))
+    this.exec = sql => this.sqlite.exec(sql)
   }
 
-  prepare(sql) {
-    const database = this.sqlite
-    return {
-      bind(...values) {
-        return {
-          async first() {
-            return database.prepare(sql).get(...values) ?? null
-          },
-          async all() {
-            return { results: database.prepare(sql).all(...values) }
-          },
-          async run() {
-            const result = database.prepare(sql).run(...values)
-            return { success: true, meta: { changes: Number(result.changes || 0) } }
-          },
-        }
-      },
-    }
-  }
 
-  async batch(statements) {
-    this.sqlite.exec('BEGIN')
-    try {
-      const results = []
-      for (const statement of statements) results.push(await statement.run())
-      this.sqlite.exec('COMMIT')
-      return results
-    } catch (error) {
-      this.sqlite.exec('ROLLBACK')
-      throw error
-    }
-  }
 }
 
 const makeAuthenticatedEnv = async () => {

@@ -30,7 +30,7 @@ const route = (path, { method = 'GET', headers = {}, body, env = {} } = {}) => {
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   })
-  return handlePrintingApi(request, env, { businessId: 'amor-e-sabor' }, new URL(request.url))
+  return handlePrintingApi(request, env, { businessId: 'amor-e-sabor', granted: new Set(['printing.execute']) }, new URL(request.url))
 }
 
 test('QZ certificate endpoint remains protected by the global authenticated API boundary', async () => {
