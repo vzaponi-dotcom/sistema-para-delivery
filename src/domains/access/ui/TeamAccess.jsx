@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { capabilityLabel } from './accessLabels.js'
 import Button from '../../../shared/ui/Button'
 import PageHeader from '../../../shared/ui/PageHeader'
 import Modal from '../../../shared/ui/Modal'
@@ -42,7 +43,7 @@ export default function TeamAccess({ sessionContext, api = accessApi, onApiError
     {state.pending && <p role="status">Aguarde…</p>}
     <section className="surface-card access-section" aria-label="Perfis de acesso">
       <h2>Perfis de acesso</h2>
-      {data.roles.map(role => <details key={role.id}><summary>{role.name}</summary><ul>{role.capabilities.map(capability => <li key={capability}>{capability}</li>)}</ul></details>)}
+      {data.roles.map(role => <details key={role.id}><summary>{role.name}</summary><ul>{role.capabilities.map(capability => <li key={capability}>{capabilityLabel(capability)}</li>)}</ul></details>)}
     </section>
     {canManage && <section className="surface-card access-section"><h2>Convidar pessoa</h2><form className="access-form" onSubmit={submit} aria-busy={Boolean(state.pending)}>
       <label>Nome<input name="displayName" required value={draft.displayName} onChange={event => setDraft({ ...draft, displayName: event.target.value })} /></label>

@@ -64,6 +64,7 @@ function NewOrder({
   disabled,
   canCreateClients = true,
   canAdjustOrders = true,
+  canBackdateOrders = true,
   renderPaymentComposition,
   modalityOptions,
   defaultModality,
@@ -174,6 +175,7 @@ function NewOrder({
     : activeModalityOptions
   const selectedTable = tables.find((table) => table.isActive && table.id === selectedTableId) ?? null
   const todayValue = getBusinessDate()
+  const orderDateAllowed = canBackdateOrders || orderDate >= todayValue
   const maxDateValue = getScheduleMaxBusinessDate(new Date())
   const scheduledFor = scheduleMode === 'scheduled'
     ? businessDateTimeToIso(orderDate, scheduledTime)
@@ -229,7 +231,7 @@ function NewOrder({
     identityValid: identityValidation.ok,
     orderDate,
     itemCount,
-    scheduleValid,
+    scheduleValid: scheduleValid && orderDateAllowed,
   })
   const canSubmit = Boolean(stepAccess.review) && !modalityNeedsReview && !policyReviewError
   const canContinueCustomer = stepAccess.products && !modalityNeedsReview
@@ -270,6 +272,7 @@ function NewOrder({
   }
 
   const changeOrderDate = (value) => {
+    if (!canBackdateOrders && value && value < todayValue) return false
     setOrderDate(value)
     if (expectedTableTabId) {
       setScheduleMode('now')
@@ -470,6 +473,7 @@ function NewOrder({
       )}
 
       {checkoutError && <div className="new-order-error" role="alert">{checkoutError}</div>}
+      {!orderDateAllowed && <div className="new-order-error" role="alert">Selecione uma data de hoje ou futura para continuar.</div>}
       {(policyReviewError || modalityNeedsReview) && (
         <div className="new-order-error" role="alert">
           {policyReviewError || (!type
@@ -503,6 +507,7 @@ function NewOrder({
             orderTypeOptions={visibleModalityOptions}
             orderDate={orderDate}
             todayValue={todayValue}
+            canBackdateOrders={canBackdateOrders}
             maxDateValue={maxDateValue}
             scheduleMode={scheduleMode}
             scheduledTime={scheduledTime}

@@ -31,6 +31,7 @@ function NewOrderCustomerStep({
   quickClientError,
   disabled,
   canCreateClients = true,
+  canBackdateOrders = true,
   canContinue,
   onTypeChange,
   onOrderDateChange,
@@ -172,6 +173,7 @@ function NewOrderCustomerStep({
         <input
           type="date"
           value={orderDate}
+          min={canBackdateOrders ? undefined : todayValue}
           max={maxDateValue || todayValue}
           onChange={(event) => onOrderDateChange(event.target.value)}
           disabled={disabled}

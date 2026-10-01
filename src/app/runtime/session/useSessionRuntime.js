@@ -10,6 +10,7 @@ export const useSessionRuntime = ({ api = defaultApi, coordinatorFactory = creat
   const [authMode, setAuthMode] = useState(null)
   const [loginError, setLoginError] = useState('')
   const operationRef = useRef(0)
+  const authRequestRef = useRef(null)
   const coordinatorRef = useRef(null)
   const credentialChangeRef = useRef(null)
   const sessionDiscoveryRef = useRef(null)
@@ -37,18 +38,18 @@ export const useSessionRuntime = ({ api = defaultApi, coordinatorFactory = creat
   useEffect(() => {
     if (authState === 'authenticated' && sessionHasOperationalAccess(sessionContext)) void refreshBootstrap()
   }, [authState, sessionGeneration])
-  const expireSession = useCallback(({ broadcast = true } = {}) => {
-    operationRef.current++; clear(); setAuthState('anonymous'); setRequestKey(null)
+  const expireSession = useCallback(({ broadcast = true, preserveRequestKey = false } = {}) => {
+    operationRef.current++; clear(); setAuthState('anonymous'); if (!preserveRequestKey) { authRequestRef.current = null; setRequestKey(null) }
     setLoginError('Sua sessão expirou. Entre novamente.')
     if (broadcast) coordinatorRef.current?.publish()
   }, [clear, setRequestKey])
-  const refreshSession = useCallback(async ({ broadcast = false } = {}) => {
+  const refreshSession = useCallback(async ({ broadcast = false, preserveRequestKey = false, scope, requireContext = false } = {}) => {
     const operation = ++operationRef.current
-    clear(); setRequestKey(null); setAuthState('checking')
+    clear(scope); if (!preserveRequestKey) { authRequestRef.current = null; setRequestKey(null) }; setAuthState('checking')
     if (broadcast) coordinatorRef.current?.publish()
     const discovery = (async () => {
-      try { return await accept(await api.getSession(), operation) }
-      catch { if (operation === operationRef.current) expireSession({ broadcast: false }); return false }
+      try { return await accept(await api.getSession({ requireContext }), operation) }
+      catch { if (operation === operationRef.current) expireSession({ broadcast: false, preserveRequestKey }); return false }
     })()
     sessionDiscoveryRef.current = { operation, promise: discovery }
     return await discovery
@@ -102,36 +103,52 @@ export const useSessionRuntime = ({ api = defaultApi, coordinatorFactory = creat
       }
     }
   }, [authState, isOnline, sessionContext])
+  // Cookie settlement outlives the UI operation that initiated the POST. A
+  // stale response may still install/clear the shared cookie; rediscover it,
+  // while only the current operation may release its own request lock.
+  const releaseAuthRequest = useCallback(operation => {
+    if (authRequestRef.current !== operation) return
+    authRequestRef.current = null
+    setRequestKey(null)
+  }, [setRequestKey])
+  const settleAuth = useCallback((operation, scope) => {
+    const currentScope = operation === operationRef.current ? scope : undefined
+    releaseAuthRequest(operation)
+    return refreshSessionRef.current({ broadcast: true, preserveRequestKey: true, scope: currentScope, requireContext: true })
+  }, [releaseAuthRequest])
   const handleLogin = useCallback(async (credentials) => {
     if (!isOnline || requestKey !== null || credentialChangeRef.current) return false
     const operation = ++operationRef.current
+    authRequestRef.current = operation
     setRequestKey('auth:login'); setLoginError('')
     try {
-      const session = await api.login(credentials)
-      if (operation !== operationRef.current) return false
-      resetOperationalData(); onClearApplicationState('sync')
-      coordinatorRef.current?.publish()
-      return await accept(session, operation)
+      await api.login(credentials, { discover: false })
+      return await settleAuth(operation, 'sync')
     } catch (error) {
-      if (operation !== operationRef.current) return false
-      clear(); setAuthState('anonymous')
-      setLoginError(error?.code === 'INVALID_PIN' ? 'PIN inválido. Confira e tente novamente.' : error?.message || 'Não foi possível entrar no sistema.')
+      if (operation === operationRef.current) {
+        setLoginError(error?.code === 'INVALID_PIN' ? 'PIN inválido. Confira e tente novamente.' : error?.message || 'Não foi possível entrar no sistema.')
+      }
+      if (!Number.isInteger(error?.status)) await settleAuth(operation, 'sync')
+      else if (operation === operationRef.current) { clear(); setAuthState('anonymous') }
       return false
-    } finally { if (operation === operationRef.current) setRequestKey(null) }
-  }, [accept, api, clear, isOnline, onClearApplicationState, requestKey, resetOperationalData, setRequestKey])
+    } finally { releaseAuthRequest(operation) }
+  }, [api, clear, isOnline, requestKey, setRequestKey, settleAuth, releaseAuthRequest])
   const handleLogout = useCallback(async () => {
     if (!isOnline || requestKey !== null || credentialChangeRef.current) return false
     const operation = ++operationRef.current
+    authRequestRef.current = operation
     setRequestKey('auth:logout'); clear(); setAuthState('checking')
     try {
       await api.logout()
-      if (operation !== operationRef.current) return false
-      coordinatorRef.current?.publish()
-      setAuthState('anonymous'); setLoginError(''); return true
+      if (operation === operationRef.current) setLoginError('')
+      await settleAuth(operation)
+      return true
     } catch (error) {
-      if (operation === operationRef.current) { setAuthState('anonymous'); setLoginError(error?.message || 'Não foi possível encerrar a sessão. Tente novamente.') }
+      if (operation === operationRef.current) setLoginError(error?.message || 'Não foi possível encerrar a sessão. Tente novamente.')
+      if (!Number.isInteger(error?.status)) await settleAuth(operation)
+      else if (operation === operationRef.current) setAuthState('anonymous')
       return false
-    } finally { if (operation === operationRef.current) setRequestKey(null) }
-  }, [api, clear, isOnline, requestKey, setRequestKey])
+    } finally { releaseAuthRequest(operation) }
+  }, [api, clear, isOnline, requestKey, setRequestKey, settleAuth, releaseAuthRequest])
   return { authState, sessionContext, sessionGeneration, authMode, operationalAccess: sessionHasOperationalAccess(sessionContext), loginError, handleLogin, handleLogout, expireSession, refreshSession, runCredentialChange, credentialChangePending, isCredentialChangePending }
 }

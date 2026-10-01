@@ -378,3 +378,27 @@ test('reservation conflict renders the specific server guidance instead of a gen
   assert.match(text, /Escolha outra mesa ou outro horário/)
   assert.doesNotMatch(text, /Não foi possível salvar a venda/)
 })
+
+for (const canBackdateOrders of [false, true]) test(`date selection honors backdate capability ${canBackdateOrders} and preserves future scheduling`, async t => {
+  const h = await workspaceHarness(t)
+  const { default: NewOrder } = await h.load('/src/domains/orders/ui/NewOrder.jsx')
+  const screen = await h.render(NewOrder, { clients: [{ id: 'c', name: 'Ana' }], products: [], canBackdateOrders, initialDraft: { clientId: 'c' }, currency: String })
+  const input = () => screen.root.findByProps({ type: 'date' })
+  const today = input().props.value
+  assert.equal(input().props.min, canBackdateOrders ? undefined : today)
+  await act(async () => input().props.onChange({ target: { value: '2020-01-01' } }))
+  assert.equal(input().props.value, canBackdateOrders ? '2020-01-01' : today)
+  const future = input().props.max
+  await act(async () => input().props.onChange({ target: { value: future } }))
+  assert.equal(input().props.value, future)
+  assert.equal(buttonNamed(screen.root, 'Agendado').props['aria-pressed'], true)
+})
+
+test('restored past-date draft blocks advancement early for an operator', async t => {
+  const h = await workspaceHarness(t)
+  const { default: NewOrder } = await h.load('/src/domains/orders/ui/NewOrder.jsx')
+  const screen = await h.render(NewOrder, { clients: [{ id: 'c', name: 'Ana' }], products: [], canBackdateOrders: false, initialDraft: { clientId: 'c', orderDate: '2020-01-01' }, currency: String })
+  assert.match(nodeText(screen.root), /data de hoje ou futura/)
+  const continueButton = screen.root.findAllByType('button').find(n => /Continuar|Escolher produtos/.test(nodeText(n)))
+  assert.equal(continueButton.props.disabled, true)
+})

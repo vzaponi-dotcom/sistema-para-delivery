@@ -66,3 +66,9 @@ test('session API preserves GET session and POST logout routes', async () => {
     ['/api/auth/logout', 'POST'],
   ])
 })
+
+test('trusted discovery rejects an incomplete context when the runtime owns login discovery', async () => {
+  const api = createSessionApi({ request: async path => path.endsWith('/login') ? {} : { authenticated: true } })
+  await api.login('1234', { discover: false })
+  await assert.rejects(api.getSession({ requireContext: true }), { code: 'SESSION_CONTEXT_UNAVAILABLE' })
+})

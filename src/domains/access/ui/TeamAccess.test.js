@@ -101,3 +101,10 @@ test('callback-only parent render does not repeat the team read', async t => {
   await act(async () => screen.update(React.createElement(Component, { sessionContext: manager, onApiError() {} })))
   assert.equal(reads, 1); assert.match(nodeText(screen.root), /Otávio/)
 })
+
+test('role summaries present Portuguese permissions and a readable future fallback', async t => {
+  const { screen } = await setup(t, 'TeamAccess', { sessionContext: manager }, async () => response({ users, roles: [{ ...roles[0], capabilities: ['finance.promises.manage', 'future.new_permission'] }] }))
+  assert.match(nodeText(screen.root), /Gerenciar promessas de pagamento/)
+  assert.match(nodeText(screen.root), /Future new permission/)
+  assert.doesNotMatch(nodeText(screen.root), /finance\.promises\.manage/)
+})

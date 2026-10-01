@@ -69,7 +69,7 @@ async function operation(t, jobs = []) {
   let revocations = 0
   globalThis.fetch = async (path) => {
     if (path === '/api/auth/logout') { revocations++; return { ok: true, json: async () => ({ authenticated: false }) } }
-    const payload = path === '/api/auth/session' ? operationalSession : path === '/api/bootstrap' ? bootstrap : path === '/api/orders' ? { orders: [] } : path === '/api/printing/stations' ? { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] } : String(path).startsWith('/api/printing/jobs?') ? { jobs } : path === '/api/printing/jobs/summary' ? { summary: {} } : null
+    const payload = path === '/api/auth/session' ? (revocations ? { authenticated: false } : operationalSession) : path === '/api/bootstrap' ? bootstrap : path === '/api/orders' ? { orders: [] } : path === '/api/printing/stations' ? { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] } : String(path).startsWith('/api/printing/jobs?') ? { jobs } : path === '/api/printing/jobs/summary' ? { summary: {} } : null
     assert.ok(payload, `Unexpected ${path}`)
     return { ok: true, json: async () => payload?.jobs ? { ...payload, jobs: [...payload.jobs] } : payload }
   }

@@ -577,8 +577,14 @@ export const usePrintingManager = ({ authenticated = false, accessContextId = nu
           throw printerError('PRINT_QUEUE_ONLY', 'Esta estação não executa impressão física.')
         },
         qzAttempt: transportKind === 'qz' ? {
-          createAttempt: async (jobId, stationId, copyNumber) => (await createPrintAttempt(jobId, stationId, copyNumber)).attempt,
-          markSubmitting: async (attemptId, stationId) => (await markPrintAttemptSubmitting(attemptId, stationId)).attempt,
+          createAttempt: async (jobId, stationId, copyNumber) => {
+            requireExecution()
+            return (await createPrintAttempt(jobId, stationId, copyNumber)).attempt
+          },
+          markSubmitting: async (attemptId, stationId) => {
+            requireExecution()
+            return (await markPrintAttemptSubmitting(attemptId, stationId)).attempt
+          },
           sendBytes: async (bytes, { jobName }) => {
             if (typeof preparePort === 'function') await preparePort()
             requireExecution()
@@ -628,14 +634,18 @@ export const usePrintingManager = ({ authenticated = false, accessContextId = nu
     acquire: acquirePrintOperation,
     release: releasePrintOperation,
     operation: async () => {
+      const owns = captureAccess()
       const station = localStationRef.current
       if (!station?.id) throw printerError('PRINT_STATION_NOT_READY', 'A estação de impressão ainda não está pronta.')
       const port = await getExplicitPort()
+      if (!owns()) return null
       const created = await createTestPrintJob(station.id)
+      if (!owns()) return null
       const claimed = await claimPrintJob(created.job.id, station.id)
+      if (!owns()) return null
       return executeClaimedJob(claimed.job, port, { clearBlockOnSuccess: true })
     },
-  }), [acquirePrintOperation, executeClaimedJob, getExplicitPort, releasePrintOperation])
+  }), [captureAccess, acquirePrintOperation, executeClaimedJob, getExplicitPort, releasePrintOperation])
 
   const printOrder = useCallback(async (orderId, copies) => {
     const created = await createManualPrintJob(orderId, copies)
@@ -647,6 +657,7 @@ export const usePrintingManager = ({ authenticated = false, accessContextId = nu
     acquire: acquirePrintOperation,
     release: releasePrintOperation,
     operation: async () => {
+      const owns = captureAccess()
       const station = localStationRef.current
       if (!station?.id) throw printerError('PRINT_STATION_NOT_READY', 'A estação de impressão ainda não está pronta.')
       if (!job?.id) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
@@ -657,29 +668,31 @@ export const usePrintingManager = ({ authenticated = false, accessContextId = nu
         station,
         job,
         claimJob: claimPrintJob,
-        executeJob: (claimedJob) => executeClaimedJob(claimedJob, null, {
+        executeJob: (claimedJob) => !owns() ? null : executeClaimedJob(claimedJob, null, {
           clearBlockOnSuccess: true,
           preparePort: getExplicitPort,
         }),
       })
     },
-  }), [acquirePrintOperation, executeClaimedJob, getExplicitPort, isQz, releasePrintOperation])
+  }), [captureAccess, acquirePrintOperation, executeClaimedJob, getExplicitPort, isQz, releasePrintOperation])
 
   const transitionRecovery = useCallback(async (action) => {
+    const owns = captureAccess()
     const station = localStationRef.current
     if (!station?.id) throw printerError('PRINT_STATION_NOT_READY', 'A estação de impressão ainda não está pronta.')
     const nextState = nextRecoveryState({ recoveryState: station.recoveryState, action })
     if (nextState === (station.recoveryState ?? 'normal')) return station
     const response = await setPrintStationRecovery(station.id, nextState)
-    if (!ownsAccess()) return null
+    if (!owns()) return null
     if (response?.station) updateLocalStation(response.station)
     return response?.station ?? station
-  }, [ownsAccess, updateLocalStation])
+  }, [captureAccess, updateLocalStation])
 
   const printNextRecovery = useCallback(() => runExclusivePrintOperation({
     acquire: acquirePrintOperation,
     release: releasePrintOperation,
     operation: async () => {
+      const owns = captureAccess()
       const station = localStationRef.current
       const eligible = canRunSingleRecoveryCopy({
         recoveryState: station?.recoveryState,
@@ -692,22 +705,22 @@ export const usePrintingManager = ({ authenticated = false, accessContextId = nu
         physicalReady: printerHealthRef.current.state === 'ready',
         busyJobId: busyJobIdRef.current,
         claimNext: () => claimNextRecoveryPrintJob(station.id),
-        executeJob: (job) => executeClaimedJob(job, null, {
+        executeJob: (job) => !owns() ? null : executeClaimedJob(job, null, {
           clearBlockOnSuccess: true,
           preparePort: getExplicitPort,
         }),
       })
-      if (!ownsAccess()) return null
+      if (!owns()) return null
       if (result) {
         const refreshed = await refresh()
-        if (!ownsAccess()) return null
+        if (!owns()) return null
         const recoveredJob = refreshed?.jobs?.find((job) => job.id === result.jobId) ?? null
         const current = localStationRef.current
         if (result.status === 'printed' && ['printed', 'discarded'].includes(recoveredJob?.status)
           && Number(refreshed?.summary?.safeBacklog || 0) === 0 && current?.id
           && current.recoveryState === 'deferred' && !current?.recoveryJobId) {
           const response = await setPrintStationRecovery(current.id, 'normal')
-          if (!ownsAccess()) return null
+          if (!owns()) return null
           if (response?.station) updateLocalStation(response.station)
         }
         return { ...result, job: recoveredJob }
@@ -716,36 +729,38 @@ export const usePrintingManager = ({ authenticated = false, accessContextId = nu
       const current = localStationRef.current
       if (current?.id && current.recoveryState === 'active' && !current.recoveryJobId) {
         const response = await setPrintStationRecovery(current.id, 'normal')
-        if (!ownsAccess()) return null
+        if (!owns()) return null
         if (response?.station) updateLocalStation(response.station)
       }
       await refresh()
       return null
     },
-  }), [ownsAccess, acquirePrintOperation, executeClaimedJob, getExplicitPort, refresh, releasePrintOperation, updateLocalStation])
+  }), [captureAccess, acquirePrintOperation, executeClaimedJob, getExplicitPort, refresh, releasePrintOperation, updateLocalStation])
 
   const startRecovery = useCallback(async () => {
+    const owns = captureAccess()
     await transitionRecovery('start')
-    if (!ownsAccess()) return null
+    if (!owns()) return null
     return printNextRecovery()
-  }, [ownsAccess, printNextRecovery, transitionRecovery])
+  }, [captureAccess, printNextRecovery, transitionRecovery])
 
   const deferRecovery = useCallback(() => transitionRecovery('defer'), [transitionRecovery])
 
   const resumeRecovery = useCallback(() => transitionRecovery('resume'), [transitionRecovery])
 
   const discardRecoveryBacklog = useCallback(async () => {
+    const owns = captureAccess()
     const station = localStationRef.current
     const response = await discardPendingPrintJobs()
-    if (!ownsAccess()) return null
+    if (!owns()) return null
     if (station?.id && (station.recoveryState ?? 'normal') !== 'normal') {
       const recovered = await setPrintStationRecovery(station.id, 'normal')
-      if (!ownsAccess()) return null
+      if (!owns()) return null
       if (recovered?.station) updateLocalStation(recovered.station)
     }
     await refresh()
     return response
-  }, [ownsAccess, refresh, updateLocalStation])
+  }, [captureAccess, refresh, updateLocalStation])
 
   const requestDiscardPendingJobs = useCallback(async () => {
     const response = await discardOperationalPrintJobs('Operador')
@@ -783,16 +798,20 @@ export const usePrintingManager = ({ authenticated = false, accessContextId = nu
     acquire: acquirePrintOperation,
     release: releasePrintOperation,
     operation: async () => {
+      const owns = captureAccess()
       const station = localStationRef.current
       if (!station?.id) throw printerError('PRINT_STATION_NOT_READY', 'A estação de impressão ainda não está pronta.')
       const jobId = typeof jobOrId === 'string' ? jobOrId : jobOrId?.id
       if (!jobId) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
       const port = await getExplicitPort()
+      if (!owns()) return null
       const reset = await retryPrintJob(jobId, station.id)
+      if (!owns()) return null
       const claimed = await claimPrintJob(reset.job.id, station.id)
+      if (!owns()) return null
       return executeClaimedJob(claimed.job, port, { clearBlockOnSuccess: true })
     },
-  }), [acquirePrintOperation, executeClaimedJob, getExplicitPort, releasePrintOperation])
+  }), [captureAccess, acquirePrintOperation, executeClaimedJob, getExplicitPort, releasePrintOperation])
 
   const applyJobMutation = useCallback((response, options) => {
     if (accessContextRef.current !== accessContextId) return null

@@ -230,7 +230,7 @@ test('authenticated initial session establishes context and generation before bo
 test('successful login clears stale sync state without broad application cleanup before bootstrap', async (t) => {
   const calls = []
   const harness = await mountHarness(t, {
-    api: anonymousApi(),
+    api: anonymousApi({ getSession: async () => calls.length ? authenticatedSession : { authenticated: false } }),
     resetOperationalData: () => { calls.push('reset-operational') },
     onClearApplicationState: (scope) => { calls.push(`clear-application:${scope ?? 'full'}`) },
     refreshBootstrap: async () => { calls.push('refresh-bootstrap') },
@@ -240,7 +240,7 @@ test('successful login clears stale sync state without broad application cleanup
 
   assert.deepEqual(calls, ['reset-operational', 'clear-application:sync', 'refresh-bootstrap'])
   assert.equal(harness.getCurrent().authState, 'authenticated')
-  assert.equal(harness.getCurrent().sessionGeneration, 1)
+  assert.equal(harness.getCurrent().sessionGeneration, 2)
 })
 
 test('invalid PIN preserves the exact login error copy', async (t) => {
@@ -270,7 +270,7 @@ test('logout clears operational and application state before returning anonymous
   let clearApplicationStateCalls = 0
   const harness = await mountHarness(t, {
     api: anonymousApi({
-      getSession: async () => authenticatedSession,
+      getSession: async () => logoutCalls ? { authenticated: false } : authenticatedSession,
       logout: async () => { logoutCalls += 1 },
     }),
     resetOperationalData: () => { resetOperationalDataCalls += 1 },
@@ -281,8 +281,8 @@ test('logout clears operational and application state before returning anonymous
 
   const current = harness.getCurrent()
   assert.equal(logoutCalls, 1)
-  assert.equal(resetOperationalDataCalls, 1)
-  assert.equal(clearApplicationStateCalls, 1)
+  assert.equal(resetOperationalDataCalls, 2)
+  assert.equal(clearApplicationStateCalls, 2)
   assert.equal(current.authState, 'anonymous')
   assert.equal(current.sessionContext, null)
   assert.equal(current.loginError, '')
@@ -334,4 +334,69 @@ test('logout is blocked while another request owns requestKey', async (t) => {
 
   assert.equal(logoutCalls, 0)
   assert.equal(harness.getCurrent().authState, 'authenticated')
+})
+
+for (const action of ['handleLogin', 'handleLogout']) for (const settlement of ['confirmed', 'body-interrupted', 'headers-interrupted']) {
+  test(`${action} ${settlement} after other-tab change rediscovers actual cookie and invalidates observers without replay`, async t => {
+    const { createSessionApi } = await import('../../../infrastructure/auth/sessionApi.js')
+    const previousFetch = globalThis.fetch
+    t.after(() => { globalThis.fetch = previousFetch })
+    const first = { ...authenticatedSession, user: { id: 'a' } }
+    const second = { ...first, user: { id: 'b' } }
+    let cookie = first, release, invalidate, broadcasts = 0, writes = 0, verify, holdRead = false
+    const clearScopes = []
+    globalThis.fetch = async (path, options) => {
+      if (options.method === 'POST') {
+        writes++
+        return new Promise((resolve, reject) => { release = () => {
+          cookie = action === 'handleLogin' ? first : { authenticated: false }
+          if (settlement === 'headers-interrupted') return reject(new Error('connection interrupted'))
+          resolve({ ok: true, json: async () => { if (settlement === 'body-interrupted') throw new Error('body interrupted'); return { ok: true } } })
+        } })
+      }
+      const currentCookie = cookie
+      if (holdRead) return new Promise(resolve => { verify = () => resolve({ ok: true, json: async () => currentCookie }) })
+      return { ok: true, json: async () => currentCookie }
+    }
+    const h = await mountHarness(t, { api: createSessionApi(), onClearApplicationState: scope => clearScopes.push(scope), coordinatorFactory: ({ onInvalidate }) => {
+      invalidate = onInvalidate
+      return { publish() { broadcasts++ }, close() {} }
+    } })
+    let pending
+    await act(async () => { pending = h.getCurrent()[action]('1234') })
+    cookie = second
+    await act(async () => { invalidate(); await flush() })
+    assert.equal(h.getCurrent().sessionContext.user.id, 'b')
+    holdRead = true
+    await act(async () => { release(); await flush() })
+    assert.equal(broadcasts, 1)
+    assert.equal(clearScopes.at(-1), undefined)
+    assert.equal(h.getCurrent().sessionContext, null)
+    assert.equal(h.getCurrent().authState, 'checking')
+    holdRead = false
+    await act(async () => { verify(); await pending })
+    assert.equal(h.getCurrent().sessionContext?.user?.id ?? null, action === 'handleLogin' ? 'a' : null)
+    assert.equal(writes, 1)
+  })
+}
+
+test('each auth request releases its own lock after an older cookie settlement supersedes its UI discovery', async t => {
+  let current, key, renderer, finishFirst, finishSecond, pendingFirst, pendingSecond, calls = 0
+  const api = anonymousApi({ getSession: async () => authenticatedSession, login: () => new Promise(resolve => { if (++calls === 1) finishFirst = resolve; else finishSecond = resolve }) })
+  const coordinatorFactory = () => ({ publish() {}, close() {} })
+  function Probe() {
+    const [requestKey, setRequestKey] = React.useState(null)
+    key = requestKey
+    current = useSessionRuntime({ api, requestKey, setRequestKey, coordinatorFactory })
+    return null
+  }
+  await act(async () => { renderer = create(React.createElement(Probe)); await flush() })
+  t.after(() => renderer.unmount())
+  await act(async () => { pendingFirst = current.handleLogin('first') })
+  await act(async () => { await current.refreshSession() })
+  await act(async () => { pendingSecond = current.handleLogin('second') })
+  await act(async () => { finishFirst(authenticatedSession); await pendingFirst })
+  assert.equal(key, 'auth:login')
+  await act(async () => { finishSecond(authenticatedSession); await pendingSecond })
+  assert.equal(key, null)
 })

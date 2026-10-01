@@ -170,3 +170,92 @@ test('expired recovery transition cannot restore the former station or continue 
   assert.equal(current.localStation, null)
   assert.equal(mutations, 1)
 })
+
+for (const action of ['testPrint', 'retryJob']) for (const boundary of ['preparation', 'mutation']) {
+  test(`${action} stops before a new write when owner changes during ${boundary}`, async t => {
+    const h = await workspaceHarness(t, { userAgent: 'Windows NT 10.0' })
+    const receive = readyQz(t)
+    h.window.localStorage.setItem('delivery-qz-printer-name:test-station', 'Fila')
+    let release, current, pending, writes = [], holdPreparation = false
+    const originalFind = qz.printers.find
+    qz.printers.find = async () => holdPreparation ? new Promise(resolve => { release = () => resolve(['Fila']) }) : originalFind()
+    const json = body => ({ ok: true, json: async () => body })
+    globalThis.fetch = async (path, options) => {
+      if (options.method === 'POST') {
+        writes.push(path)
+        if (boundary === 'mutation' && writes.length === 1) return new Promise(resolve => { release = () => resolve(json({ job: { id: 'test-job' } })) })
+        return json({ job: { id: 'test-job' } })
+      }
+      if (path === '/api/printing/stations') return json({ stations: [{ id: 'test-station', platform: 'windows', isPrimary: false }] })
+      return json({ jobs: [], summary: {} })
+    }
+    function Probe(props) { current = usePrintingManager(props); return null }
+    const renderer = await h.render(Probe, { authenticated: true, accessContextId: 'a' })
+    await act(async () => { await current.connectPrinter() })
+    holdPreparation = boundary === 'preparation'
+    if (holdPreparation) await act(async () => receive({ printerName: 'Fila', eventType: 'PRINTER', statusText: 'OFFLINE' }))
+    await act(async () => { pending = current[action]('test-job'); await new Promise(resolve => setImmediate(resolve)) })
+    assert.equal(typeof release, 'function')
+    await act(async () => renderer.update(React.createElement(Probe, { authenticated: true, accessContextId: 'b' })))
+    holdPreparation = false
+    await act(async () => { release(); await pending.catch(() => {}) })
+    assert.equal(writes.length, boundary === 'preparation' ? 0 : 1)
+    assert.equal(writes.some(path => path.endsWith('/claim')), false)
+  })
+}
+
+test('owner change while preparing an attempt stops submission intent but preserves failure reconciliation', async t => {
+  const h = await workspaceHarness(t, { userAgent: 'Windows NT 10.0' })
+  readyQz(t)
+  h.window.localStorage.setItem('delivery-qz-printer-name:test-station', 'Fila')
+  let release, current, pending, writes = []
+  const json = body => ({ ok: true, json: async () => body })
+  globalThis.fetch = async (path, options) => {
+    if (options.method === 'POST') {
+      writes.push(path)
+      if (path.endsWith('/attempts')) return new Promise(resolve => { release = () => resolve(json({ attempt: { id: 'attempt', spoolJobName: 'job-name' } })) })
+      if (path.endsWith('/submitting')) return json({ attempt: { id: 'attempt', spoolJobName: 'job-name' } })
+      return json({ job: { id: 'job', copiesRequested: 1, document: { type: 'test' } } })
+    }
+    if (path === '/api/printing/stations') return json({ stations: [{ id: 'test-station', platform: 'windows', isPrimary: false }] })
+    return json({ jobs: [], summary: {} })
+  }
+  function Probe(props) { current = usePrintingManager(props); return null }
+  const renderer = await h.render(Probe, { authenticated: true, accessContextId: 'a' })
+  await act(async () => { await current.connectPrinter() })
+  await act(async () => { pending = current.testPrint(); await new Promise(resolve => setImmediate(resolve)) })
+  assert.equal(typeof release, 'function')
+  await act(async () => renderer.update(React.createElement(Probe, { authenticated: true, accessContextId: 'b' })))
+  await act(async () => { release(); await pending })
+  assert.equal(writes.some(path => path.endsWith('/submitting')), false)
+  assert.equal(writes.filter(path => path.endsWith('/fail')).length, 1)
+})
+
+for (const action of ['printSecondCopy', 'printNextRecovery', 'discardRecoveryBacklog', 'startRecovery']) test(`${action} cannot continue a settled request from an expired generation`, async t => {
+  const h = await workspaceHarness(t, { userAgent: 'Windows NT 10.0' })
+  readyQz(t)
+  h.window.localStorage.setItem('delivery-qz-printer-name:test-station', 'Fila')
+  const station = { id: 'test-station', platform: 'windows', isPrimary: true, recoveryState: action === 'printSecondCopy' ? 'normal' : action === 'startRecovery' ? 'pending' : 'active' }
+  const job = { id: 'job', status: 'awaiting_second_copy', copiesRequested: 2, copiesPrinted: 1, document: { type: 'test' } }
+  let release, current, pending, writes = []
+  const json = body => ({ ok: true, json: async () => body })
+  globalThis.fetch = async (path, options) => {
+    if (path.endsWith('/heartbeat')) return json({ station })
+    if (options.method === 'POST') {
+      writes.push(path)
+      if (writes.length === 1) return new Promise(resolve => { release = () => resolve(json({ job, station: { ...station, recoveryState: 'active' } })) })
+      return json({ attempt: { id: 'attempt', spoolJobName: 'job-name' } })
+    }
+    if (path === '/api/printing/stations') return json({ stations: [station] })
+    return json({ jobs: [], summary: {} })
+  }
+  function Probe(props) { current = usePrintingManager(props); return null }
+  const renderer = await h.render(Probe, { authenticated: true, accessContextId: 'a' })
+  await act(async () => { await current.connectPrinter() })
+  await act(async () => { pending = current[action](job); await new Promise(resolve => setImmediate(resolve)) })
+  assert.equal(typeof release, 'function')
+  await act(async () => renderer.update(React.createElement(Probe, { authenticated: false, accessContextId: 'a' })))
+  await act(async () => { release(); await pending })
+  assert.equal(writes.length, 1)
+  assert.equal(current.localStation, null)
+})
