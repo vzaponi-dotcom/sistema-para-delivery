@@ -36,6 +36,13 @@
   "env": {
     "staging": {
       "name": "sistema-para-delivery-staging",
+      "workers_dev": true,
+      "routes": [
+        {
+          "pattern": "staging.mesiva.com.br",
+          "custom_domain": true
+        }
+      ],
       "d1_databases": [
         {
           "binding": "DB",
