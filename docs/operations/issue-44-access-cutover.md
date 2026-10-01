@@ -65,6 +65,12 @@ Preflight retorna `ready` e códigos de falha não secretos, com exit code 1 qua
 
 O corte muda `enrollment` para `user_only`, grava auditoria de sistema e revoga todas as sessões sem usuário na mesma transação. Repetir o comando após resposta incerta é idempotente e não duplica o evento de corte. Uma falha mantém estado/sessões como estavam. Não há comando para voltar a PIN.
 
+### Publicações posteriores ao corte
+
+Publicar apenas código que respeite `user_only`, incluindo ao configurar um domínio. Em 01/10/2026, uma branch de domínio baseada na master anterior à issue44 substituiu o Worker de staging e aceitou PIN, embora o banco mantivesse o corte. A concorrência do workflow serializa deploys, mas não impede uma branch antiga de substituir o código atual.
+
+Enquanto a issue44 não estiver integrada à master, usar a branch que reúne perfis e domínio (`feature/issue-44-users-profiles-access`) no workflow oficial de staging. O endereço é https://staging.mesiva.com.br; o workers.dev continua disponível. A verificação mode-aware deve confirmar `user_only` e rejeição de PIN. Se uma versão antiga criar sessões legadas após o corte, restaurar primeiro o bundle compatível e executar o corte idempotente para revogá-las, preservando o timestamp/evento original e as contas. Uma mudança de hostname exige novo login porque o cookie é específico do host.
+
 ## Conferência após o corte
 
 Todos os caixas, navegadores e estações entram novamente usando conta individual. Testar gerente e operador, modo compartilhado (12 horas) e pessoal (7 dias), expiração e troca de usuário. Confirmar recusa do PIN e das sessões legadas. A TV mantém autenticação própria; impressão automática exige sessão humana. Verificar impressão física e recuperação de resultado incerto sem replay automático de pedidos, recebimentos ou jobs. Registrar eventos de auditoria `access.auth.enrollment`, `access.invitation.initial`, `access.auth.cutover` e atribuições após corte sem guardar tokens.

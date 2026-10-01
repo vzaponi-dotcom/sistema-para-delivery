@@ -1,11 +1,12 @@
 # Teste manual da issue 44 em staging
 
-Ambiente: https://sistema-para-delivery-staging.vzaponi.workers.dev
+Ambiente: https://staging.mesiva.com.br
+Endereço alternativo: https://sistema-para-delivery-staging.vzaponi.workers.dev
 PR: https://github.com/vzaponi-dotcom/sistema-para-delivery/pull/85
 
-**Estado atual:** gerente ativado; login humano confirmado; corte de staging concluído em 30/09/2026 às 23:36. O PIN foi retirado. Atualize a página com F5 para carregar o acesso operacional da conta.
+**Estado atual:** Gerente e Operador de teste ativados. Staging usa contas individuais; o PIN é recusado. Após o deploy antigo usado para configurar o domínio, a versão com perfis foi restaurada pelo workflow oficial em 01/10/2026. As contas, senhas e o corte original de 30/09/2026 às 23:36 foram preservados. No novo domínio, entre com identificador e senha. Resultados e gates pendentes estão no [QA](../superpowers/qa/2026-09-30-issue-44-access-qa.md).
 
-## Preparar o Operador
+## Fluxo de ativação do Operador já homologado
 
 1. Entre com o identificador `gerente` e a senha definida na ativação. Deixe “Dispositivo pessoal” desmarcado para testar a sessão compartilhada de até 12 horas.
 2. Abra `/configuracoes/equipe`. Em “Convidar pessoa”, informe nome, identificador `operador-teste` e perfil **Operador**. Copie o token exibido uma única vez; vale por 24 horas.
