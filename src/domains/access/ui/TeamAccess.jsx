@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { capabilityLabel } from './accessLabels.js'
 import Button from '../../../shared/ui/Button'
 import PageHeader from '../../../shared/ui/PageHeader'
@@ -14,12 +14,26 @@ export default function TeamAccess({ sessionContext, api = accessApi, onApiError
   const canView = sessionContext?.capabilities?.includes('access.users.view')
   const canManage = sessionContext?.capabilities?.includes('access.users.manage')
   const { state, patch, run, owns } = useAccessRequest(sessionContext, onApiError)
+  const openMenuRef = useRef(null)
   const draft = state.draft || { displayName: '', identifier: '', roleId: '' }
   const editing = state.editing || null
   const setDraft = value => patch({ draft: value })
-  const setEditing = value => patch({ editing: value })
-  const load = () => run(() => api.listUsers(), data => patch({ data }))
+  const setEditing = value => patch({ editing: value, actionMenuId: null })
+  const load = () => { patch({ actionMenuId: null }); return run(() => api.listUsers(), data => patch({ data })) }
   useEffect(() => { if (canView) void run(() => api.listUsers(), data => patch({ data })) }, [api, canView, run, patch])
+  useEffect(() => {
+    if (!state.actionMenuId || typeof document === 'undefined') return undefined
+    const onMouseDown = event => { if (!openMenuRef.current?.contains?.(event.target)) patch({ actionMenuId: null }) }
+    const onKeyDown = event => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      openMenuRef.current?.querySelector?.('summary')?.focus?.()
+      patch({ actionMenuId: null })
+    }
+    document.addEventListener('mousedown', onMouseDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => { document.removeEventListener('mousedown', onMouseDown); document.removeEventListener('keydown', onKeyDown) }
+  }, [state.actionMenuId, patch])
   if (!canView) return <p role="alert">Acesso negado.</p>
   const data = state.data || { users: [], roles: [] }
   const blocked = writesBlocked || state.pending
@@ -46,7 +60,7 @@ export default function TeamAccess({ sessionContext, api = accessApi, onApiError
   }
   const requestConfirmation = (kind, user) => {
     if (!canManage || blocked || !owns() || (isLastManager(user) && (kind === 'reset' || user.active)) || (kind === 'reset' && user.id === sessionContext.user?.id)) return
-    patch({ confirmation: { kind, user }, error: '' })
+    patch({ confirmation: { kind, user }, error: '', actionMenuId: null })
   }
   const confirmMutation = async () => {
     const confirmation = state.confirmation
@@ -62,7 +76,7 @@ export default function TeamAccess({ sessionContext, api = accessApi, onApiError
     catch { patch({ copyError: 'Selecione o código e copie manualmente.' }) }
   }
   return <div className="settings-page access-page">
-    <div className="access-page-heading"><PageHeader eyebrow="Configurações" title="Equipe e acessos" description="Organize quem participa da operação e o que cada pessoa pode acessar." /><div className="access-heading-actions"><Button variant="secondary" onClick={load} disabled={state.pending}>Atualizar equipe</Button>{canManage && <Button icon="plus" disabled={blocked || !state.data} onClick={() => patch({ inviting: true, draft: null, error: '' })}>Convidar pessoa</Button>}</div></div>
+    <div className="access-page-heading"><PageHeader eyebrow="Configurações" title="Equipe e acessos" description="Organize quem participa da operação e o que cada pessoa pode acessar." /><div className="access-heading-actions"><Button variant="secondary" onClick={load} disabled={state.pending}>Atualizar equipe</Button>{canManage && <Button icon="plus" disabled={blocked || !state.data} onClick={() => patch({ inviting: true, draft: null, error: '', actionMenuId: null })}>Convidar pessoa</Button>}</div></div>
     {state.error && !state.inviting && !editing && !state.confirmation && <p className="access-feedback access-feedback-error" role="alert">{state.error}</p>}
     {state.pending && <p role="status">Aguarde…</p>}
     <section className="surface-card access-section" aria-label="Contas da equipe"><h2>Contas da equipe</h2>
@@ -73,7 +87,16 @@ export default function TeamAccess({ sessionContext, api = accessApi, onApiError
         <div className="access-person"><span className="access-avatar" aria-hidden="true">{user.displayName.trim().split(/\s+/).map(part => part[0]).slice(0, 2).join('').toUpperCase()}</span><div><strong>{user.displayName}</strong>{user.id === sessionContext.user?.id && <span className="access-you">Você</span>}<small>{user.identifier}</small></div></div>
         <span className="access-user-role">{roleName(user)}</span><span className={`access-status ${!user.active ? 'is-inactive' : user.credentialState === 'active' ? 'is-active' : 'is-pending'}`}>{statusLabel(user)}</span>
         <div className="access-last-seen"><span className="access-mobile-label">Último acesso: </span>{user.lastAccessAt ? new Date(user.lastAccessAt).toLocaleString('pt-BR') : 'Ainda não entrou'}{user.invite && <small>Convite {user.invite.status === 'expired' ? 'expirado' : 'pendente'} · {new Date(user.invite.expiresAt).toLocaleString('pt-BR')}</small>}</div>
-        {canManage ? <details className="access-row-menu"><summary aria-label={`Ações de ${user.displayName}`}><Icon name="menu" size={18} /></summary><div className="access-row-menu-content"><Button variant="secondary" disabled={blocked} onClick={() => { setEditing({ ...user }); patch({ error: '' }) }}>Editar {user.displayName}</Button><Button variant="secondary" disabled={blocked || isLastManager(user)} onClick={() => requestConfirmation('active', user)}>{user.active ? 'Desativar' : 'Ativar'} {user.displayName}</Button>{user.id !== sessionContext.user?.id && <Button variant="secondary" disabled={blocked || isLastManager(user)} onClick={() => requestConfirmation('reset', user)}>Redefinir senha de {user.displayName}</Button>}{isLastManager(user) && <small>Mantenha pelo menos um gerente com acesso ativo.</small>}</div></details> : <span />}
+        {canManage ? <details className="access-row-menu" open={state.actionMenuId === user.id} ref={state.actionMenuId === user.id ? openMenuRef : null}>
+          <summary role="button" aria-expanded={state.actionMenuId === user.id} aria-label={`Ações de ${user.displayName}`} onClick={event => { event.preventDefault(); patch({ actionMenuId: state.actionMenuId === user.id ? null : user.id }) }}><Icon name="menu" size={18} /></summary>
+          <div className="access-row-menu-content">
+            <strong className="access-row-menu-person">{user.displayName}</strong>
+            <Button variant="secondary" aria-label={`Editar ${user.displayName}`} disabled={blocked} onClick={() => { setEditing({ ...user }); patch({ error: '' }) }}>Editar</Button>
+            <Button variant="secondary" aria-label={`${user.active ? 'Desativar' : 'Ativar'} ${user.displayName}`} disabled={blocked || isLastManager(user)} onClick={() => requestConfirmation('active', user)}>{user.active ? 'Desativar conta' : 'Ativar conta'}</Button>
+            {user.id !== sessionContext.user?.id && <Button variant="secondary" aria-label={`Redefinir senha de ${user.displayName}`} disabled={blocked || isLastManager(user)} onClick={() => requestConfirmation('reset', user)}>Redefinir senha</Button>}
+            {isLastManager(user) && <small>Mantenha pelo menos um gerente com acesso ativo.</small>}
+          </div>
+        </details> : <span />}
       </article>)}
     </section>
     <section className="surface-card access-section access-profiles" aria-label="Perfis de acesso"><div><h2>Perfis de acesso</h2><p className="access-muted">Os perfis são fixos nesta versão. Consulte o que cada um permite.</p></div>{data.roles.map(role => <details key={role.id}><summary>{role.name}</summary><ul>{role.capabilities.map(capability => <li key={capability}>{capabilityLabel(capability)}</li>)}</ul></details>)}</section>

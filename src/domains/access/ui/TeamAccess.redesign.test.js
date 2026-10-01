@@ -47,3 +47,34 @@ test('the only manager with usable credentials cannot be deactivated from the li
   await act(async () => buttonNamed(screen.root, 'Desativar Maria').props.onClick())
   assert.equal(screen.root.findAllByProps({ role: 'dialog' }).length, 0)
 })
+
+test('opening another person actions closes the previous menu and dismissal leaves none open', async t => {
+  const { h, screen } = await setup(t, 'TeamAccess', { sessionContext: manager }, async () => response({ users, roles }))
+  const trigger = name => screen.root.findAllByType('summary').find(node => node.props['aria-label'] === `Ações de ${name}`)
+  const open = () => screen.root.findAllByType('details').filter(node => node.props.className === 'access-row-menu' && node.props.open)
+  await act(async () => trigger('Maria').props.onClick?.({ preventDefault() {} }))
+  assert.equal(open().length, 1)
+  await act(async () => trigger('Otávio').props.onClick?.({ preventDefault() {} }))
+  assert.equal(open().length, 1)
+  assert.equal(open()[0].findByType('summary').props['aria-label'], 'Ações de Otávio')
+  await act(async () => h.document.dispatchEvent(Object.assign(new Event('keydown'), { key: 'Escape' })))
+  assert.equal(open().length, 0)
+  await act(async () => trigger('Otávio').props.onClick?.({ preventDefault() {} }))
+  await act(async () => h.document.dispatchEvent(new Event('mousedown')))
+  assert.equal(open().length, 0)
+  await act(async () => trigger('Otávio').props.onClick?.({ preventDefault() {} }))
+  await act(async () => buttonNamed(screen.root, 'Redefinir senha de Otávio').props.onClick())
+  assert.equal(open().length, 0)
+  assert.ok(buttonNamed(screen.root, 'Confirmar redefinição'))
+})
+
+test('long person names appear once in the action context instead of expanding every action label', async t => {
+  const longName = '[TESTE ISSUE44] Concorrencia temporaria'
+  const { screen } = await setup(t, 'TeamAccess', { sessionContext: manager }, async () => response({ users: [users[0], { ...users[1], displayName: longName, active: false }], roles }))
+  const action = buttonNamed(screen.root, `Ativar ${longName}`)
+  assert.ok(action, 'accessible action retains its target identity')
+  assert.doesNotMatch(nodeText(action), /TESTE ISSUE44/)
+  const menu = action.parent.parent
+  assert.match(nodeText(menu), /\[TESTE ISSUE44\] Concorrencia temporaria/)
+  for (const button of menu.findAllByType('button')) assert.ok(nodeText(button).length <= 22, 'actions remain compact with a long target name')
+})

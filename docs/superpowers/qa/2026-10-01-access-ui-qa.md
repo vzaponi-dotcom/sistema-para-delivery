@@ -45,3 +45,14 @@ PR 85 recebe este delta; publicação usa o workflow existente Deploy staging. A
 - Endpoints, migrations e grants anteriores fora do delta: contratos reais foram conferidos pelo revisor e a suite existente foi executada; a homologação original continua na QA da issue 44. Custo se errado: uma regressão anterior não reproduzida pela suite exigirá investigação própria.
 
 Achados menores adiados desta revisão: nenhum; o único achado foi reclassificado e corrigido por seu efeito no uso móvel.
+
+## Correção dos menus de ações da equipe
+
+Relato posterior do Victor: vários menus abertos se sobrepondo e nomes longos repetidos nos botões. Reprodução no navegador com código real e fixtures locais: abrir a linha inferior e depois a superior deixava **dois** `details` de ações abertos. Causa: abertura nativa independente, sem estado exclusivo; cada botão também repetia todo o nome da pessoa.
+
+- Abertura agora controlada por um único ID no estado da autoridade atual; abrir outro menu fecha o anterior. Fecha também por clique fora, Esc, atualização da lista, convite e escolha de ação. Esc devolve foco ao acionador.
+- Nome completo aparece no cabeçalho; ações visíveis curtas. Labels acessíveis continuam identificando a pessoa. `[TESTE ISSUE44]` é parte do nome da conta fictícia, mantido no contexto.
+- Dois testes novos RED → GREEN: exclusividade/dismissal/ação e nome longo sem repetir a identidade em cada botão. Equipe: 14/14 testes. Suite completa: **3167/3167**, zero falhas/skips, 173,3s. Architecture/lint/build passaram com os avisos existentes.
+- Navegador local: sequência de dois acionadores deixa somente um menu aberto; Esc deixa zero e mantém foco no acionador correto. Nenhuma mutação de conta foi enviada na inspeção visual.
+
+O redesenho do menu global de conta/operação permanece como proposta separada aguardando aprovação; este patch corrige apenas a regressão da equipe já aprovada.
