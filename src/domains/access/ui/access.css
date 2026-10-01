@@ -77,11 +77,11 @@
   .access-team-filters { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .access-heading-actions { width: 100%; }
   .access-heading-actions .button { flex: 1; }
-  .access-search input, .access-form input { font-size: 16px; }
 }
 .access-form { display: grid; gap: 1rem; max-width: 42rem; }
 .access-form label, .access-section > label { display: grid; gap: .4rem; min-width: 0; font-size: .84rem; font-weight: 600; }
 .access-form input, .access-form select, .access-section > label input, .access-section > label select { width: 100%; box-sizing: border-box; padding: .7rem; border: 1px solid var(--border); border-radius: .5rem; color: inherit; background: var(--surface); font: inherit; }
+@media (max-width: 600px) { .access-search input, .access-form input { font-size: 16px; } }
 .access-user { padding: 1rem 0; border-bottom: 1px solid var(--border); }
 .access-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .75rem; }
 .access-token { white-space: pre-wrap; overflow-wrap: anywhere; user-select: all; }

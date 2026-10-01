@@ -32,4 +32,16 @@ Esta validação visual usa Chrome do navegador local; não substitui aparelhos 
 
 ## Integração
 
-Revisão independente e deploy em staging serão registrados após sua conclusão. Sem merge ou produção.
+Revisão independente do delta `5871b49..0a6b623c`: nenhum achado Critical/Important; um achado de tamanho de fonte móvel inicialmente classificado como Minor. Reclassificado pelo executor para correção: campos herdavam 13,44px, prejudicando legibilidade e podendo acionar zoom no Safari móvel. A regra de 16px foi movida depois do shorthand genérico.
+
+Regressão visual `mobile invitation field retains 16px`, usando `getComputedStyle` no campo Nome do modal em 390px: RED `13.44px`, GREEN `16px`, após recarregar a página. Fechar o modal devolve foco a Convidar pessoa. Suite completa executada novamente após o ajuste: **3.165 passaram, zero falhas/skips**, 207,0s. Architecture, lint e build novamente aprovados, com os mesmos avisos existentes.
+
+PR 85 recebe este delta; publicação usa o workflow existente Deploy staging. A descrição da PR registra o SHA executável e a execução de deploy confirmada. Sem merge ou produção.
+
+## Decisões de execução e escopo da revisão
+
+- Execução inline com aprovação existente: evitar nova etapa de aprovação duplicada, pois o desenho e a implementação já foram autorizados. Custo se errado: rever a UI na PR antes do merge.
+- Renderização/foco deixados pelo revisor para a QA: inspeção local do código real cobre os tamanhos/temas acima e fechamento do convite; não afirma validação independente em aparelhos/Safari. Custo se errado: ajustes específicos de navegador podem ser necessários.
+- Endpoints, migrations e grants anteriores fora do delta: contratos reais foram conferidos pelo revisor e a suite existente foi executada; a homologação original continua na QA da issue 44. Custo se errado: uma regressão anterior não reproduzida pela suite exigirá investigação própria.
+
+Achados menores adiados desta revisão: nenhum; o único achado foi reclassificado e corrigido por seu efeito no uso móvel.
