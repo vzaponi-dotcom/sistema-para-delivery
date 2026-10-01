@@ -4,7 +4,7 @@ Date: 2026-09-30, America/Sao_Paulo (final local gates on 2026-10-01 UTC). Workt
 
 Prior executable acceptance `cb5f737157a6379c0930dc7e4f5ba1374138715e` and its documentation commit `e17bd9e8a243b96724b9d50998e5aa76c9d17973` are retained as history. The whole-branch review at `e17bd9e8` identified I1, I2 and M1-M3; the single scoped fix wave is implemented and locally verified. The earlier 3,111-test pass did not cover the newly demonstrated cookie/printing continuation cases.
 
-**Local test, lint, architecture and build gates have passing evidence at the exact SHAs stated above. The single scoped rereview of e17bd9e8..0f9e6969 approved I1, I2 and M1-M3 with no residual finding. Whole-system acceptance remains partial: staging, manual/device evidence and separate release approval remain pending.** No remote migration, deployment, invitation, enrollment, cutover, production change, push or merge was executed during Task 12 or this final fix wave.
+**Local test, lint, architecture and build gates have passing evidence at the exact SHAs stated above. The single scoped rereview of e17bd9e8..0f9e6969 approved I1, I2 and M1-M3 with no residual finding. Whole-system acceptance remains partial: staging, manual/device evidence and separate release approval remain pending.** No remote migration, deployment, invitation, enrollment, cutover, production change, push or merge was executed during the initial local Task 12/final fix rounds. The authorized staging update below records subsequent remote operations.
 
 ## Earlier local evidence
 
@@ -111,7 +111,7 @@ For every authenticated operational request, the Worker fixes the business serve
 
 ## Actor, browser and device acceptance matrix
 
-All rows below are **unexecuted in staging**. Actual local/model evidence is identified explicitly; no row is a physical or browser-cookie proof. The release operator must record environment URL, approved final SHA, deployed migration/auth mode, actor identifiers, browser/device/OS versions, QZ version/printer/station, TV model/browser, execution timestamp and expected-versus-actual evidence without passwords/tokens.
+The initial acceptance matrix below was **unexecuted in staging**. The authorized staging update at the end records subsequent evidence; rows not superseded there remain pending. Actual local/model evidence is identified explicitly; no row is a physical or browser-cookie proof. The release operator must record environment URL, approved final SHA, deployed migration/auth mode, actor identifiers, browser/device/OS versions, QZ version/printer/station, TV model/browser, execution timestamp and expected-versus-actual evidence without passwords/tokens.
 
 | Scenario / setup | Expected | Actual evidence and remaining action |
 |---|---|---|
@@ -144,3 +144,25 @@ Cookie authority limitation accepted in Task 10: the **currently accepted browse
 Use [the controlled cutover runbook](../../operations/issue-44-access-cutover.md) for approved staging first, then separate production approval. It preserves infrastructure identity/backup, actual remote D1 batch preflight/cutover, first-manager invitation delivery in a private interactive terminal **once**, and explicit emergency invitation recovery. Do not log tokens in chat/CI/screenshots or automate uncertain issuance. Initial acceptance never logs the recipient in; recovery retains user_only and cannot restore PIN.
 
 Local status: Task 12 Steps 1–2 complete; local Step 4 evidence records full tests at `fa4dc07a` and lint/architecture/build at `09f992f6`. The independent whole-branch review at `e17bd9e8` is complete; its scoped fixes are locally verified. The single scoped rereview approved the complete fix range e17bd9e8..0f9e6969 with no residual finding. Open gates: approved staging migrations/deploy/preflight/enrollment/cutover; real browser cookie order and revocation; raw operator projections/direct API/URL checks; physical QZ/TV; Worker PBKDF latency; backup/restore and emergency recovery; separate release approval. No production readiness claim is supported until those observed outcomes replace the pending rows. Task 12 Step 3/manual acceptance, remote Step 4 evidence and Step 5 release approval remain pending.
+
+
+## Authorized staging update — 2026-09-30 America/Sao_Paulo
+
+The responsible human explicitly authorized staging backup, migrations, deployment, initial manager enrollment and test cutover. Production and merge remain separate. Draft [PR #85](https://github.com/vzaponi-dotcom/sistema-para-delivery/pull/85) publishes the reviewed feature branch.
+
+| Observation | Actual evidence |
+|---|---|
+| Base | Fresh origin/master aed142da; zero commits behind before publication. |
+| Backup | Restricted storage outside the repository. Original SQL: 1,590,881 bytes; SHA256 35E398275602E3DBE0AEBF44BAD56BA03EC68D53B180D1A3C63FDE0CACF95E7D. Time Travel bookmark retained privately. No data, hashes of credentials or download links in this QA. |
+| Isolated restore | Export loader encountered ordering and whole-file statement-size errors. A derived restore preserves all SQL values/definitions, creates tables and indexes before rows, and triggers afterward. Actual official local D1 binding batch restored 2770 statements; all 38 exported table counts match the SQLite reference (2654 rows), zero foreign-key errors, 34 migrations. D1 adds one internal table. Original backup remains intact. This is local isolated restoration evidence, not a remote disaster-recovery timing claim. |
+| Remote administrative transport | Existing authorized Wrangler OAuth injected into child memory; actual configured staging D1 binding SELECT 1 succeeded. Infrastructure credential never printed or persisted by the operation. |
+| First official deployment | [Run 36804725754](https://github.com/vzaponi-dotcom/sistema-para-delivery/actions/runs/36804725754), SHA 2cb6bd0009f791000296ea76465cb30ec60360d7. Test/architecture/lint/build/local migrations/dry-run/remote migrations/PIN configuration/deploy succeeded. Worker version 620fd27e-2523-4a6d-9c76-f313f418ef4c. The run concluded failure only at the auth smoke; later deep-link step was skipped. |
+| Linux suite | 3145 tests; 3144 pass, zero fail/cancel, one existing Windows-only skip in scripts/infra/spec-b-processes.test.js:50; 192606.723546 ms. This does not replace the previously recorded Windows 3133/3133 evidence. |
+| Remote schema | Read-only D1 query confirmed 0035_users_profiles_access.sql and 0036_audit_resource_attribution.sql. Mode legacy before initial invitation; no users before enrollment. |
+| Smoke finding | Initial post-deploy successful HTTP response lacked the strict required header contract; later actual response is 200/no-store/no cookie/current known-mode anonymous body. The pre-fix helper immediately rejected incompatible HTTP 200 instead of consuming its propagation window. Transient old Worker propagation is inferred from baseline/current contracts and timing. Minimal helper correction committed 78af5731, 23/23 scoped tests/lint0; scoped rereview approved; official redeploy [run 36805683366](https://github.com/vzaponi-dotcom/sistema-para-delivery/actions/runs/36805683366) on executable SHA 78af573111c3a2df19d625992b961a7015eb7d4a is in progress at this update. No Worker authentication workaround. |
+| Anonymous API checks | Actual staging bootstrap/access users/access activity/reporting overview/movements all returned 401 UNAUTHENTICATED without cookies. Foreign-origin login returned 403 ORIGIN_NOT_ALLOWED. Activation SPA shell HTTP200 and its referenced JS asset passed. No human credential used; no browser-cookie/visual proof asserted. |
+| Initial manager | Explicit user choice: private interactive terminal. CLI issue-initial-manager completed exit0 once; invitation delivered only there. Remote mode enrollment, one user initially without credential. Token/password absent from chat, files, QA and CI. Human found the terminal and is activating the account. |
+| Preflight before activation | Actual remote CLI exit1, ready:false, NO_USABLE_MANAGER and INCOMPLETE_CREDENTIALS_OR_ROLES. Expected pending-account refusal; no cutover executed. |
+
+Current actual URL: https://sistema-para-delivery-staging.vzaponi.workers.dev. The [Portuguese manual guide](../../operations/issue-44-staging-manual-test.md) covers activation, the two profiles and device checks. Human manager/operator activation, successful post-fix workflow, cutover and the remaining acceptance matrix are pending; no production or merge readiness claim.
+
