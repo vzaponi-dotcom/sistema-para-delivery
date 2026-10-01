@@ -40,3 +40,16 @@ Confira a auditoria no Gerente após ações da conta Operador. Tente desativar/
 - Observe uma impressão física e teste a TV no dispositivo real. Se uma impressão tiver resultado incerto, reconcilie explicitamente antes de tentar outra; confirme que não ocorreu duplicação.
 
 Registrar resultados, navegador/dispositivo, horário e problemas sem senhas/tokens. Expiração completa, concorrência de cookies, recuperação administrativa e carga de login têm gates adicionais em [QA](../superpowers/qa/2026-09-30-issue-44-access-qa.md). Esta lista orienta o teste; não registra esses resultados como executados.
+
+## Teste na TV física após a issue 44
+
+Em 01/10/2026, o responsável informou que não poderá executar a impressão física. Esse teste permanece não executado por indisponibilidade de equipamento; não é convertido em aprovação. O teste de TV será feito no dispositivo real:
+
+1. No navegador da TV, abra https://staging.mesiva.com.br/cozinha-tv. Use esse mesmo domínio no computador/celular. A TV usa pareamento próprio, sem identificador, senha ou PIN humano.
+2. No computador/celular, entre como Gerente e abra https://staging.mesiva.com.br/configuracoes/tv-da-cozinha. Digite os seis números exibidos na TV e clique em **Conectar TV**. Mantenha a página da TV aberta até concluir. Se já houver pareamento, teste a revogação no passo 6 e conecte novamente.
+3. Inicie o painel pelo controle remoto se solicitado. Crie um pedido imediato fictício, com uma observação fácil de reconhecer; confira sua chegada automática, itens, observação e leitura à distância. Finalize o pedido na operação e confira sua remoção da TV. Confira som e tela cheia conforme o suporte do navegador real.
+4. Atualize a página da TV: o pareamento deve continuar. Saia da conta humana no computador/celular: a TV deve continuar operando com sua própria credencial.
+5. Compare os perfis no computador/celular: o Gerente pode administrar a TV e usar **Controle da TV**; o Operador não pode parear/revogar nem alterar página, modalidade ou visibilidade. O Operador pode consultar o controle em somente leitura.
+6. Como Gerente, use **Revogar acesso** e confirme. Na próxima atualização automática da TV, os pedidos devem desaparecer e o painel deve informar falta de autorização. Atualize a página da TV e faça novo pareamento para deixar o ambiente funcional.
+
+Enviar os resultados observados, foto do painel e modelo/navegador da TV. Não enviar códigos de pareamento. TV ainda pendente até receber a evidência do dispositivo real.

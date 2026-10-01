@@ -226,3 +226,7 @@ Observed live checks:
 The first private API harness run stopped after its passing projection/read-denial checks because it mistakenly expected403 from GET/api/movements. Source inspection and a live diagnostic confirmed that method is not an API route (404/NOT_FOUND); the real route is POST. The harness then resumed only the remaining checks with fresh normal sessions; financial POST denial passed. This was a test-harness expectation error, not a product authorization defect. No managerial movement payload was exposed.
 
 Private screenshots retain the last-Manager refusal and the cleared second tab. No orders, payments, password resets or physical print attempts were created by these autonomous checks. Physical QZ/TV, emergency recovery, full-duration expiry, adversarial cookie timing/interrupted writes and login-load percentiles remain pending; whole Task12 release acceptance is still partial.
+
+### Physical device availability — 2026-10-01
+
+The responsible human stated that physical printing cannot be tested with the equipment currently available, but the real TV can be tested. Physical QZ/printing remains unexecuted due to equipment unavailability, not passed. The manual staging guide now provides the exact TV pairing/settings URLs and the real-device order, reload, independent-session, profile-control and revoke/re-pair checks. TV remains pending until actual device results are supplied.
