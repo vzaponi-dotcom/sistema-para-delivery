@@ -1,4 +1,17 @@
 .access-page { display: grid; gap: 1rem; }
+.access-muted { color: var(--muted); font-size: .86rem; line-height: 1.6; }
+.access-account-grid { display: grid; grid-template-columns: minmax(230px, .8fr) minmax(0, 1.4fr); gap: 20px; align-items: start; }
+.access-identity-card { display: grid; gap: 12px; }
+.access-avatar { display: inline-grid; place-items: center; flex-shrink: 0; width: 42px; height: 42px; background: var(--primary-soft); color: var(--text); border-radius: 12px; font-size: .85rem; font-weight: 700; }
+.access-identity-card .access-avatar { width: 54px; height: 54px; font-size: 1rem; }
+.access-identity-data { display: grid; gap: 18px; margin: 12px 0; }
+.access-identity-data dt { color: var(--muted); font-size: .8rem; margin-bottom: 4px; }
+.access-identity-data dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.access-callout { display: flex; gap: 10px; align-items: flex-start; border-radius: 12px; background: var(--surface-soft); padding: 14px; font-size: .82rem; line-height: 1.6; color: var(--muted); }
+.access-callout svg { flex-shrink: 0; margin-top: 2px; }
+.access-account-grid .access-form { margin-top: 22px; }
+.access-form .access-password-input input { padding-right: 3rem; }
+@media (max-width: 700px) { .access-account-grid { grid-template-columns: minmax(0, 1fr); } }
 .access-section { padding: 1.25rem; }
 .access-form { display: grid; gap: 1rem; max-width: 42rem; }
 .access-form label, .access-section > label { display: grid; gap: .4rem; }

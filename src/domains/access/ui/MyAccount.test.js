@@ -31,7 +31,7 @@ async function account(t, { capabilities = [], passwordResponse, verificationFai
 
 for (const capabilities of [[], manager.capabilities]) test(`own password with ${capabilities.length} grants uses runtime confirmation and broadcast`, async t => {
   const driver = await account(t, { capabilities })
-  await fill(driver.screen, 'currentPassword', 'current-password-long'); await fill(driver.screen, 'password', 'new-password-long-enough'); await submit(driver.screen)
+  await fill(driver.screen, 'currentPassword', 'current-password-long'); await fill(driver.screen, 'password', 'new-password-long-enough'); await fill(driver.screen, 'confirmPassword', 'new-password-long-enough'); await submit(driver.screen)
   assert.deepEqual(driver.writes, [{ currentPassword: 'current-password-long', password: 'new-password-long-enough' }])
   assert.equal(driver.broadcasts, 1); assert.equal(driver.reads, 2)
   assert.equal(driver.screen.root.findAllByType('input').every(n => n.props.value === ''), true)
@@ -39,7 +39,7 @@ for (const capabilities of [[], manager.capabilities]) test(`own password with $
 
 test('credential race refreshes private context through runtime without replaying password change', async t => {
   const driver = await account(t, { passwordResponse: () => response({ error: { code: 'CREDENTIAL_CHANGED', message: 'Entre novamente.' } }, 409) })
-  await fill(driver.screen, 'currentPassword', 'current-password-long'); await fill(driver.screen, 'password', 'new-password-long-enough'); await submit(driver.screen)
+  await fill(driver.screen, 'currentPassword', 'current-password-long'); await fill(driver.screen, 'password', 'new-password-long-enough'); await fill(driver.screen, 'confirmPassword', 'new-password-long-enough'); await submit(driver.screen)
   assert.equal(driver.writes.length, 1); assert.equal(driver.reads, 2); assert.equal(driver.broadcasts, 0)
   assert.equal(driver.runtime.isCredentialChangePending(), false)
 })
@@ -47,7 +47,7 @@ test('credential race refreshes private context through runtime without replayin
 test('delayed confirmed rotation after owner invalidation verifies cookie but restores no old UI secrets or feedback', async t => {
   let finishPost
   const driver = await account(t, { passwordResponse: () => new Promise(resolve => { finishPost = () => resolve(response({ changed: true })) }) })
-  await fill(driver.screen, 'currentPassword', 'private-password'); await fill(driver.screen, 'password', 'new-password-long-enough')
+  await fill(driver.screen, 'currentPassword', 'private-password'); await fill(driver.screen, 'password', 'new-password-long-enough'); await fill(driver.screen, 'confirmPassword', 'new-password-long-enough')
   await act(async () => { driver.screen.root.findByType('form').props.onSubmit({ preventDefault() {} }) })
   driver.changeCookie({ ...manager, user: { id: 'next', displayName: 'Next' }, authenticated: true, capabilities: [], businessId: 'b', settingsContextId: 's', authMode: 'user_only' })
   await act(async () => driver.invalidate())
@@ -60,7 +60,7 @@ test('delayed confirmed rotation after owner invalidation verifies cookie but re
 
 test('failed trusted refresh after confirmed rotation masks private context and never repeats write', async t => {
   const driver = await account(t, { verificationFailure: true })
-  await fill(driver.screen, 'currentPassword', 'current-password-long'); await fill(driver.screen, 'password', 'new-password-long-enough'); await submit(driver.screen)
+  await fill(driver.screen, 'currentPassword', 'current-password-long'); await fill(driver.screen, 'password', 'new-password-long-enough'); await fill(driver.screen, 'confirmPassword', 'new-password-long-enough'); await submit(driver.screen)
   assert.equal(driver.writes.length, 1); assert.equal(driver.broadcasts, 1); assert.equal(driver.reads, 2)
   assert.equal(driver.runtime.authState, 'anonymous'); assert.equal(driver.runtime.isCredentialChangePending(), false)
   assert.doesNotMatch(nodeText(driver.screen.root), /Maria|Senha alterada/)
@@ -68,6 +68,6 @@ test('failed trusted refresh after confirmed rotation masks private context and 
 
 test('account without runtime credential integration cannot send an unguarded cookie-changing write', async t => {
   const { screen } = await setup(t, 'MyAccount', { sessionContext: manager }, () => assert.fail('unguarded write'))
-  await fill(screen, 'currentPassword', 'current-password-long'); await fill(screen, 'password', 'new-password-long-enough'); await submit(screen)
+  await fill(screen, 'currentPassword', 'current-password-long'); await fill(screen, 'password', 'new-password-long-enough'); await fill(screen, 'confirmPassword', 'new-password-long-enough'); await submit(screen)
   assert.match(nodeText(screen.root), /contexto da sessão/)
 })
