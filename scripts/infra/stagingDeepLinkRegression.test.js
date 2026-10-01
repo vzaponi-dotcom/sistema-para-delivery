@@ -5,6 +5,13 @@ import { runInNewContext } from 'node:vm'
 
 test('staging smoke requests SPA deep links/assets and preserves approved automatic staging branches', async () => {
   const workflow = readFileSync(new URL('../../.github/workflows/deploy-staging.yml', import.meta.url), 'utf8')
+  const wrangler = readFileSync(new URL('../../wrangler.jsonc', import.meta.url), 'utf8')
+
+  assert.match(workflow, /STAGING_URL:\s+https:\/\/staging\.mesiva\.com\.br/)
+  assert.match(wrangler, /"workers_dev"\s*:\s*true/)
+  assert.match(wrangler, /"pattern"\s*:\s*"staging\.mesiva\.com\.br"/)
+  assert.match(wrangler, /"custom_domain"\s*:\s*true/)
+
   const smokeStep = workflow.split('- name: Verify staging deep links')[1]
   assert.ok(smokeStep, 'staging deep-link step is missing')
   const script = /node --input-type=module <<'NODE'\r?\n([\s\S]*?)\r?\n\s+NODE/.exec(smokeStep)?.[1]
