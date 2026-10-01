@@ -3,17 +3,20 @@
 Ambiente: https://sistema-para-delivery-staging.vzaponi.workers.dev
 PR: https://github.com/vzaponi-dotcom/sistema-para-delivery/pull/85
 
-## Preparar as duas contas
+**Estado atual:** gerente ativado; login humano confirmado; corte de staging concluído em 30/09/2026 às 23:36. O PIN foi retirado. Atualize a página com F5 para carregar o acesso operacional da conta.
 
-1. Após o deploy, abra `/ativar-conta`, cole o convite entregue no terminal privado e defina uma senha de pelo menos 15 caracteres. Não envie senha ou convite pelo chat. A ativação não abre sessão.
-2. Entre com o identificador `gerente`. Deixe “Dispositivo pessoal” desmarcado para testar a sessão compartilhada de até 12 horas.
-3. Abra `/configuracoes/equipe`. Em “Convidar pessoa”, informe nome, identificador `operador-teste` e perfil **Operador**. Copie o token exibido uma única vez.
-4. Em uma janela anônima, abra `/ativar-conta`, aceite esse convite e defina outra senha. Faça login como `operador-teste`.
-5. Avise que as duas contas estão ativas. O responsável executará o preflight e o corte autorizado de staging. Antes do corte, contas individuais têm acesso à administração permitida e à própria conta; as operações ainda usam o PIN.
+## Preparar o Operador
 
-## Conferir os perfis depois do corte
+1. Entre com o identificador `gerente` e a senha definida na ativação. Deixe “Dispositivo pessoal” desmarcado para testar a sessão compartilhada de até 12 horas.
+2. Abra `/configuracoes/equipe`. Em “Convidar pessoa”, informe nome, identificador `operador-teste` e perfil **Operador**. Copie o token exibido uma única vez; vale por 24 horas.
+3. Em uma janela anônima, abra `/ativar-conta`, cole esse convite e defina outra senha de pelo menos 15 caracteres. A ativação não abre sessão.
+4. Abra a raiz de staging e faça login como `operador-teste` com a senha criada. Mantenha o Gerente na janela original para comparar.
 
-Atualize as duas janelas. Os dados usados nos testes ficam em staging.
+Não envie senhas ou convites pelo chat. O token serve para a ativação; o login usa identificador e senha.
+
+## Conferir os perfis
+
+Os dados usados nos testes ficam em staging.
 
 | Teste | Gerente | Operador |
 |---|---|---|
@@ -30,9 +33,9 @@ Confira a auditoria no Gerente após ações da conta Operador. Tente desativar/
 
 ## Sessões e dispositivos
 
-- Depois do corte, o PIN deve ser recusado. Sessões antigas de PIN devem perder acesso.
+- O PIN deve ser recusado. Sessões antigas de PIN devem perder acesso.
 - Em duas abas da mesma janela, sair ou trocar usuário deve limpar a identidade e os dados anteriores em ambas; não deve repetir pagamentos ou impressões.
 - Teste “Dispositivo pessoal” em uma sessão separada: duração absoluta de até sete dias.
 - Observe uma impressão física e teste a TV no dispositivo real. Se uma impressão tiver resultado incerto, reconcilie explicitamente antes de tentar outra; confirme que não ocorreu duplicação.
 
-Registrar resultados, navegador/dispositivo, horário e problemas sem senhas/tokens. Expiração completa, concorrência de cookies, recuperação administrativa e carga de login têm gates adicionais em [QA](../superpowers/qa/2026-09-30-issue-44-access-qa.md). Esta lista orienta o teste; não registra resultados executados.
+Registrar resultados, navegador/dispositivo, horário e problemas sem senhas/tokens. Expiração completa, concorrência de cookies, recuperação administrativa e carga de login têm gates adicionais em [QA](../superpowers/qa/2026-09-30-issue-44-access-qa.md). Esta lista orienta o teste; não registra esses resultados como executados.
