@@ -56,3 +56,9 @@ Relato posterior do Victor: vários menus abertos se sobrepondo e nomes longos r
 - Navegador local: sequência de dois acionadores deixa somente um menu aberto; Esc deixa zero e mantém foco no acionador correto. Nenhuma mutação de conta foi enviada na inspeção visual.
 
 O redesenho do menu global de conta/operação permanece como proposta separada aguardando aprovação; este patch corrige apenas a regressão da equipe já aprovada.
+
+Revisão independente `bade6d4..abc9571b`: um achado Important de foco e dois ajustes de acessibilidade/filtro. Todos corrigidos antes da publicação: focar o summary antes de abrir edição/confirmação, nome acessível incluindo o rótulo inteiro e descarte do menu ao mudar qualquer filtro.
+
+- Regressão visual de foco: RED fechando edição deixava foco em `BODY`; GREEN volta a `SUMMARY` com label `Ações de Lucas Almeida`. Confirmação cancelada também devolve foco à mesma pessoa. Enter abre o summary sem duplicar a abertura nativa.
+- Dois testes adicionais RED → GREEN: limpar busca não reabre menu e label acessível contém rótulo visível/identidade. Equipe final: **16/16**. Suite completa final: **3169/3169**, zero falhas/skips, 145,9s. Build/architecture/lint novamente aprovados.
+- Ownership e callbacks antigos foram conferidos pelo revisor com probe em memória. A revisão não cobriu o redesenho global ainda não aprovado, o backend anterior ou aparelhos físicos; esta rodada não declara validação independente nesses escopos.

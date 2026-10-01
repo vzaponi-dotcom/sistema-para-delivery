@@ -63,10 +63,10 @@ test('last manager conflict preserves authoritative users; other-user reset retu
     if (options.method === 'POST') return response({ user: { ...users[1], credentialState: 'reset_pending' }, invite: { token: 'RESET-ONCE', expiresAt: '2026-10-01' } })
     return response({ users: [...users, { ...users[0], id: 'second-manager', displayName: 'Segundo gerente' }], roles })
   })
-  await act(async () => buttonNamed(screen.root, 'Desativar Maria').props.onClick())
+  await act(async () => buttonNamed(screen.root, 'Desativar conta de Maria').props.onClick())
   await act(async () => buttonNamed(screen.root, 'Confirmar desativação').props.onClick())
   assert.match(nodeText(screen.root), /Mantenha pelo menos um gerente/)
-  assert.ok(buttonNamed(screen.root, 'Desativar Maria'))
+  assert.ok(buttonNamed(screen.root, 'Desativar conta de Maria'))
   assert.equal(buttonNamed(screen.root, 'Redefinir senha de Maria'), undefined)
   await act(async () => buttonNamed(screen.root, 'Cancelar').props.onClick())
   await act(async () => buttonNamed(screen.root, 'Redefinir senha de Otávio').props.onClick())
@@ -101,7 +101,7 @@ test('view-only grant exposes immutable summaries but no manager controls', asyn
   const { screen } = await setup(t, 'TeamAccess', { sessionContext: { ...manager, capabilities: ['access.users.view'] } }, async () => response({ users, roles }))
   assert.match(nodeText(screen.root), /Otávio|clients.create/)
   assert.equal(screen.root.findAllByType('form').length, 0)
-  assert.equal(buttonNamed(screen.root, 'Desativar Maria'), undefined)
+  assert.equal(buttonNamed(screen.root, 'Desativar conta de Maria'), undefined)
 })
 test('callback-only parent render does not repeat the team read', async t => {
   let reads = 0

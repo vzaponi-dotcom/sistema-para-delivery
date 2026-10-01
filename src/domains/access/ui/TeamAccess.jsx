@@ -18,7 +18,8 @@ export default function TeamAccess({ sessionContext, api = accessApi, onApiError
   const draft = state.draft || { displayName: '', identifier: '', roleId: '' }
   const editing = state.editing || null
   const setDraft = value => patch({ draft: value })
-  const setEditing = value => patch({ editing: value, actionMenuId: null })
+  const focusActionTrigger = () => openMenuRef.current?.querySelector?.('summary')?.focus?.()
+  const setEditing = value => { if (value && state.actionMenuId) focusActionTrigger(); return patch({ editing: value, actionMenuId: null }) }
   const load = () => { patch({ actionMenuId: null }); return run(() => api.listUsers(), data => patch({ data })) }
   useEffect(() => { if (canView) void run(() => api.listUsers(), data => patch({ data })) }, [api, canView, run, patch])
   useEffect(() => {
@@ -60,6 +61,7 @@ export default function TeamAccess({ sessionContext, api = accessApi, onApiError
   }
   const requestConfirmation = (kind, user) => {
     if (!canManage || blocked || !owns() || (isLastManager(user) && (kind === 'reset' || user.active)) || (kind === 'reset' && user.id === sessionContext.user?.id)) return
+    focusActionTrigger()
     patch({ confirmation: { kind, user }, error: '', actionMenuId: null })
   }
   const confirmMutation = async () => {
@@ -80,7 +82,7 @@ export default function TeamAccess({ sessionContext, api = accessApi, onApiError
     {state.error && !state.inviting && !editing && !state.confirmation && <p className="access-feedback access-feedback-error" role="alert">{state.error}</p>}
     {state.pending && <p role="status">Aguarde…</p>}
     <section className="surface-card access-section" aria-label="Contas da equipe"><h2>Contas da equipe</h2>
-      <div className="access-team-filters"><label className="access-search">Buscar pessoa<div><Icon name="search" size={18} /><input name="search" placeholder="Nome ou usuário de acesso" value={state.search || ''} onChange={event => patch({ search: event.target.value })} /></div></label><AccessSelectField label="Estado da conta" options={[{ value: '', label: 'Todos os estados' }, ...['Ativa', 'Convite pendente', 'Redefinição pendente', 'Desativada'].map(value => ({ value, label: value }))]} value={state.statusFilter || ''} onChange={statusFilter => patch({ statusFilter })} /></div>
+      <div className="access-team-filters"><label className="access-search">Buscar pessoa<div><Icon name="search" size={18} /><input name="search" placeholder="Nome ou usuário de acesso" value={state.search || ''} onChange={event => patch({ search: event.target.value, actionMenuId: null })} /></div></label><AccessSelectField label="Estado da conta" options={[{ value: '', label: 'Todos os estados' }, ...['Ativa', 'Convite pendente', 'Redefinição pendente', 'Desativada'].map(value => ({ value, label: value }))]} value={state.statusFilter || ''} onChange={statusFilter => patch({ statusFilter, actionMenuId: null })} /></div>
       <div className="access-list-header" aria-hidden="true"><span>Pessoa</span><span>Perfil</span><span>Estado</span><span>Último acesso</span><span /></div>
       {state.data && filteredUsers.length === 0 && <div className="access-empty"><Icon name="clients" size={28} /><h3>Nenhuma pessoa encontrada</h3><p>{data.users.length ? 'Tente outro nome ou estado da conta.' : 'Convide a primeira pessoa para participar da operação.'}</p></div>}
       {filteredUsers.map(user => <article className="access-user" key={user.id}>
@@ -92,7 +94,7 @@ export default function TeamAccess({ sessionContext, api = accessApi, onApiError
           <div className="access-row-menu-content">
             <strong className="access-row-menu-person">{user.displayName}</strong>
             <Button variant="secondary" aria-label={`Editar ${user.displayName}`} disabled={blocked} onClick={() => { setEditing({ ...user }); patch({ error: '' }) }}>Editar</Button>
-            <Button variant="secondary" aria-label={`${user.active ? 'Desativar' : 'Ativar'} ${user.displayName}`} disabled={blocked || isLastManager(user)} onClick={() => requestConfirmation('active', user)}>{user.active ? 'Desativar conta' : 'Ativar conta'}</Button>
+            <Button variant="secondary" aria-label={`${user.active ? 'Desativar conta de' : 'Ativar conta de'} ${user.displayName}`} disabled={blocked || isLastManager(user)} onClick={() => requestConfirmation('active', user)}>{user.active ? 'Desativar conta' : 'Ativar conta'}</Button>
             {user.id !== sessionContext.user?.id && <Button variant="secondary" aria-label={`Redefinir senha de ${user.displayName}`} disabled={blocked || isLastManager(user)} onClick={() => requestConfirmation('reset', user)}>Redefinir senha</Button>}
             {isLastManager(user) && <small>Mantenha pelo menos um gerente com acesso ativo.</small>}
           </div>
