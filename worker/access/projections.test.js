@@ -15,8 +15,8 @@ const request = (token, path, method = 'GET', body) => new Request(`https://deli
 })
 async function setup(t) {
   const fixture = createSettingsDb(); t.after(fixture.close)
-  const { db, sqlite } = fixture, timestamp = new Date().toISOString()
-  await seedBuiltinRoles(db, BUSINESS, new Date())
+  const { db, sqlite } = fixture, now = new Date(), timestamp = now.toISOString()
+  await seedBuiltinRoles(db, BUSINESS, now)
   sqlite.exec("UPDATE business_auth_state SET mode='user_only'")
   const tokens = {}
   for (const name of ['manager', 'operator', 'operator2', 'empty', 'history', 'active', 'tables']) {
@@ -24,7 +24,7 @@ async function setup(t) {
     if (roleId === name) sqlite.prepare('INSERT INTO roles(id,business_id,code,name,created_at,updated_at) VALUES(?,?,?,?,?,?)').run(name, BUSINESS, name, name, timestamp, timestamp)
     sqlite.prepare('INSERT INTO users(id,business_id,display_name,login_normalized,role_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?)').run(name, BUSINESS, name, name, roleId, timestamp, timestamp)
     sqlite.prepare('INSERT INTO user_credentials(business_id,user_id,password_verifier,password_changed_at,created_at,updated_at) VALUES(?,?,?,?,?,?)').run(BUSINESS, name, 'test-verifier', timestamp, timestamp, timestamp)
-    tokens[name] = (await createUserSession({ DB: db }, { businessId: BUSINESS, userId: name })).token
+    tokens[name] = (await createUserSession({ DB: db }, { businessId: BUSINESS, userId: name, now })).token
   }
   for (const [role, capability] of [['history', 'orders.history'], ['active', 'orders.view'], ['tables', 'tables.view']]) {
     sqlite.prepare('INSERT INTO role_capabilities(business_id,role_id,capability) VALUES(?,?,?)').run(BUSINESS, role, capability)
@@ -34,14 +34,14 @@ async function setup(t) {
   sqlite.prepare("INSERT INTO tables(id,business_id,name,name_key,sort_order,is_active,created_at,updated_at) VALUES('table',?,'Mesa 1','mesa 1',1,1,?,?)").run(BUSINESS, timestamp, timestamp)
   const input = (key, type = 'Retirada') => ({
     customerIdentity: type === 'Local' ? { type: 'table', tableId: 'table', clientId: null } : { type: 'registered_client', clientId: 'client' },
-    type, orderDate: '2026-09-30', items: [{ productId: 'product', quantity: 1, note: '' }], deliveryFeeCents: 0,
+    type, orderDate: getBusinessDate(now), items: [{ productId: 'product', quantity: 1, note: '' }], deliveryFeeCents: 0,
     adjustment: { type: 'none', mode: 'fixed', storedValue: 0, reason: '' }, paymentAllocations: null, idempotencyKey: key,
   })
-  const active = await createOrder(db, BUSINESS, input('active'))
-  const history = await createOrder(db, BUSINESS, input('history'))
-  await updateOrderStatus(db, BUSINESS, history.id)
-  const local = await createOrder(db, BUSINESS, input('local', 'Local'))
-  return { ...fixture, env: { DB: db }, tokens, active, history, local, input }
+  const active = await createOrder(db, BUSINESS, input('active'), now)
+  const history = await createOrder(db, BUSINESS, input('history'), now)
+  await updateOrderStatus(db, BUSINESS, history.id, now)
+  const local = await createOrder(db, BUSINESS, input('local', 'Local'), now)
+  return { ...fixture, env: { DB: db }, tokens, active, history, local, input, now }
 }
 async function read(env, token, path, method, body) {
   const response = await handleRequest(request(token, path, method, body), env)
@@ -75,26 +75,33 @@ test('operator raw bootstrap and refresh retain operational amounts and omit man
 })
 
 test('empty and status-specific grants project bootstrap and direct order reads', async (t) => {
-  const { env, tokens, active, history, local } = await setup(t)
-  const empty = await read(env, tokens.empty, '/api/bootstrap')
-  for (const key of ['clients', 'products', 'orders', 'tables', 'tableTabs', 'movements', 'financeSettings']) assert.equal(Object.hasOwn(empty, key), false, key)
-  assert.deepEqual(Object.keys(empty.effectiveBusinessConfig).sort(), ['revisions', 'version'])
-  for (const [role, expected] of [['history', [history.id]], ['active', [active.id, local.id]]]) {
-    for (const path of ['/api/bootstrap', '/api/orders?businessId=other']) {
-      const data = await read(env, tokens[role], path)
-      assert.deepEqual(new Set(data.orders.map(({ id }) => id)), new Set(expected))
-    }
+  for (const instant of ['2026-10-01T02:59:59.000Z', '2026-10-01T03:00:00.000Z', '2030-01-01T03:00:00.000Z']) {
+    await t.test(`fixture statuses and grant projections at ${instant}`, async (t) => {
+      t.mock.timers.enable({ apis: ['Date'], now: new Date(instant) })
+      const { env, tokens, active, history, local } = await setup(t)
+      assert.equal(active.status, 'Em preparo')
+      assert.equal(local.status, 'Em preparo')
+      const empty = await read(env, tokens.empty, '/api/bootstrap')
+      for (const key of ['clients', 'products', 'orders', 'tables', 'tableTabs', 'movements', 'financeSettings']) assert.equal(Object.hasOwn(empty, key), false, key)
+      assert.deepEqual(Object.keys(empty.effectiveBusinessConfig).sort(), ['revisions', 'version'])
+      for (const [role, expected] of [['history', [history.id]], ['active', [active.id, local.id]]]) {
+        for (const path of ['/api/bootstrap', '/api/orders?businessId=other']) {
+          const data = await read(env, tokens[role], path)
+          assert.deepEqual(new Set(data.orders.map(({ id }) => id)), new Set(expected))
+        }
+      }
+      const tables = await read(env, tokens.tables, '/api/bootstrap')
+      assert.equal(Object.hasOwn(tables, 'tableTabs'), false)
+      assert.equal(Object.hasOwn(tables.tables[0], 'openTableTab'), false)
+      assert.equal(Object.hasOwn(tables.tables[0], 'nextReservation'), false)
+    })
   }
-  const tables = await read(env, tokens.tables, '/api/bootstrap')
-  assert.equal(Object.hasOwn(tables, 'tableTabs'), false)
-  assert.equal(Object.hasOwn(tables.tables[0], 'openTableTab'), false)
-  assert.equal(Object.hasOwn(tables.tables[0], 'nextReservation'), false)
 })
 
 test('order table-tab and client batch payment confirmations omit movement rows', async (t) => {
-  const { env, tokens, active, history, local, sqlite, db, input } = await setup(t)
-  const second = await createOrder(db, BUSINESS, input('second-client-order'))
-  await updateOrderStatus(db, BUSINESS, second.id)
+  const { env, tokens, active, history, local, sqlite, db, input, now } = await setup(t)
+  const second = await createOrder(db, BUSINESS, input('second-client-order'), now)
+  await updateOrderStatus(db, BUSINESS, second.id, now)
   for (const path of [`/api/orders/${active.id}/payment`, '/api/clients/client/receivables/payment', `/api/table-tabs/${local.tableTabId}/payment`]) {
     const data = await read(env, tokens.operator, path, 'POST', {
       allocations: [{ methodCode: 'cash', amountCents: path.includes('receivables') ? 5000 : 2500 }], ...(path.includes('receivables') ? { orderIds: [history.id, second.id] } : {}),
