@@ -204,7 +204,7 @@ Staging é o ambiente usado para testar alterações antes de produção. O depl
 
 `.github/workflows/deploy-staging.yml` — **Deploy staging**
 
-Ele valida a aplicação, aplica migrations somente no D1 `amor-e-sabor-delivery-staging`, configura a credencial exclusiva de staging, publica `sistema-para-delivery-staging` e executa um smoke test de login.
+Ele valida a aplicação, aplica migrations somente no D1 `amor-e-sabor-delivery-staging` e publica `sistema-para-delivery-staging`. Em `legacy`/`enrollment`, configura o PIN exclusivo de staging e verifica login, sessão e logout; em `user_only`, preserva a credencial antiga e verifica que o PIN é recusado sem criar sessão. O smoke confere os limites anônimos e os deep links, incluindo conta, equipe, atividades e ativação. Não cria credenciais humanas em CI; a inscrição e o corte seguem o roteiro `docs/operations/issue-44-access-cutover.md` na janela aprovada.
 
 Não copie clientes, pedidos, pagamentos, endereços, telefones ou qualquer outro dado real de produção para staging.
 

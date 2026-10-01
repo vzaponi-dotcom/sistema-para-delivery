@@ -68,11 +68,16 @@ test('staging workflow targets only staging resources', () => {
   assert.doesNotMatch(workflow, /amor-e-sabor-delivery --remote/)
 })
 
-test('staging smoke check tolerates bounded workers.dev propagation delay', () => {
-  const workflow = readFileSync(stagingWorkflowPath, 'utf8')
-  assert.match(workflow, /STAGING_READY_ATTEMPTS:\s*6/)
-  assert.match(workflow, /for \(let attempt = 1; attempt <= attempts; attempt \+= 1\)/)
-  assert.match(workflow, /setTimeout\(resolve, 5000\)/)
+test('staging smoke stops after its configured propagation window', async () => {
+  const { verifyStagingAuth } = await import('./staging-auth-smoke.mjs')
+  let reads = 0
+  const delays = []
+  await assert.rejects(verifyStagingAuth({ baseUrl: 'https://staging.test', attempts: 3,
+    fetchImpl: async () => { reads++; return new Response('', { status: 503 }) },
+    sleep: async ms => delays.push(ms), log() {},
+  }), /bounded propagation window/)
+  assert.equal(reads, 3)
+  assert.deepEqual(delays, [5000, 5000])
 })
 
 test('production deploy is manual, master-only, and validates locally before remote writes', () => {

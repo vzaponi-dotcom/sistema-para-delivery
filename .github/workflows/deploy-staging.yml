@@ -69,7 +69,6 @@ jobs:
         run: |
           test -n "$CLOUDFLARE_API_TOKEN"
           test -n "$CLOUDFLARE_ACCOUNT_ID"
-          test -n "$STAGING_PIN"
 
       - name: Ensure staging R2 bucket
         shell: bash
@@ -91,17 +90,20 @@ jobs:
       - name: Apply staging migrations
         run: npm run d1:migrate:staging
 
-      - name: Configure staging PIN
+      - name: Configure staging PIN only before account cutover
         shell: bash
         run: |
+          set -euo pipefail
+          if [ -z "$STAGING_PIN" ]; then
+            echo "No staging PIN supplied; account-only smoke needs none, legacy/enrollment smoke will require it."
+            exit 0
+          fi
           VERIFIER="$(PIN="$STAGING_PIN" node scripts/generate-pin-hash.mjs)"
           echo "::add-mask::$VERIFIER"
           VERIFIER="$VERIFIER" node --input-type=module <<'NODE'
           import fs from 'node:fs'
-          const verifier = process.env.VERIFIER
-          if (!verifier) throw new Error('Staging PIN verifier was not generated.')
-          const escaped = verifier.replaceAll("'", "''")
-          fs.writeFileSync('/tmp/staging-pin.sql', `INSERT INTO auth_credentials (business_id, pin_hash, created_at, updated_at)\nVALUES ('amor-e-sabor', '${escaped}', datetime('now'), datetime('now'))\nON CONFLICT(business_id) DO UPDATE SET pin_hash = excluded.pin_hash, updated_at = datetime('now');\n`, { mode: 0o600 })
+          import { stagingPinSql } from './scripts/infra/staging-auth-smoke.mjs'
+          fs.writeFileSync('/tmp/staging-pin.sql', stagingPinSql(process.env.VERIFIER), { mode: 0o600 })
           NODE
           npx --yes wrangler@4.128.0 d1 execute amor-e-sabor-delivery-staging --remote --env staging --yes --file /tmp/staging-pin.sql
           rm -f /tmp/staging-pin.sql
@@ -113,43 +115,7 @@ jobs:
       - name: Verify staging login
         env:
           STAGING_URL: https://sistema-para-delivery-staging.vzaponi.workers.dev
-        run: |
-          node --input-type=module <<'NODE'
-          const baseUrl = process.env.STAGING_URL
-          const attempts = Number(process.env.STAGING_READY_ATTEMPTS)
-          let ready = false
-
-          for (let attempt = 1; attempt <= attempts; attempt += 1) {
-            try {
-              const response = await fetch(`${baseUrl}/api/auth/session`)
-              if (response.ok) {
-                console.log(`Staging ready on attempt ${attempt}/${attempts}`)
-                ready = true
-                break
-              }
-              console.log(`Staging readiness attempt ${attempt}/${attempts}: HTTP ${response.status}`)
-            } catch (error) {
-              console.log(`Staging readiness attempt ${attempt}/${attempts}: ${error.message}`)
-            }
-            if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, 5000))
-          }
-
-          if (!ready) {
-            console.error('Staging did not become ready within the bounded propagation window.')
-            process.exit(1)
-          }
-
-          const response = await fetch(`${baseUrl}/api/auth/login`, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json', origin: baseUrl },
-            body: JSON.stringify({ pin: process.env.STAGING_PIN }),
-          })
-          if (!response.ok) {
-            console.error(`Staging login failed with HTTP ${response.status}`)
-            process.exit(1)
-          }
-          console.log(`Staging login HTTP ${response.status}`)
-          NODE
+        run: node scripts/infra/staging-auth-smoke.mjs
 
       - name: Verify staging deep links
         env:
@@ -168,6 +134,10 @@ jobs:
             '/relatorios',
             '/configuracoes/impressao',
             '/configuracoes/identidade',
+            '/minha-conta',
+            '/configuracoes/equipe',
+            '/configuracoes/atividades',
+            '/ativar-conta',
             '/cozinha-tv',
           ]
 

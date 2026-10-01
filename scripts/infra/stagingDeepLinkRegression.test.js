@@ -37,6 +37,9 @@ test('staging smoke requests SPA deep links/assets and preserves approved automa
   const paths = requested.map((value) => new URL(value, baseUrl).pathname)
   assert.ok(paths.includes('/relatorios'))
   assert.ok(paths.includes('/pedidos/controle-da-tv'))
+  for (const path of ['/minha-conta', '/configuracoes/equipe', '/configuracoes/atividades', '/ativar-conta']) {
+    assert.ok(paths.includes(path), `access deep link ${path} must be checked`)
+  }
   assert.ok(paths.includes('/assets/app.js'))
   const pushSection = workflow.split('workflow_dispatch:')[0]
   assert.match(pushSection, /feature\/issue-34-reporting-center/)
