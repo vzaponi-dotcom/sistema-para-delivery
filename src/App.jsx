@@ -277,6 +277,9 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
       }
     : null, [authState, granted, operationalAccess, sessionContext, sessionGeneration])
   const effectiveConfig = useEffectiveBusinessConfig({ owner: effectiveConfigOwner, bootstrapConfig: bootstrapEffectiveConfig })
+  // Mount operational consumers only after the supplied config initializes their confirmed defaults.
+  const operationalBootstrapState = bootstrapState === 'ready' && bootstrapEffectiveConfig && effectiveConfig.status === 'loading'
+    ? 'loading' : bootstrapState
   const businessConfig = effectiveConfig.config
   const paymentOptions = useMemo(() => businessConfig ? paymentOptionsFromEffective(businessConfig) : [], [businessConfig])
   const defaultPaymentMethod = useMemo(() => businessConfig ? paymentDefaultFromEffective(businessConfig) : '', [businessConfig])
@@ -634,7 +637,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
       loginLoading={requestKey === 'auth:login'}
       loginError={loginError}
       onLogin={handleLogin}
-      bootstrapState={bootstrapState}
+      bootstrapState={operationalBootstrapState}
       onRetryBootstrap={() => void refreshBootstrap()}
       retryDisabled={!isOnline || requestKey !== null}
       toastMessage={toastMessage}
