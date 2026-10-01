@@ -5,11 +5,15 @@ import { runInNewContext } from 'node:vm'
 
 test('staging smoke requests SPA deep links/assets and preserves approved automatic staging branches', async () => {
   const workflow = readFileSync(new URL('../../.github/workflows/deploy-staging.yml', import.meta.url), 'utf8')
+  const jobEnv = workflow.split('    env:')[1]?.split('    steps:')[0]
+  const baseUrl = /STAGING_URL:\s*(\S+)/.exec(jobEnv)?.[1]
+  assert.equal(baseUrl, 'https://staging.mesiva.com.br')
+  assert.equal((workflow.match(/STAGING_URL:/g) || []).length, 1, 'smoke steps must inherit the job URL')
+  assert.match(workflow, /echo "Staging URL: \$STAGING_URL" >> "\$GITHUB_STEP_SUMMARY"/)
   const smokeStep = workflow.split('- name: Verify staging deep links')[1]
   assert.ok(smokeStep, 'staging deep-link step is missing')
   const script = /node --input-type=module <<'NODE'\r?\n([\s\S]*?)\r?\n\s+NODE/.exec(smokeStep)?.[1]
   assert.ok(script, 'staging deep-link script is missing')
-  const baseUrl = 'https://staging.example.test'
   const requested = []
   const fetch = async (url) => {
     requested.push(String(url))
@@ -35,6 +39,8 @@ test('staging smoke requests SPA deep links/assets and preserves approved automa
     console: { log() {}, error() {} },
   })
   const paths = requested.map((value) => new URL(value, baseUrl).pathname)
+  assert.ok(requested.every((value) => new URL(value).origin === baseUrl), 'SPA and assets must use the configured staging domain')
+  assert.equal(new Set(paths.filter((path) => !path.startsWith('/assets/'))).size, 14)
   assert.ok(paths.includes('/relatorios'))
   assert.ok(paths.includes('/pedidos/controle-da-tv'))
   for (const path of ['/minha-conta', '/configuracoes/equipe', '/configuracoes/atividades', '/ativar-conta']) {

@@ -32,6 +32,7 @@ jobs:
       STAGING_PIN: ${{ secrets.STAGING_PIN }}
       STAGING_R2_BUCKET: mesiva-business-assets-staging
       STAGING_READY_ATTEMPTS: 6
+      STAGING_URL: https://staging.mesiva.com.br
 
     steps:
       - name: Checkout
@@ -113,13 +114,9 @@ jobs:
         run: npm run deploy:staging
 
       - name: Verify staging login
-        env:
-          STAGING_URL: https://sistema-para-delivery-staging.vzaponi.workers.dev
         run: node scripts/infra/staging-auth-smoke.mjs
 
       - name: Verify staging deep links
-        env:
-          STAGING_URL: https://sistema-para-delivery-staging.vzaponi.workers.dev
         run: |
           node --input-type=module <<'NODE'
           const baseUrl = process.env.STAGING_URL
@@ -203,4 +200,4 @@ jobs:
 
       - name: Summarize staging URL
         run: |
-          echo 'Staging URL: https://sistema-para-delivery-staging.vzaponi.workers.dev' >> "$GITHUB_STEP_SUMMARY"
+          echo "Staging URL: $STAGING_URL" >> "$GITHUB_STEP_SUMMARY"

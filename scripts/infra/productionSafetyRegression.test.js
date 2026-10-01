@@ -12,6 +12,15 @@ const runbook = readFileSync('docs/release-and-migration-runbook.md', 'utf8')
 
 const productionDatabaseId = 'baa83769-4637-43f6-bf77-711f4f2ed069'
 
+test('custom domain is assigned to the isolated staging Worker while workers.dev stays available', () => {
+  const config = JSON.parse(wrangler)
+  assert.equal(config.env.staging.workers_dev, true)
+  assert.deepEqual(config.env.staging.routes, [{ pattern: 'staging.mesiva.com.br', custom_domain: true }])
+  assert.equal(config.routes, undefined, 'staging domain must not be registered on production')
+  assert.equal(config.env.staging.d1_databases[0].database_id, '73a1c0c1-142f-4247-8ffc-e858ab2ac400')
+  assert.equal(config.env.staging.r2_buckets[0].bucket_name, 'mesiva-business-assets-staging')
+})
+
 test('staging uses an isolated Worker, D1 database, and rate-limit namespace', () => {
   assert.match(wrangler, /"staging"\s*:\s*\{/)
   assert.match(wrangler, /"name"\s*:\s*"sistema-para-delivery-staging"/)
@@ -62,7 +71,8 @@ test('staging workflow targets only staging resources', () => {
   assert.match(workflow, /npm run d1:migrate:staging/)
   assert.match(workflow, /npm run deploy:staging/)
   assert.match(workflow, /STAGING_PIN/)
-  assert.match(workflow, /sistema-para-delivery-staging\.vzaponi\.workers\.dev/)
+  assert.match(workflow, /STAGING_URL:\s*https:\/\/staging\.mesiva\.com\.br/)
+  assert.doesNotMatch(workflow, /sistema-para-delivery-staging\.vzaponi\.workers\.dev/)
   assert.doesNotMatch(workflow, /npm run d1:migrate:production/)
   assert.doesNotMatch(workflow, /npm run deploy:production/)
   assert.doesNotMatch(workflow, /amor-e-sabor-delivery --remote/)
