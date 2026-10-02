@@ -138,6 +138,10 @@ jobs:
             '/recuperar-senha',
             '/redefinir-senha',
             '/cozinha-tv',
+            '/aceitar-convite',
+            '/empresas',
+            '/mesiva',
+            '/mesiva/empresas',
           ]
 
           const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))

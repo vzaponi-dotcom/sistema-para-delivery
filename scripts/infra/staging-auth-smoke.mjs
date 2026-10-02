@@ -13,7 +13,7 @@ ON CONFLICT(business_id) DO UPDATE SET pin_hash=excluded.pin_hash, updated_at=ex
 
 const ensure = (condition, message) => { if (!condition) throw new Error(message) }
 const anonymous = (body) => body?.authenticated === false
-  && ['legacy', 'enrollment', 'user_only'].includes(body.authMode)
+  && ['legacy', 'enrollment', 'user_only', 'multi_company'].includes(body.authMode)
   && Object.keys(body).every(key => ['authenticated', 'authMode'].includes(key))
 
 export async function verifyStagingAuth({ baseUrl, pin, attempts = 6, fetchImpl = fetch,
@@ -53,10 +53,10 @@ export async function verifyStagingAuth({ baseUrl, pin, attempts = 6, fetchImpl 
   const crossOrigin = await post({ origin: 'https://invalid-staging-origin.example' }, {})
   ensure(crossOrigin.status === 403 && uncachedWithoutCookie(crossOrigin) && (await crossOrigin.json()).error?.code === 'ORIGIN_NOT_ALLOWED', 'Login must reject a foreign origin.')
 
-  if (session.authMode !== 'user_only') ensure(pin, 'STAGING_PIN is required for legacy/enrollment smoke.')
+  if (!['user_only', 'multi_company'].includes(session.authMode)) ensure(pin, 'STAGING_PIN is required for legacy/enrollment smoke.')
   const login = await post({ origin }, { pin: pin || 'staging-disabled-pin-probe' })
   const loginBody = await login.json()
-  if (session.authMode === 'user_only') {
+  if (['user_only', 'multi_company'].includes(session.authMode)) {
     const denied = login.status === 401 && loginBody.error?.code === 'INVALID_LOGIN'
       || login.status === 429 && loginBody.error?.code === 'LOGIN_RATE_LIMITED'
     ensure(denied && uncachedWithoutCookie(login) && loginBody.authenticated !== true, 'user_only PIN rejection must not create a session.')
@@ -68,7 +68,7 @@ export async function verifyStagingAuth({ baseUrl, pin, attempts = 6, fetchImpl 
     // GETs and foreign-origin requests cannot consume challenges or send email.
     for (const route of ['/api/auth/password-recovery', '/api/auth/email-challenges/inspect', '/api/auth/email-challenges/complete']) {
       const read = await call(route)
-      ensure(read.status === 401 && uncachedWithoutCookie(read), 'Public email boundary GET must be denied without side effects.')
+      ensure([401, 405].includes(read.status) && uncachedWithoutCookie(read), 'Public email boundary GET must be denied without side effects.')
       const foreign = await postRoute(route, { origin: 'https://invalid-staging-origin.example' }, {})
       ensure(foreign.status === 403 && uncachedWithoutCookie(foreign) && (await foreign.json()).error?.code === 'ORIGIN_NOT_ALLOWED', 'Public email boundary must reject foreign origins without caching or cookies.')
     }

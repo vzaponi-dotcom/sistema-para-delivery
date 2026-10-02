@@ -450,6 +450,10 @@ const dispatchAuthenticatedApi = async (request, env, session, context, url) => 
 export const handleRequest = async (request, env, executionContext) => {
   try {
     const url = new URL(request.url)
+    if (!multiCompanyEnabled(env) && [true, 'true'].includes(env.AUTH_MULTI_COMPANY_PREPARE_ENABLED)) {
+      if (['/api/auth/email-challenges/inspect', '/api/auth/email-challenges/complete'].includes(url.pathname)) return await handleGlobalAuthApi(request, env)
+      if (['/api/auth/company-invitations/inspect', '/api/auth/company-invitations/accept'].includes(url.pathname)) return await handleCompanyInvitationsApi(request, env)
+    }
     if (multiCompanyEnabled(env)) {
       const options = { waitUntil: executionContext?.waitUntil?.bind(executionContext) }
       const identity = await handleGlobalAuthApi(request, env, options)

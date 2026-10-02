@@ -1,4 +1,13 @@
 import test from 'node:test'
+test('multi-company anonymous smoke rejects legacy credentials without sending recovery email', async t => {
+  const { createTenancyFixture } = await import('../../worker/test-support/tenancyDb.js')
+  const { handleRequest } = await import('../../worker/index.js')
+  const f = await createTenancyFixture(t), paths = []
+  const fetchImpl = async (url, options) => { paths.push(new URL(url).pathname); return handleRequest(new Request(url, options), { DB: f.db, AUTH_MULTI_COMPANY_ENABLED: 'true' }) }
+  assert.equal((await smoke({ fetchImpl })).authMode, 'multi_company')
+  assert.equal(paths.filter(path => path === '/api/auth/password-recovery').length, 2)
+  assert.equal(f.sqlite.prepare('SELECT count(*) n FROM identity_email_deliveries').get().n, 0)
+})
 import assert from 'node:assert/strict'
 import { createSettingsDb } from '../../worker/test-support/settingsDb.js'
 import { hashPin } from '../../worker/auth.js'
