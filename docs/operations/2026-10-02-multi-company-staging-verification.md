@@ -27,3 +27,7 @@ O procedimento privado exige `RESEND_API_KEY`, `CLOUDFLARE_API_TOKEN` e `CLOUDFL
 Envio e recebimento de e-mails reais, TV em duas empresas e impressão física não estão comprovados pelo teste local. Impressão física depende de equipamento; homologação de e-mails usa somente destinatários autorizados. Nenhum e-mail externo foi enviado pelos testes automatizados ou pela demonstração local.
 
 Merge e publicação em produção não fazem parte desta entrega autorizada.
+
+## Entrega revisável
+
+[PR #88](https://github.com/vzaponi-dotcom/sistema-para-delivery/pull/88) aberta em rascunho e empilhada sobre a [PR #85](https://github.com/vzaponi-dotcom/sistema-para-delivery/pull/85). Issue #87 permanece aberta para o aceite remoto. O workspace desta execução é preservado porque o checkpoint remoto da Task 14 ainda está pendente.
