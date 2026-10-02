@@ -1,5 +1,6 @@
 import { apiError } from '../http.js'
 import { canReadOrder, projectPrintJobMetadata } from './projections.js'
+import { sha256Hex } from '../auth.js'
 
 // Only server-established workflows may pass automatic=true. HTTP body flags are never forwarded.
 export const printingActor = (context, { automatic = false, stationId = null } = {}) => {
@@ -26,6 +27,28 @@ export const requirePrintJobRead = async (db, context, job) => {
     throw apiError(404, 'ORDER_NOT_FOUND', 'Pedido não encontrado.')
   }
   if (!await canReadPrintJob(db, context, job)) throw apiError(403, 'FORBIDDEN', 'Você não pode consultar este documento de impressão.')
+}
+
+const QZ_DEVICE_READ_CALLS = new Set(['printers.find', 'printers.getDefault', 'printers.startListening', 'printers.stopListening', 'printers.getStatus', 'websocket.getNetworkInfo'])
+export async function requireCompanyQzRequest(db, context, { toSign, payload }) {
+  if (typeof payload !== 'string' || new TextEncoder().encode(payload).length > 1_048_576
+    || typeof toSign !== 'string' || !/^[a-f0-9]{64}$/.test(toSign) || await sha256Hex(payload) !== toSign) {
+    throw apiError(400, 'INVALID_QZ_SIGN_PAYLOAD', 'A assinatura exige a requisição QZ correspondente.')
+  }
+  let message
+  try { message = JSON.parse(payload) } catch { throw apiError(400, 'INVALID_QZ_SIGN_PAYLOAD', 'Requisição QZ inválida.') }
+  if (!message || typeof message !== 'object' || !Number.isSafeInteger(message.timestamp) || message.timestamp < 1) throw apiError(400, 'INVALID_QZ_SIGN_PAYLOAD', 'Requisição QZ inválida.')
+  if (QZ_DEVICE_READ_CALLS.has(message.call) && !message.params?.jobData) return
+  if (message.call !== 'print') throw apiError(403, 'QZ_CALL_NOT_ALLOWED', 'Esta operação QZ não está disponível.')
+  const name = message.params?.options?.jobName
+  if (typeof name !== 'string' || !name || name.length > 300) throw apiError(400, 'PRINT_ATTEMPT_REQUIRED', 'A impressão exige uma tentativa física registrada.')
+  const job = await db.prepare(`SELECT j.id,j.type,j.order_id FROM print_job_attempts a
+    JOIN print_jobs j ON j.id = a.job_id AND j.business_id = a.business_id
+    JOIN print_stations s ON s.id = a.station_id AND s.business_id = a.business_id
+    WHERE a.business_id = ? AND a.spool_job_name = ? AND a.status = 'submitting' AND a.submission_started_at IS NOT NULL
+      AND a.resolution IS NULL AND j.status = 'awaiting_confirmation' AND j.station_id = a.station_id`).bind(context.businessId, name).first()
+  if (!job) throw apiError(404, 'PRINT_ATTEMPT_NOT_FOUND', 'Tentativa de impressão não encontrada para esta operação.')
+  await requirePrintJobRead(db, context, { id: job.id, type: job.type, orderId: job.order_id })
 }
 
 export const projectPrintingPayload = async (db, context, payload) => {

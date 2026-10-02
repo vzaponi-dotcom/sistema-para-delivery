@@ -41,7 +41,7 @@ import {
   saveStationPrimary,
 } from './printSettingsRepository.js'
 import { requireCapability } from './settingsAccess.js'
-import { printingActor, projectPrintingPayload, requirePrintJobRead } from './access/printingAuthorization.js'
+import { printingActor, projectPrintingPayload, requirePrintJobRead, requireCompanyQzRequest } from './access/printingAuthorization.js'
 
 const requiredText = (value, field, message = `${field} é obrigatório.`) => {
   const text = String(value ?? '').trim()
@@ -113,7 +113,8 @@ export const handlePrintingApi = async (request, env, context, url) => {
 
   if (url.pathname === '/api/printing/qz/sign' && request.method === 'POST') {
     assertSameOriginMutation(request)
-    const { toSign } = await readJson(request)
+    const body = await readJson(request), { toSign } = body
+    if (context.accountId) await requireCompanyQzRequest(env.DB, context, body)
     return new Response(await signQzPayload(env, toSign), {
       headers: {
         'content-type': 'text/plain; charset=UTF-8',

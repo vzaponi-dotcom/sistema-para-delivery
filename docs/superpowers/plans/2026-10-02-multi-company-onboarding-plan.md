@@ -207,11 +207,11 @@ test('gerente empresarial não administra a plataforma', async t => {
 
 **Interfaces:** TV pública deriva empresa do token próprio ou do pedido de pareamento autorizado, nunca de sessão humana global ou `BUSINESS_ID`. Aprovação/controle humanos recebem `BusinessContext`. Impressão recebe contexto e valida relação negócio–estação–job–tentativa para fila, documentos, execução, reimpressão, assinatura e recuperação.
 
-- [ ] Escrever testes A/B com TVs vinculadas separadamente, troca da sessão humana sem mudar destino da TV e código/pedido de pareamento de outra empresa negado. TV sem empresa resolvida não lista operações nem usa fallback. Token humano não concede TV e token TV não concede painel/equipe.
-- [ ] Fixar Review Focus 2 com job de B e estação/tentativa/documento de A: nenhuma leitura, claim, assinatura ou confirmação atravessa empresas; documentos de pedido/comanda estrangeiros negados. Fila e reimpressão continuam com capacidades por perfil.
-- [ ] Executar `node --test worker/tenancy/deviceIsolation.test.js worker/kitchenTvSecurityRegression.test.js worker/access/printingAuthorization.test.js`; esperar FAIL nos vínculos ainda não comprovados.
-- [ ] Implementar correções focadas nos handlers/repositórios afetados, usando guardas da Task 8 e credencial de TV existente. Preservar política de pareamento/revogação; não criar acesso autônomo de estação nem fazer um cliente Mesiva herdar credencial de TV de outro.
-- [ ] Executar os arquivos e testes de TV/impressão afetados; esperar PASS. Commit: `fix(tenancy): bind TV and printing to authorized companies`.
+- [x] Escrever testes A/B com TVs vinculadas separadamente, troca da sessão humana sem mudar destino da TV e código/pedido de pareamento de outra empresa negado. TV sem empresa resolvida não lista operações nem usa fallback. Token humano não concede TV e token TV não concede painel/equipe.
+- [x] Fixar Review Focus 2 com job de B e estação/tentativa/documento de A: nenhuma leitura, claim, assinatura ou confirmação atravessa empresas; documentos de pedido/comanda estrangeiros negados. Fila e reimpressão continuam com capacidades por perfil.
+- [x] Executar `node --test worker/tenancy/deviceIsolation.test.js worker/kitchenTvSecurityRegression.test.js worker/access/printingAuthorization.test.js`; esperar FAIL nos vínculos ainda não comprovados.
+- [x] Implementar correções focadas nos handlers/repositórios afetados, usando guardas da Task 8 e credencial de TV existente. Preservar política de pareamento/revogação; não criar acesso autônomo de estação nem fazer um cliente Mesiva herdar credencial de TV de outro.
+- [x] Executar os arquivos e testes de TV/impressão afetados; esperar PASS. Commit: `fix(tenancy): bind TV and printing to authorized companies`.
 
 ## Task 10: Transporte capturado, runtime e preferências empresariais
 
