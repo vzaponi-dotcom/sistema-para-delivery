@@ -13,7 +13,7 @@ export async function prepareCompanyIssuer(db, context, { businessId, purpose = 
     ? row.scope === 'platform' && platformGranted.has(capability || 'platform.businesses.create')
     : row.scope === 'business' && row.business_id === businessId && granted.has(capability || 'access.users.manage')
   if (!allowed) throw apiError(403, 'FORBIDDEN', 'Você não pode administrar estes acessos.')
-  return { statement: prepareSessionSnapshotAssertion(db, row, now), context: { ...context, granted, platformGranted,
+  return { statement: prepareSessionSnapshotAssertion(db, row, now), snapshot: row, context: { ...context, granted, platformGranted,
     displayName: row.display_name, businessId: row.business_id, userId: row.user_id, sessionId: row.business_session_id } }
 }
 

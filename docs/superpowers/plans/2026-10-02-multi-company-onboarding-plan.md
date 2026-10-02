@@ -173,8 +173,8 @@ assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM account_credentials WHE
 
 **Interfaces:** `requirePlatformCapability(context,key)`; `preparePlatformAudit(db,context,event)`; `listPlatformBusinesses(db,{query,cursor,limit})` retorna `{items,nextCursor}` com default 20, máximo 50, busca de até 200 caracteres e cursor validado; `getPlatformBusiness(db,businessId)` projeta cadastro/primeiro gerente/convites; `handlePlatformBusinessesApi(request,env,context,{waitUntil,now})` atende as quatro rotas da Spec 9.1 e delega criação/reenvio às Tasks 5–6.
 
-- [ ] Escrever testes: gerente comum/identity scope/plataforma revogada recebem negação; concessão válida lista/cria/detalha/reenvia sem retornar pedidos, credenciais, outras empresas do gerente ou payload bruto do Resend. Origem externa é negada; paginação inválida não amplia consulta. Empresa ativada não permite reenviar convite inicial.
-- [ ] Fixar Review Focus 3/5: reenvios simultâneos produzem somente desafio vigente e cooldown; remoção de concessão durante leitura/commit impede criação/reenvio; marcador antigo impede alteração no escopo novo. Resultado accepted/uncertain/rejected e expirado/ativado são projetados separadamente.
+- [x] Escrever testes: gerente comum/identity scope/plataforma revogada recebem negação; concessão válida lista/cria/detalha/reenvia sem retornar pedidos, credenciais, outras empresas do gerente ou payload bruto do Resend. Origem externa é negada; paginação inválida não amplia consulta. Empresa ativada não permite reenviar convite inicial.
+- [x] Fixar Review Focus 3/5: reenvios simultâneos produzem somente desafio vigente e cooldown; remoção de concessão durante leitura/commit impede criação/reenvio; marcador antigo impede alteração no escopo novo. Resultado accepted/uncertain/rejected e expirado/ativado são projetados separadamente.
 
 ```js
 test('gerente empresarial não administra a plataforma', async t => {
@@ -185,9 +185,9 @@ test('gerente empresarial não administra a plataforma', async t => {
 })
 ```
 
-- [ ] Executar `node --test worker/platform/access.test.js worker/platform/audit.test.js worker/platform/businessesRepository.test.js worker/platform/businessesApi.test.js`; esperar FAIL.
-- [ ] Implementar interfaces e respostas `no-store`, com validação de origem nas mutações e audit trail próprio. Query paginada lê apenas cadastro, primeiro vínculo e estado de convite. Reenvio verifica que é o primeiro vínculo ainda pendente; não autoriza administração de toda a equipe pelo painel.
-- [ ] Executar os quatro arquivos; esperar PASS. Commit: `feat(platform): expose authorized company onboarding APIs`.
+- [x] Executar `node --test worker/platform/access.test.js worker/platform/audit.test.js worker/platform/businessesRepository.test.js worker/platform/businessesApi.test.js`; esperar FAIL.
+- [x] Implementar interfaces e respostas `no-store`, com validação de origem nas mutações e audit trail próprio. Query paginada lê apenas cadastro, primeiro vínculo e estado de convite. Reenvio verifica que é o primeiro vínculo ainda pendente; não autoriza administração de toda a equipe pelo painel.
+- [x] Executar os quatro arquivos; esperar PASS. Commit: `feat(platform): expose authorized company onboarding APIs`.
 
 ## Task 8: Isolamento do banco, roteamento e domínios humanos
 

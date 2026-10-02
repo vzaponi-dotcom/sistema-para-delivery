@@ -12,6 +12,7 @@ import { prepareIdentityAudit } from '../identity/audit.js'
 import { prepareIdentityDeliveryReservation } from '../identity/throttle.js'
 import { deliverIdentityMessage } from '../identity/emailMessages.js'
 import { prepareCompanyIssuer } from './memberships.js'
+import { preparePlatformAudit } from '../platform/audit.js'
 
 export const invalidCompanyInvitation = () => apiError(400, 'INVALID_COMPANY_INVITATION', 'Convite inválido ou expirado. Solicite um novo convite.')
 const loginRequired = () => apiError(401, 'INVITATION_LOGIN_REQUIRED', 'Entre com o e-mail que recebeu o convite para aceitar.')
@@ -19,8 +20,9 @@ const changedInvitation = () => apiError(409, 'INVITATION_CHANGED', 'O convite m
 
 export async function prepareMembershipInvitation(db, {
   businessId, accountEmail, displayName, roleId, issuer, purpose = 'team', userId = null, now = new Date(),
-  dailyLimit = 80, issuerCapability = null, expectedInvitationId = null, creatingBusiness = false,
+  dailyLimit = 80, issuerCapability = null, expectedInvitationId = null, creatingBusiness = false, monotonicNow = () => performance.now(),
 }) {
+  const started = monotonicNow()
   if (!['first_manager', 'team'].includes(purpose)) throw invalidCompanyInvitation()
   accountEmail = normalizeAccessEmail(accountEmail)
   if (typeof displayName !== 'string' || !displayName.trim() || Array.from(displayName.trim()).length > 200) throw apiError(400, 'INVALID_USER_INPUT', 'Informe um nome com até 200 caracteres.')
@@ -72,6 +74,9 @@ export async function prepareMembershipInvitation(db, {
       .bind(invitationId, accountEmail, role.version, issuer.accountId, purpose === 'team' ? 'business' : 'platform', purpose, await sha256Hex(token), timestamp, expiresAt, businessId, userId),
   )
   if (purpose === 'team') statements.push(prepareAuditEvent(db, issuing.context, { action: expectedInvitationId ? 'access.invitation.resent' : 'access.user.created', resourceType: 'user', resourceId: userId, now }))
+  else statements.push(preparePlatformAudit(db, issuer, { action: expectedInvitationId ? 'invitation.resent' : 'invitation.issued', businessId, now }))
+  const commitNow = new Date(now.getTime() + Math.max(0, Math.floor(monotonicNow() - started)))
+  statements[0] = prepareSessionSnapshotAssertion(db, issuing.snapshot, commitNow)
   return { statements, value: { invitationId, subjectId: invitationId, token, expiresAt, userId, businessId, email: accountEmail, displayName: displayName.trim(), purpose } }
 }
 
@@ -142,14 +147,18 @@ export async function acceptCompanyInvitation(db, { token, password, context = n
 }
 
 export async function deliverPersistedCompanyInvitation(db, env, message, { deliver = deliverIdentityMessage, now = new Date(), fetchImpl } = {}) {
-  const row = await db.prepare('SELECT h.account_id,b.name FROM company_invitations h JOIN businesses b ON b.id = h.business_id WHERE h.id = ? AND h.business_id = ?').bind(message.invitationId, message.businessId).first()
+  const row = await db.prepare('SELECT h.account_id,h.issued_by_account_id,h.purpose,b.name FROM company_invitations h JOIN businesses b ON b.id = h.business_id WHERE h.id = ? AND h.business_id = ?').bind(message.invitationId, message.businessId).first()
   if (!row) throw invalidCompanyInvitation()
   let result
   try { result = await deliver(env, { ...message, purpose: 'company_invitation', businessName: row.name }, { fetchImpl }) } catch { result = { status: 'uncertain' } }
   const status = ['accepted', 'rejected', 'uncertain'].includes(result?.status) ? result.status : 'uncertain'
   const providerId = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(result?.providerId || '') ? result.providerId : null
-  await db.prepare("UPDATE company_invitations SET delivery_status = ?,provider_id = ?,revoked_at = CASE WHEN ? = 'rejected' THEN COALESCE(revoked_at,?) ELSE revoked_at END WHERE id = ? AND business_id = ?")
-    .bind(status, providerId, status, now.toISOString(), message.invitationId, message.businessId).run()
+  const update = db.prepare("UPDATE company_invitations SET delivery_status = ?,provider_id = ?,revoked_at = CASE WHEN ? = 'rejected' THEN COALESCE(revoked_at,?) ELSE revoked_at END WHERE id = ? AND business_id = ?")
+    .bind(status, providerId, status, now.toISOString(), message.invitationId, message.businessId)
+  const event = row.purpose === 'first_manager'
+    ? preparePlatformAudit(db, { scope: 'platform', accountId: row.issued_by_account_id }, { action: `invitation.delivery.${status}`, businessId: message.businessId, result: status === 'accepted' ? 'success' : 'failure', now })
+    : prepareAuditEvent(db, { businessId: message.businessId, actorType: 'system' }, { action: `access.email.company_invitation.delivery.${status}`, resourceType: 'user', resourceId: message.userId, outcome: status === 'accepted' ? 'success' : 'failure', now })
+  await db.batch([update, event])
   return { status, expiresAt: message.expiresAt }
 }
 
@@ -161,7 +170,7 @@ export async function resendCompanyInvitation(env, issuer, invitationId, options
   if (row.membership_active !== 1) throw apiError(409, 'MEMBERSHIP_INACTIVE', 'Ative este vínculo antes de reenviar o convite.')
   const config = readEmailConfig(env)
   const prepared = await prepareMembershipInvitation(db, { businessId: row.business_id, accountEmail: row.email_normalized, displayName: row.display_name, roleId: row.current_role_id,
-    issuer, purpose: row.purpose, userId: row.user_id, expectedInvitationId: row.id, issuerCapability: row.purpose === 'first_manager' ? 'platform.invitations.resend' : null, dailyLimit: config.dailyLimit, now })
+    issuer, purpose: row.purpose, userId: row.user_id, expectedInvitationId: row.id, issuerCapability: row.purpose === 'first_manager' ? 'platform.invitations.resend' : null, dailyLimit: config.dailyLimit, now, monotonicNow: options.monotonicNow })
   try { await commitIdentityStatements(db, prepared.statements) }
   catch (error) {
     if (/NOT NULL constraint failed: identity_email_deliveries.created_at/.test(String(error?.message))) throw apiError(429, 'EMAIL_DELIVERY_LIMITED', 'Aguarde antes de reenviar o convite.')

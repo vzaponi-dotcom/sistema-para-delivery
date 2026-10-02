@@ -7,6 +7,7 @@ import { prepareCompanyIssuer } from '../tenancy/memberships.js'
 import { readEmailConfig } from '../access/emailDelivery.js'
 import { loadAccountSessionRow, prepareSessionSnapshotAssertion } from '../identity/sessions.js'
 import { commitIdentityStatements } from '../identity/transactions.js'
+import { preparePlatformAudit } from './audit.js'
 
 const changed = () => apiError(409, 'PROVISIONING_CONTEXT_CHANGED', 'Seu acesso mudou. Atualize a sessão antes de criar a empresa.')
 const reused = () => apiError(409, 'PROVISIONING_KEY_REUSED', 'Esta tentativa já foi usada com outros dados. Confira a empresa criada.')
@@ -43,7 +44,7 @@ export async function createBusiness(env, platformContext, input, { idempotencyK
     await commitIdentityStatements(db, [issuer.statement, prepareSessionSnapshotAssertion(db, source, commitNow),
       ...prepareBusinessDefaults(db, { businessId, name: data.name, now }), ...prepared.statements,
       db.prepare('INSERT INTO platform_provisioning_receipts(id,account_id,idempotency_key,payload_hash,business_id,created_at) VALUES(?,?,?,?,?,?)').bind(crypto.randomUUID(), platformContext.accountId, idempotencyKey, payloadHash, businessId, commitNow.toISOString()),
-      db.prepare("INSERT INTO platform_audit_events(id,account_id,business_id,action,result,created_at) VALUES(?,?,?,'business.created','success',?)").bind(crypto.randomUUID(), platformContext.accountId, businessId, commitNow.toISOString()),
+      preparePlatformAudit(db, platformContext, { action: 'business.created', businessId, now: commitNow }),
     ])
   } catch (error) {
     // Another identical request may have won while this preparation was awaiting crypto/reads.
