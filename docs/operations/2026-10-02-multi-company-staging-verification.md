@@ -18,7 +18,7 @@ Commit final do código verificado: `97fab10b0d25a314b8a4aac9600e6d744b38fa71`. 
 - Bundles finais com Wrangler 4.128.0: staging/produção passaram; flags multiempresa e preparo continuam `false`. D1 local: todas as 39 migrações aplicadas, nenhuma restante.
 - Interface local com o Worker real e conta sintética: painel desktop, nomes longos e formulário em tela móvel inspecionados; sem rolagem horizontal. A observação móvel final teve largura de conteúdo/viewport 375/375 px. Não substitui homologação de dispositivos físicos.
 
-## Checkpoints remotos pendentes
+## Estado remoto na entrega local (histórico)
 
 Nenhum deploy, migração remota 0038/0039 ou corte multiempresa foi realizado por esta implementação até este registro. Flags padrão de staging e produção continuam `false`.
 
@@ -43,3 +43,17 @@ Depois da correção: **3429/3429** na suíte completa, zero falhas/skips/cancel
 A regressão I1 foi estendida para outra conta sair do formulário, retirada da permissão de criar e retorno da autora com escopo de identidade. O recibo permanece na memória por conta; sem a permissão, a pessoa pode sair; quando elegível, retorna somente à tela original para selecionar o painel e verificar a mesma UUID/payload. A exceção de navegação exige a autoria, as concessões corretas e ausência de outros efeitos/drafts pendentes. Nenhuma criação é reenviada automaticamente.
 
 RED→GREEN nas duas fases, com uma única empresa persistida. Última suíte completa: **3429/3429**, zero falhas/skips/cancelamentos, 164838.4292 ms. Arquitetura, lint, build e ambos os bundles repetidos passaram. O run GitHub `37063598286` passou todos os shards e validação no commit anterior `6371def2`; a validação do HEAD final é ligada na PR #88. Os checkpoints remotos de staging permanecem pendentes.
+
+## Preparo remoto autorizado — 2026-10-02
+
+O usuário autorizou publicação e homologação. Bundle publicado a partir do HEAD `c59a672997d300d1fa915ebf5b28302dc157ab19`, que passou no [CI manual final](https://github.com/vzaponi-dotcom/sistema-para-delivery/actions/runs/37064562184). Build e bundle de staging foram repetidos nesta publicação, com sucesso.
+
+- Versão anterior: `98b04b10-0a97-4bde-a717-de3dd325dfbe`; etag do script e bookmark de Time Travel registrados em checkpoint privado.
+- Backup SQL privado: 1.874.619 bytes, hash SHA-256 registrado; importação integral em SQLite em memória passou. Isso confirma a leitura do backup, não uma restauração remota. O retorno exige seu bundle anterior compatível e avaliação das escritas posteriores.
+- Staging tinha também a migração 0037 pendente. As migrações 0037, 0038 e 0039 foram aplicadas com sucesso; Wrangler confirmou nenhuma migração restante. Os nove guards de impressão estão presentes.
+- Versão de preparo publicada: `a6b73b96-2e83-45c1-b405-a9c57063b034`, no domínio `https://staging.mesiva.com.br`. Metadados remotos confirmam `AUTH_MULTI_COMPANY_ENABLED=false`, `AUTH_MULTI_COMPANY_PREPARE_ENABLED=true` e preservação do binding secreto Resend. Nenhum valor de segredo foi recuperado.
+- Contagens após migração conferem com o backup: uma empresa, três usuários, 297 pedidos, 34 produtos, 278 jobs de impressão, 16 tentativas e 16 estações. A empresa existente continua `access_status=legacy`; nenhuma conta global foi criada neste checkpoint.
+- Sete páginas públicas/deep links retornaram HTTP 200 e shell SPA. APIs de empresas e painel, inclusive criação sem autenticação, retornaram 401. Inspeção de desafios e convites com origem correta e tokens deliberadamente inválidos retornou 400 com seus códigos específicos; sem origem, a mutação foi recusada com 403.
+- Tela de ativação publicada inspecionada no navegador; layout em viewport de 375 px ficou com conteúdo de 375 px, sem rolagem horizontal. Nenhuma credencial foi preenchida no navegador.
+
+**Pendente:** credenciais no processo administrativo privado, preparo do administrador, ativação pelo titular, vínculo do primeiro gerente, readiness, ativação do flag global, logins reais e finalização dos acessos antigos. Um terminal privado com entradas mascaradas está aberto. As credenciais permanecem somente na memória desse processo; o auxiliar executa comandos administrativos fixos e aguarda checkpoints explícitos antes do vínculo e da finalização. Nenhum e-mail foi enviado neste checkpoint. A Task 14 permanece aberta até os testes autenticados e a homologação de dispositivos.
