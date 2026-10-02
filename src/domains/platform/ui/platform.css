@@ -1,4 +1,4 @@
-.platform-shell { min-height: 100dvh; background: var(--page-bg, #f4f7fa); color: var(--text-primary, #102c4d); }
+.platform-shell { min-height: 100dvh; background: var(--bg, #f4f7fa); color: var(--text, #102c4d); }
 .platform-topbar { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 20px clamp(16px, 4vw, 64px); border-bottom: 1px solid var(--border, #dbe5ef); background: var(--surface, #fff); }
 .platform-topbar > div, .platform-account-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .platform-topbar span { font-weight: 600; overflow-wrap: anywhere; }

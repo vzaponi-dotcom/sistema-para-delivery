@@ -255,6 +255,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     authenticated: authState === 'authenticated' && Boolean(sessionContext?.user?.id),
     implemented: IMPLEMENTED_DESTINATIONS,
     navigationPending: platformPending,
+    getNavigationPending: () => platformPendingRef.current,
     checkoutPending: newOrderDraft.checkoutPending,
     dirtyOrder: newOrderDraft.dirty,
     onDiscardOrder: newOrderDraft.discard,

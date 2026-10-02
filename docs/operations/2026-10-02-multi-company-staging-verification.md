@@ -1,0 +1,23 @@
+# Verificação multiempresa — 2026-10-02
+
+Branch: `feature/issue-87-multi-company-onboarding`. Base: `003a898bac19958089eabab6aedf876adb231763`, sobre a implementação da PR #85. Ambiente remoto previsto: `https://staging.mesiva.com.br`.
+
+## Evidência local
+
+- Tasks 1–13 implementadas com testes de contratos, concorrência, autorização, convites, isolamento, sessões e interface.
+- Fluxo integrado real de criação de duas empresas, primeira ativação, aceite por conta existente sem trocar senha, perfis diferentes, proteção do último gerente, desativação em uma empresa e recuperação global: passou.
+- Continuidade da interface após resposta perdida: uma UUID e um payload; navegação e saída bloqueadas até reconciliação; nenhuma leitura do bootstrap operacional no painel: passou.
+- Arquitetura frontend e build: passaram. Lint sem erros; há avisos, inclusive de dependências de hooks e tamanho do bundle.
+- Migrações 0038/0039 aplicadas ao D1 local com Wrangler 4.128.0. A tentativa inicial revelou o limite D1 de termos de SELECT composto; o preflight foi dividido sem remover verificações. A repetição executou 85 comandos da 0039 com sucesso.
+- O início real do Worker revelou a exportação de uma constante na entrada. `worker/entry.js` expõe somente o handler; o runtime local iniciou em `127.0.0.1:4187`. O contrato da entrada foi testado antes/depois da correção.
+- Primeira suíte completa: 3418 testes, 3414 passaram; quatro verificações históricas de nomes no código de impressão falharam. As verificações foram atualizadas para os clientes de contexto mantendo suas regras; os 24 testes relacionados passaram. A execução completa seguinte é registrada ao terminar, sem reaproveitar a contagem da PR #85.
+
+## Checkpoints remotos pendentes
+
+Nenhum deploy, migração remota 0038/0039 ou corte multiempresa foi realizado por esta implementação até este registro. Flags padrão de staging e produção continuam `false`.
+
+O procedimento privado exige `RESEND_API_KEY`, `CLOUDFLARE_API_TOKEN` e `CLOUDFLARE_ACCOUNT_ID` no processo administrativo. A chave já cadastrada no Worker não fica disponível automaticamente nesse processo e não deve ser extraída. Após configuração privada, seguir [o roteiro](multi-company-staging.md), incluindo backup/bookmark e logins reais antes da finalização.
+
+Envio e recebimento de e-mails reais, TV em duas empresas e impressão física não estão comprovados pelo teste local. Impressão física depende de equipamento; homologação de e-mails usa somente destinatários autorizados. Nenhum e-mail externo foi enviado pelos testes automatizados ou pela demonstração local.
+
+Merge e publicação em produção não fazem parte desta entrega autorizada.

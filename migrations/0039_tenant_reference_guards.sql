@@ -2,33 +2,24 @@
 PRAGMA foreign_keys = ON;
 CREATE TABLE tenant_migration_assertion(ok INTEGER NOT NULL CHECK(ok = 1));
 INSERT INTO tenant_migration_assertion(ok) SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM orders source WHERE (source.client_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM clients p WHERE p.id = source.client_id AND p.business_id = source.business_id)) OR
-  (source.table_tab_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM table_tabs p WHERE p.id = source.table_tab_id AND p.business_id = source.business_id))
-UNION ALL
-SELECT 1 FROM order_items source WHERE (source.order_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM orders p WHERE p.id = source.order_id AND p.business_id = source.business_id)) OR
-  (source.product_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM products p WHERE p.id = source.product_id AND p.business_id = source.business_id))
-UNION ALL
-SELECT 1 FROM payments source WHERE (source.order_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM orders p WHERE p.id = source.order_id AND p.business_id = source.business_id))
-UNION ALL
-SELECT 1 FROM payment_receipts source WHERE (source.table_tab_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM table_tabs p WHERE p.id = source.table_tab_id AND p.business_id = source.business_id))
-UNION ALL
-SELECT 1 FROM movements source WHERE (source.order_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM orders p WHERE p.id = source.order_id AND p.business_id = source.business_id)) OR
-  (source.payment_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.id = source.payment_id AND p.business_id = source.business_id))
-UNION ALL
-SELECT 1 FROM table_tabs source WHERE (source.table_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM tables p WHERE p.id = source.table_id AND p.business_id = source.business_id))
-UNION ALL
-SELECT 1 FROM table_reservations source WHERE (source.order_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM orders p WHERE p.id = source.order_id AND p.business_id = source.business_id)) OR
+  (source.table_tab_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM table_tabs p WHERE p.id = source.table_tab_id AND p.business_id = source.business_id))) THEN 1 ELSE 0 END;
+INSERT INTO tenant_migration_assertion(ok) SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM order_items source WHERE (source.order_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM orders p WHERE p.id = source.order_id AND p.business_id = source.business_id)) OR
+  (source.product_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM products p WHERE p.id = source.product_id AND p.business_id = source.business_id))) THEN 1 ELSE 0 END;
+INSERT INTO tenant_migration_assertion(ok) SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM payments source WHERE (source.order_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM orders p WHERE p.id = source.order_id AND p.business_id = source.business_id))) THEN 1 ELSE 0 END;
+INSERT INTO tenant_migration_assertion(ok) SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM payment_receipts source WHERE (source.table_tab_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM table_tabs p WHERE p.id = source.table_tab_id AND p.business_id = source.business_id))) THEN 1 ELSE 0 END;
+INSERT INTO tenant_migration_assertion(ok) SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM movements source WHERE (source.order_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM orders p WHERE p.id = source.order_id AND p.business_id = source.business_id)) OR
+  (source.payment_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.id = source.payment_id AND p.business_id = source.business_id))) THEN 1 ELSE 0 END;
+INSERT INTO tenant_migration_assertion(ok) SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM table_tabs source WHERE (source.table_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM tables p WHERE p.id = source.table_id AND p.business_id = source.business_id))) THEN 1 ELSE 0 END;
+INSERT INTO tenant_migration_assertion(ok) SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM table_reservations source WHERE (source.order_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM orders p WHERE p.id = source.order_id AND p.business_id = source.business_id)) OR
   (source.table_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM tables p WHERE p.id = source.table_id AND p.business_id = source.business_id)) OR
-  (source.converted_table_tab_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM table_tabs p WHERE p.id = source.converted_table_tab_id AND p.business_id = source.business_id))
-UNION ALL
-SELECT 1 FROM print_jobs source WHERE (source.order_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM orders p WHERE p.id = source.order_id AND p.business_id = source.business_id)) OR
+  (source.converted_table_tab_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM table_tabs p WHERE p.id = source.converted_table_tab_id AND p.business_id = source.business_id))) THEN 1 ELSE 0 END;
+INSERT INTO tenant_migration_assertion(ok) SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM print_jobs source WHERE (source.order_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM orders p WHERE p.id = source.order_id AND p.business_id = source.business_id)) OR
   (source.table_tab_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM table_tabs p WHERE p.id = source.table_tab_id AND p.business_id = source.business_id)) OR
   (source.parent_job_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM print_jobs p WHERE p.id = source.parent_job_id AND p.business_id = source.business_id)) OR
-  (source.station_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM print_stations p WHERE p.id = source.station_id AND p.business_id = source.business_id))
-UNION ALL
-SELECT 1 FROM print_job_attempts source WHERE (source.job_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM print_jobs p WHERE p.id = source.job_id AND p.business_id = source.business_id)) OR
-  (source.station_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM print_stations p WHERE p.id = source.station_id AND p.business_id = source.business_id))
-UNION ALL
-SELECT 1 FROM print_stations source WHERE (source.recovery_job_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM print_jobs p WHERE p.id = source.recovery_job_id AND p.business_id = source.business_id))) THEN 1 ELSE 0 END;
+  (source.station_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM print_stations p WHERE p.id = source.station_id AND p.business_id = source.business_id))) THEN 1 ELSE 0 END;
+INSERT INTO tenant_migration_assertion(ok) SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM print_job_attempts source WHERE (source.job_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM print_jobs p WHERE p.id = source.job_id AND p.business_id = source.business_id)) OR
+  (source.station_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM print_stations p WHERE p.id = source.station_id AND p.business_id = source.business_id))) THEN 1 ELSE 0 END;
+INSERT INTO tenant_migration_assertion(ok) SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM print_stations source WHERE (source.recovery_job_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM print_jobs p WHERE p.id = source.recovery_job_id AND p.business_id = source.business_id))) THEN 1 ELSE 0 END;
 DROP TABLE tenant_migration_assertion;
 
 CREATE TRIGGER tenant_orders_reference_insert

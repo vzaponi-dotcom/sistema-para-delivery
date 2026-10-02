@@ -32,7 +32,7 @@ test('second-copy acknowledgement returns before queue refresh can cancel the po
   assert.notEqual(end, -1)
   const acknowledgement = managerSource.slice(start, end)
 
-  assert.match(acknowledgement, /(?:await )?acknowledgeSecondCopyPromptApi\(job\.id, station\.id\)/)
+  assert.match(acknowledgement, /(?:await )?api\.acknowledgeSecondCopyPrompt\(job\.id, station\.id\)/)
   assert.doesNotMatch(acknowledgement, /await refresh\(\)/)
 })
 

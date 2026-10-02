@@ -1,4 +1,8 @@
 import test from 'node:test'
+test('migration preflight respects the D1 limit of five compound SELECT terms', () => {
+  const sql = readFileSync(new URL('../../migrations/0039_tenant_reference_guards.sql', import.meta.url), 'utf8')
+  for (const statement of sql.split(';')) assert.ok((statement.match(/UNION\s+ALL/gi) || []).length < 5, 'D1 allows at most five SELECT terms per compound statement')
+})
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { createTenancyFixture } from '../test-support/tenancyDb.js'
