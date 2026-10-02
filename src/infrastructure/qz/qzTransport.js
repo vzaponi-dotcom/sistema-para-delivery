@@ -1,5 +1,6 @@
 import qz from 'qz-tray'
 import { createQzStatusMonitor } from './qzStatusMonitor.js'
+import { getLocalStorage } from '../storage/localStorage.js'
 import {
   clearQzPrinterName,
   getQzPrinterName,
@@ -154,7 +155,7 @@ export const printQzRawBytes = async (qzApi, printerName, bytes, { jobName } = {
 export const createQzTransport = ({
   getCertificate,
   signPayload,
-  storage = globalThis.localStorage,
+  storage = getLocalStorage(),
   qzApi = qz,
   businessId,
 } = {}) => {

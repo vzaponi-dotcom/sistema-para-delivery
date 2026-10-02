@@ -1,3 +1,5 @@
+import { getLocalStorage } from '../../../infrastructure/storage/localStorage.js'
+
 const STATION_ID_KEY = 'delivery-print-station-id'
 const companyKey = (key, businessId) => businessId ? `${key}:company:${encodeURIComponent(businessId)}` : key
 const ORIGIN_ORDER_IDS_STORAGE_KEY = 'printing-origin-order-ids'
@@ -14,7 +16,7 @@ export const getOrCreateLocalPrintStationId = (
   return id
 }
 
-export const readOriginOrderIds = (storage = globalThis.localStorage, businessId) => {
+export const readOriginOrderIds = (storage = getLocalStorage(), businessId) => {
   try {
     const values = JSON.parse(storage?.getItem?.(companyKey(ORIGIN_ORDER_IDS_STORAGE_KEY, businessId)) || '[]')
     return new Set(Array.isArray(values) ? values.filter((id) => typeof id === 'string' && id) : [])
@@ -23,7 +25,7 @@ export const readOriginOrderIds = (storage = globalThis.localStorage, businessId
   }
 }
 
-export const rememberOriginOrderId = (orderId, storage = globalThis.localStorage, businessId) => {
+export const rememberOriginOrderId = (orderId, storage = getLocalStorage(), businessId) => {
   const ids = readOriginOrderIds(storage, businessId)
   if (!orderId) return ids
   ids.add(orderId)

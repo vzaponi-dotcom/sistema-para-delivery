@@ -5,6 +5,47 @@ import { workspaceHarness, buttonNamed, nodeText } from './test-support/renderWo
 import { comandaDetail } from './test-support/comandaFixtures.js'
 import { fill } from './test-support/accessUi.js'
 
+for (const userAgent of ['Windows NT 10.0', 'Android']) {
+  test(`actual App starts and rediscovers session without browser storage or channels on ${userAgent}`, async t => {
+    const h = await workspaceHarness(t, { userAgent })
+    const globalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage')
+    const windowStorage = Object.getOwnPropertyDescriptor(h.window, 'localStorage')
+    const blocked = { configurable: true, get() { throw new DOMException('Storage disabled', 'SecurityError') } }
+    Object.defineProperty(globalThis, 'localStorage', blocked)
+    Object.defineProperty(h.window, 'localStorage', blocked)
+    h.window.BroadcastChannel = undefined
+    let company = 'a', sessionReads = 0
+    globalThis.fetch = async path => {
+      let payload
+      if (path === '/api/auth/session') {
+        sessionReads++
+        payload = { ...operationalSession, authMode: 'multi_company', scope: 'business', account: { id: 'account' }, businessId: company, contextId: `context-${company}` }
+      } else if (path === '/api/bootstrap') payload = { ...bootstrap, business: { id: company, name: `Empresa ${company}` } }
+      else if (path === '/api/orders') payload = { orders: [] }
+      else if (path === '/api/printing/stations') payload = { stations: [] }
+      else if (String(path).startsWith('/api/printing/jobs?')) payload = { jobs: [] }
+      else if (path === '/api/printing/jobs/summary') payload = { summary: {} }
+      assert.ok(payload, `Unexpected ${path}`)
+      return { ok: true, json: async () => payload }
+    }
+    try {
+      const { default: App } = await h.load('/src/App.jsx')
+      const { renderer } = await h.renderAdminApp(App)
+      assert.ok(buttonNamed(renderer.root, 'Empresa a, operação atual'))
+      const readsBeforeFocus = sessionReads
+      company = 'b'
+      await act(async () => h.window.dispatchEvent(new Event('focus')))
+      assert.ok(sessionReads > readsBeforeFocus)
+      assert.ok(buttonNamed(renderer.root, 'Empresa b, operação atual'))
+      assert.equal(buttonNamed(renderer.root, 'Empresa a, operação atual'), undefined)
+      assert.doesNotMatch(nodeText(renderer.root), /Unexpected Application Error|Storage disabled/)
+    } finally {
+      Object.defineProperty(globalThis, 'localStorage', globalStorage)
+      Object.defineProperty(h.window, 'localStorage', windowStorage)
+    }
+  })
+}
+
 test('actual App blocks switch after account unmount until password response and trusted verification settle', async t => {
   const h = await workspaceHarness(t)
   let finishPassword, finishVerification, writes = 0, logouts = 0, reads = 0
