@@ -134,8 +134,8 @@ test('uma sessão só permite uma troca concorrente', async t => {
 
 **Interfaces:** `listEligibleBusinesses(db,accountId)` retorna `[{businessId,name,roleName}]`. `prepareMembershipInvitation(db,{businessId,accountEmail,displayName,roleId,issuer,purpose,userId?,now})` retorna `Prepared<{invitationId,token,expiresAt,userId}>`. `inspectCompanyInvitation(db,{token,now})` retorna empresa/perfil/estado de aceite sem outras participações da pessoa. `acceptCompanyInvitation(db,{token,password?,context?,now})` retorna `{accepted:true,businessId}`. `updateMembership(db,context,userId,{roleId?,active?},now)` e `resendCompanyInvitation(env,issuer,invitationId,options)`.
 
-- [ ] Escrever testes para conta nova, conta existente autenticada, sessão de outro e-mail negada, papel alterado/desativado, convite expirado/revogado e vínculo ativo sem opção de reenvio. Aceite ativa primeiro gerente e empresa no mesmo batch; segundo gerente não cria outra identidade.
-- [ ] Fixar Review Focus 1 com ativações concorrentes: convites A/B para um e-mail produzem uma conta; primeiro aceite define senha, segundo exige login e conserva verificador/revisão; outros convites pendentes continuam próprios. Desativar/mudar perfil em A não altera B ou sua credencial. Duas remoções concorrentes não eliminam todos os gerentes de empresa ativa.
+- [x] Escrever testes para conta nova, conta existente autenticada, sessão de outro e-mail negada, papel alterado/desativado, convite expirado/revogado e vínculo ativo sem opção de reenvio. Aceite ativa primeiro gerente e empresa no mesmo batch; segundo gerente não cria outra identidade.
+- [x] Fixar Review Focus 1 com ativações concorrentes: convites A/B para um e-mail produzem uma conta; primeiro aceite define senha, segundo exige login e conserva verificador/revisão; outros convites pendentes continuam próprios. Desativar/mudar perfil em A não altera B ou sua credencial. Duas remoções concorrentes não eliminam todos os gerentes de empresa ativa.
 
 ```js
 // Preparar/commitar dois convites team para accounts.pending, emitidos
@@ -151,9 +151,9 @@ assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM account_credentials WHE
 // valida apenas essa senha; aceitar o segundo convite com login, sem alterá-lo.
 ```
 
-- [ ] Executar `node --test worker/tenancy/memberships.test.js worker/tenancy/companyInvitations.test.js worker/tenancy/invitationsApi.test.js`; esperar FAIL.
-- [ ] Implementar as interfaces, asserções e quotas em batches únicos. Gerente só emite/edita vínculo de seu negócio; convite first_manager aceita emissor plataforma, team exige capacidade empresarial. Reenvio revoga token anterior apenas do mesmo vínculo e guarda novo prazo. Após corte, `/api/access/users/:id/reset` não altera credencial global; retornar erro explícito e apontar recuperação pessoal. Manter sessão empresarial/ator histórico como vínculo.
-- [ ] Executar testes novos e `worker/access/users.test.js worker/access/emailAccessApi.test.js`; esperar PASS sem caminho alternativo de reset global por gerente. Commit: `feat(tenancy): invite accounts and manage company memberships`.
+- [x] Executar `node --test worker/tenancy/memberships.test.js worker/tenancy/companyInvitations.test.js worker/tenancy/invitationsApi.test.js`; esperar FAIL.
+- [x] Implementar as interfaces, asserções e quotas em batches únicos. Gerente só emite/edita vínculo de seu negócio; convite first_manager aceita emissor plataforma, team exige capacidade empresarial. Reenvio revoga token anterior apenas do mesmo vínculo e guarda novo prazo. Após corte, `/api/access/users/:id/reset` não altera credencial global; retornar erro explícito e apontar recuperação pessoal. Manter sessão empresarial/ator histórico como vínculo.
+- [x] Executar testes novos e `worker/access/users.test.js worker/access/emailAccessApi.test.js`; esperar PASS sem caminho alternativo de reset global por gerente. Commit: `feat(tenancy): invite accounts and manage company memberships`.
 
 ## Task 6: Padrões e provisionamento idempotente
 

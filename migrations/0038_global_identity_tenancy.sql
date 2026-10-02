@@ -95,7 +95,7 @@ CREATE INDEX identity_recovery_account_idx ON identity_recovery_requests(account
 CREATE INDEX identity_recovery_origin_idx ON identity_recovery_requests(origin_hash,created_at);
 CREATE TABLE identity_email_deliveries (
   id TEXT PRIMARY KEY,
-  account_id TEXT REFERENCES accounts(id),
+  account_id TEXT NOT NULL REFERENCES accounts(id),
   business_id TEXT REFERENCES businesses(id),
   emitter_id TEXT REFERENCES accounts(id),
   kind TEXT NOT NULL CHECK(kind IN ('activation','password_reset','company_invitation')),

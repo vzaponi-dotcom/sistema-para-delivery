@@ -8,6 +8,10 @@ import { prepareAuditEvent } from './audit.js'
 import { prepareEmailChallengeRevocation, prepareEmailChallenge, prepareEmailAssertion, clearEmailAssertion } from './emailChallenges.js'
 import { readEmailConfig, deliverPersistedChallenge } from './emailDelivery.js'
 import { prepareEmailDeliveryReservation, reserveEmailDelivery } from './emailThrottle.js'
+import { listCompanyMembers, loadCompanyMember, updateMembership } from '../tenancy/memberships.js'
+import { prepareMembershipInvitation, deliverPersistedCompanyInvitation, resendCompanyInvitation } from '../tenancy/companyInvitations.js'
+import { commitIdentityStatements } from '../identity/transactions.js'
+import { changeAccountPassword } from '../identity/challenges.js'
 
 const notFound = () => apiError(404, 'USER_NOT_FOUND', 'Usuário não encontrado.')
 const roleNotFound = () => apiError(404, 'ROLE_NOT_FOUND', 'Perfil não encontrado.')
@@ -77,6 +81,7 @@ function lastManagerGuard(db,businessId,userId,{active=null,roleId=null,reset=fa
 }
 
 export async function listUsers(db,context,now=new Date()) {
+  if(context.accountId) return listCompanyMembers(db,context,now)
   requireCapability(context,'access.users.view')
   const {results}=await db.prepare(`${userSelect} WHERE u.business_id=? ORDER BY u.display_name,u.id`).bind(context.businessId).all()
   const {results:roles}=await db.prepare('SELECT id,code,name,active,is_builtin FROM roles WHERE business_id=? ORDER BY code').bind(context.businessId).all()
@@ -99,6 +104,13 @@ function issuerGuard(db,context,now) {
     [context.sessionId,now.toISOString(),context.businessId,context.userId,context.roleId??null,context.roleId??null]),clear:clearEmailAssertion(db,id)}
 }
 export async function createUser(db,context,input,now=new Date(),options={}) {
+  if(context.accountId) {
+    const config=readEmailConfig(options.env||{})
+    const prepared=await prepareMembershipInvitation(db,{businessId:context.businessId,accountEmail:input.email,displayName:input.displayName,roleId:input.roleId,issuer:context,purpose:'team',dailyLimit:config.dailyLimit,now})
+    await commitIdentityStatements(db,prepared.statements)
+    const delivery=await deliverPersistedCompanyInvitation(db,options.env,prepared.value,{...options,now})
+    return {user:await loadCompanyMember(db,context.businessId,prepared.value.userId,now),delivery}
+  }
   requireCapability(context,'access.users.manage')
   const businessId=context.businessId,userId=crypto.randomUUID(),timestamp=now.toISOString()
   const displayName=text(input.displayName,'nome',200)
@@ -115,6 +127,7 @@ export async function createUser(db,context,input,now=new Date(),options={}) {
   return {user:await loadUser(db,businessId,userId,now),delivery}
 }
 export async function updateUser(db,context,userId,input,now=new Date()) {
+  if(context.accountId) return updateMembership(db,context,userId,input,now)
   requireCapability(context,'access.users.manage')
   const businessId=context.businessId
   await loadUser(db,businessId,userId,now)
@@ -157,15 +170,23 @@ async function sendManagedChallenge(db,context,userId,purpose,now,options) {
   return {user:await loadUser(db,businessId,userId,now),delivery}
 }
 export async function resendInvitation(db,context,userId,now=new Date(),options={}) {
+  if(context.accountId) {
+    const row=await db.prepare('SELECT id FROM company_invitations WHERE business_id=? AND user_id=? ORDER BY created_at DESC,id DESC LIMIT 1').bind(context.businessId,userId).first()
+    if(!row)throw notFound()
+    const result=await resendCompanyInvitation({...options.env,DB:db},context,row.id,{...options,now})
+    return {user:await loadCompanyMember(db,context.businessId,userId,now),delivery:result.delivery}
+  }
   requireCapability(context,'access.users.manage')
   return sendManagedChallenge(db,context,userId,'activation',now,options)
 }
 export async function requestCredentialReset(db,context,userId,now=new Date(),options={}) {
+  if(context.accountId || options.env?.AUTH_MULTI_COMPANY_ENABLED==='true' || options.env?.AUTH_MULTI_COMPANY_ENABLED===true) throw apiError(409,'PERSONAL_RECOVERY_REQUIRED','A própria pessoa deve usar Esqueci minha senha com seu e-mail. O perfil nesta empresa pode ser alterado separadamente.')
   requireCapability(context,'access.users.manage')
   if(userId===context.userId) throw apiError(403,'OWN_RESET_FORBIDDEN','Use Esqueci minha senha ou informe a senha atual em Minha conta.')
   return sendManagedChallenge(db,context,userId,'password_reset',now,options)
 }
 export async function changeOwnPassword(db,context,input,now=new Date()) {
+  if(context?.accountId) return changeAccountPassword(db,context,input,now)
   if(!context?.userId || context.legacy) throw apiError(403,'FORBIDDEN','Entre com uma conta individual para alterar sua senha.')
   const businessId=context.businessId,userId=context.userId
   const credential=await db.prepare('SELECT password_verifier FROM user_credentials WHERE business_id=? AND user_id=? AND active=1').bind(businessId,userId).first()
