@@ -11,6 +11,8 @@ import { d1Adapter } from './settingsDb.js'
 export const EMAIL_BUSINESS = 'amor-e-sabor'
 export const EMAIL_NOW = new Date('2026-10-02T12:00:00.000Z')
 export const EMAIL_PASSWORD = 'a quiet synthetic river flows'
+export const EMAIL_CONFIG={AUTH_EMAIL_ENABLED:'true',RESEND_API_KEY:'synthetic-key',AUTH_EMAIL_FROM:'Mesiva <acesso@example.test>',AUTH_PUBLIC_ORIGIN:'https://staging.example.test'}
+export const acceptedEmailOptions=(onSend)=>({env:EMAIL_CONFIG,deliver:async(_env,challenge)=>{onSend?.(challenge);return {status:'accepted'}}})
 
 export function independentEmailClients(t,sqlite) {
   const directory = mkdtempSync(join(tmpdir(),'mesiva-email-race-'))
@@ -38,6 +40,6 @@ export async function emailAccessFixture(t, { credential = true, verified = cred
     for (const [id,hash] of [['session',await sha256Hex(token)],['second-session','second-hash']]) sqlite.prepare('INSERT INTO sessions(id,business_id,token_hash,user_id,device_mode,created_at,expires_at,last_seen_at) VALUES(?,?,?,?,?,?,?,?)')
       .run(id,EMAIL_BUSINESS,hash,'u1','personal',EMAIL_NOW.toISOString(),'2026-10-09T12:00:00.000Z',EMAIL_NOW.toISOString())
   }
-  const context = {businessId:EMAIL_BUSINESS,userId:'u1',displayName:'u1',sessionId:credential ? 'session' : null,deviceMode:'personal',granted:new Set(BUILTIN_ROLES.find(role => role.code==='manager').capabilities)}
+  const context = {businessId:EMAIL_BUSINESS,userId:'u1',roleId:`${EMAIL_BUSINESS}:manager`,displayName:'u1',sessionId:credential ? 'session' : null,deviceMode:'personal',granted:new Set(BUILTIN_ROLES.find(role => role.code==='manager').capabilities)}
   return {...fixture,context,token,verifier}
 }

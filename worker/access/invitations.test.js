@@ -5,6 +5,7 @@ import { seedBuiltinRoles } from './roles.js'
 import { issueAccessInvite, prepareAccessInvite, consumeAccessInvite } from './invitations.js'
 import { hashHumanPassword, verifyHumanPassword } from './credentials.js'
 import { handleRequest } from '../index.js'
+import { issueEmailChallenge, inspectEmailChallenge } from './emailChallenges.js'
 
 const BUSINESS = 'amor-e-sabor'
 const NOW = new Date('2026-09-30T12:00:00.000Z')
@@ -19,6 +20,20 @@ async function setup(t) {
 }
 const issue = (db, extra = {}) => issueAccessInvite(db, { businessId: BUSINESS, userId: 'user', purpose: 'activation', issuedBy: null, now: NOW, ...extra })
 const invalid = { code: 'INVALID_INVITATION', status: 400 }
+
+test('historical invitation acceptance cannot verify email and revokes competing email challenges',async t=>{
+  const {db,sqlite}=await setup(t)
+  sqlite.exec("UPDATE users SET login_normalized='person@example.test'")
+  const emailLink=await issueEmailChallenge(db,{businessId:BUSINESS,userId:'user',purpose:'activation',now:NOW})
+  const manual=await issue(db)
+  await consumeAccessInvite(db,{token:manual.token,password:PASSWORD,businessId:BUSINESS,now:NOW})
+  assert.equal(sqlite.prepare('SELECT email_verified_at FROM users').get().email_verified_at,null)
+  assert.ok(sqlite.prepare('SELECT revoked_at FROM auth_email_challenges').get().revoked_at)
+  await assert.rejects(inspectEmailChallenge(db,{businessId:BUSINESS,token:emailLink.token,now:NOW}))
+  const reset=await issue(db,{purpose:'reset'})
+  await consumeAccessInvite(db,{token:reset.token,password:'another quiet river',businessId:BUSINESS,now:NOW})
+  assert.ok(sqlite.prepare('SELECT revision FROM user_credentials').get().revision>1)
+})
 
 test('invites store only digests, expire after 24 hours and atomically activate a credential without a session', async (t) => {
   const { db, sqlite } = await setup(t)

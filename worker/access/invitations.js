@@ -1,6 +1,7 @@
 import { apiError, assertSameOriginMutation, json, readJson } from '../http.js'
 import { hashHumanPassword } from './credentials.js'
 import { prepareAuditEvent } from './audit.js'
+import { prepareEmailChallengeRevocation, prepareEmailAssertion, clearEmailAssertion } from './emailChallenges.js'
 
 const digestToken = async (token) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))),
   (byte) => byte.toString(16).padStart(2, '0')).join('')
@@ -19,7 +20,8 @@ export async function prepareAccessInvite(db, { businessId, userId, purpose, iss
   ]
   if (purpose === 'reset') {
     statements.push(
-      db.prepare(`UPDATE user_credentials SET active = 0, updated_at = ? WHERE business_id = ? AND user_id = ?`).bind(timestamp, businessId, userId),
+      db.prepare(`UPDATE user_credentials SET active = 0,revision=revision+1, updated_at = ? WHERE business_id = ? AND user_id = ?`).bind(timestamp, businessId, userId),
+      ...prepareEmailChallengeRevocation(db,{businessId,userId,now}),
       db.prepare(`UPDATE sessions SET revoked_at = ? WHERE business_id = ? AND user_id = ? AND revoked_at IS NULL`).bind(timestamp, businessId, userId),
     )
   }
@@ -63,20 +65,27 @@ export async function consumeAccessInvite(db, { token, password, now = new Date(
   // Both statements evaluate validity inside the serialized batch. changes()
   // links consumption to the immediately preceding credential write; a loser
   // never overwrites the winner, even when both hashed passwords concurrently.
-  const [, consumed] = await db.batch([
+  const assertionId=crypto.randomUUID()
+  let results
+  try { results=await db.batch([
+    prepareEmailAssertion(db,assertionId,`SELECT 1 FROM access_invites WHERE ${eligible}
+      AND (purpose='reset' OR NOT EXISTS(SELECT 1 FROM user_credentials c WHERE c.business_id=access_invites.business_id AND c.user_id=access_invites.user_id AND c.active=1))`,[tokenHash,timestamp,businessId,businessId]),
     db.prepare(`INSERT INTO user_credentials (business_id, user_id, password_verifier, version, active, password_changed_at, created_at, updated_at)
       SELECT business_id, user_id, ?, 1, 1, ?, ?, ? FROM access_invites WHERE ${eligible}
         AND (purpose = 'reset' OR NOT EXISTS (SELECT 1 FROM user_credentials c
           WHERE c.business_id = access_invites.business_id AND c.user_id = access_invites.user_id AND c.active = 1))
       ON CONFLICT (business_id, user_id) DO UPDATE SET password_verifier = excluded.password_verifier,
-        version = 1, active = 1, password_changed_at = excluded.password_changed_at, updated_at = excluded.updated_at`
+        version = 1,revision=user_credentials.revision+1, active = 1, password_changed_at = excluded.password_changed_at, updated_at = excluded.updated_at`
     ).bind(verifier, timestamp, timestamp, timestamp, tokenHash, timestamp, businessId, businessId),
     db.prepare(`UPDATE access_invites SET consumed_at = ? WHERE ${eligible} AND changes() = 1 RETURNING user_id`
     ).bind(timestamp, tokenHash, timestamp, businessId, businessId),
     // Credential UPSERT and consume UPDATE above must stay adjacent.
     prepareAuditEvent(db,{businessId:invite.business_id,actorType:'system'},
       {action:'access.invitation.accepted',resourceType:'user',resourceId:invite.user_id,now,onlyIfChanged:true}),
-  ])
+    ...prepareEmailChallengeRevocation(db,{businessId:invite.business_id,userId:invite.user_id,now}),
+    clearEmailAssertion(db,assertionId),
+  ]) } catch(error){if(String(error?.message).includes('CHECK constraint failed: ok=1'))throw invalidInvitation();throw error}
+  const consumed=results[2]
   const userId = consumed.results?.[0]?.user_id
   if (!userId) throw invalidInvitation()
   return { userId }

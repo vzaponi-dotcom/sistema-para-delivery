@@ -45,7 +45,7 @@ test('order creation replay payment and finalization retain authoritative resour
   assert.ok(events.every(e=>!e.metadata_json.includes('forged')))
   const attribution=(await loadOrderAttributions(db,businessId,[order.id])).get(order.id)
   assert.deepEqual(attribution,{createdBy:{type:'user',userId:'actor',displayName:'Original'},finalizedBy:{type:'user',userId:'actor',displayName:'Original'},paidBy:{type:'user',userId:'actor',displayName:'Original'}})
-  sqlite.exec("UPDATE business_auth_state SET mode='user_only'; INSERT INTO users(id,business_id,display_name,login_normalized,role_id,created_at,updated_at) VALUES('reader','amor-e-sabor','Reader','reader','amor-e-sabor:operator','2026-09-30','2026-09-30'); INSERT INTO user_credentials(business_id,user_id,password_verifier,password_changed_at,created_at,updated_at) VALUES('amor-e-sabor','reader','fixture','2026-09-30','2026-09-30','2026-09-30')")
+  sqlite.exec("UPDATE business_auth_state SET mode='user_only'; INSERT INTO users(id,business_id,display_name,login_normalized,role_id,created_at,updated_at) VALUES('reader','amor-e-sabor','Reader','reader@example.test','amor-e-sabor:operator','2026-09-30','2026-09-30'); UPDATE users SET email_verified_at='2026-09-30T12:00:00.000Z' WHERE id='reader'; INSERT INTO user_credentials(business_id,user_id,password_verifier,password_changed_at,created_at,updated_at) VALUES('amor-e-sabor','reader','fixture','2026-09-30','2026-09-30','2026-09-30')")
   const session=await createUserSession({DB:db},{businessId,userId:'reader'})
   for(const path of ['/api/orders','/api/bootstrap']) {
     const response=await handleRequest(new Request(`https://delivery.test${path}`,{headers:{cookie:`amor_session=${session.token}`}}),{DB:db})
@@ -129,6 +129,7 @@ test('table transfer and idempotent policy save retain linked actor; audit failu
 
 test('HTTP mutators use authenticated identity and denial and logout emit minimal security history',async t=>{
   const {db,sqlite}=await setup(t)
+  sqlite.prepare("UPDATE users SET login_normalized='actor@example.test',email_verified_at=? WHERE id='actor'").run(now.toISOString())
   sqlite.exec("UPDATE business_auth_state SET mode='user_only'; INSERT INTO user_credentials(business_id,user_id,password_verifier,password_changed_at,created_at,updated_at) VALUES('amor-e-sabor','actor','fixture','2026-09-30','2026-09-30','2026-09-30')")
   const env={DB:db},session=await createUserSession(env,{businessId,userId:'actor'})
   const call=(path,method,body)=>handleRequest(new Request(`https://delivery.test${path}`,{method,headers:{cookie:`amor_session=${session.token}`,origin:'https://delivery.test','content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{})}),env)

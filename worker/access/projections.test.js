@@ -22,7 +22,7 @@ async function setup(t) {
   for (const name of ['manager', 'operator', 'operator2', 'empty', 'history', 'active', 'tables']) {
     const roleId = ['manager', 'operator', 'operator2'].includes(name) ? `${BUSINESS}:${name === 'operator2' ? 'operator' : name}` : name
     if (roleId === name) sqlite.prepare('INSERT INTO roles(id,business_id,code,name,created_at,updated_at) VALUES(?,?,?,?,?,?)').run(name, BUSINESS, name, name, timestamp, timestamp)
-    sqlite.prepare('INSERT INTO users(id,business_id,display_name,login_normalized,role_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?)').run(name, BUSINESS, name, name, roleId, timestamp, timestamp)
+    sqlite.prepare('INSERT INTO users(id,business_id,display_name,login_normalized,role_id,email_verified_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)').run(name, BUSINESS, name, `${name}@example.test`, roleId, timestamp, timestamp, timestamp)
     sqlite.prepare('INSERT INTO user_credentials(business_id,user_id,password_verifier,password_changed_at,created_at,updated_at) VALUES(?,?,?,?,?,?)').run(BUSINESS, name, 'test-verifier', timestamp, timestamp, timestamp)
     tokens[name] = (await createUserSession({ DB: db }, { businessId: BUSINESS, userId: name, now })).token
   }

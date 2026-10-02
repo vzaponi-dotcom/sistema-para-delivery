@@ -1,6 +1,7 @@
 import { apiError } from '../http.js'
 import { normalizeAccessEmail } from '../../shared/accessEmail.js'
 import { buildChallengeEmail } from './emailTemplates.js'
+import { prepareAuditEvent } from './audit.js'
 
 export const unavailableEmailConfig = () => apiError(503,'EMAIL_CONFIG_UNAVAILABLE','Envio de e-mail indisponível. Tente novamente mais tarde.')
 
@@ -46,4 +47,20 @@ export async function deliverEmailChallenge(env,challenge,{fetchImpl=fetch}={}) 
     finally { clearTimeout(timer) }
   }
   return {status:uncertain ? 'uncertain' : 'rejected'}
+}
+
+// The challenge is already committed. Never roll back prior access on a send error.
+export async function deliverPersistedChallenge(db,env,{businessId,userId:_userId,purpose,displayName,...challenge},{deliver=deliverEmailChallenge,now=new Date()}={}) {
+  const business=await db.prepare('SELECT name FROM businesses WHERE id=?').bind(businessId).first()
+  let result
+  try { result=await deliver(env,{...challenge,purpose,displayName,businessName:business?.name}) }
+  catch { result={status:'uncertain'} }
+  const status=['accepted','rejected','uncertain'].includes(result?.status)?result.status:'uncertain'
+  const providerId=typeof result?.providerId==='string' && /^[0-9a-f-]{36}$/i.test(result.providerId)?result.providerId:null
+  await db.batch([
+    db.prepare(`UPDATE auth_email_challenges SET delivery_status=?,provider_id=?,revoked_at=CASE WHEN ?='rejected' THEN COALESCE(revoked_at,?) ELSE revoked_at END WHERE business_id=? AND id=?`)
+      .bind(status,providerId,status,now.toISOString(),businessId,challenge.challengeId),
+    prepareAuditEvent(db,{businessId,actorType:'system'},{action:`access.email.${purpose}.delivery.${status}`,resourceType:'email_challenge',resourceId:challenge.challengeId,outcome:status==='accepted'?'success':'failure',now}),
+  ])
+  return {status,expiresAt:challenge.expiresAt}
 }

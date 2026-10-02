@@ -20,14 +20,14 @@ export async function prepareUserSession(db, { businessId, userId, deviceMode = 
     JOIN roles r ON r.business_id=u.business_id AND r.id=u.role_id AND r.active=1
     JOIN user_credentials c ON c.business_id=u.business_id AND c.user_id=u.id AND c.active=1
     JOIN business_auth_state a ON a.business_id=u.business_id AND a.mode IN ('enrollment','user_only')
-    WHERE u.business_id=? AND u.id=? AND u.active=1 AND (? IS NULL OR c.password_verifier=?)`)
+    WHERE u.business_id=? AND u.id=? AND u.active=1 AND u.email_verified_at IS NOT NULL AND (? IS NULL OR c.password_verifier=?)`)
     .bind(sessionId, await sha256Hex(token), timestamp, expiresAt, timestamp, deviceMode, businessId, userId, credentialVerifier, credentialVerifier)
   return { token, sessionId, expiresAt, statement }
 }
 export async function createUserSession(env, options) {
   const { token, sessionId, expiresAt, statement } = await prepareUserSession(env.DB, options)
   const result = await statement.run()
-  if (result.meta?.changes !== 1) throw apiError(401, 'INVALID_LOGIN', 'Identificador ou senha inválidos.')
+  if (result.meta?.changes !== 1) throw apiError(401, 'INVALID_LOGIN', 'E-mail ou senha inválidos.')
   return { token, sessionId, expiresAt }
 }
 export async function authenticateHumanRequest(request, env, now = new Date()) {
@@ -45,14 +45,14 @@ export async function authenticateHumanRequest(request, env, now = new Date()) {
       deviceMode: null, authMode, legacy: true, granted: new Set(APPLICATION_CAPABILITIES.filter(c => !c.startsWith('access.'))) }
   } else {
     if (authMode === 'legacy' || !Object.hasOwn(SESSION_DURATIONS, row.device_mode)) return null
-    const user = await env.DB.prepare(`SELECT u.display_name,u.role_id,r.name AS role_name FROM users u
+    const user = await env.DB.prepare(`SELECT u.display_name,u.login_normalized,u.email_verified_at,u.role_id,r.name AS role_name FROM users u
       JOIN roles r ON r.business_id=u.business_id AND r.id=u.role_id AND r.active=1
       JOIN user_credentials c ON c.business_id=u.business_id AND c.user_id=u.id AND c.active=1
-      WHERE u.business_id=? AND u.id=? AND u.active=1`).bind(row.business_id, row.user_id).first()
+      WHERE u.business_id=? AND u.id=? AND u.active=1 AND u.email_verified_at IS NOT NULL`).bind(row.business_id, row.user_id).first()
     if (!user) return null
     const granted = await loadRoleGrants(env.DB, row.business_id, user.role_id)
     context = { businessId: row.business_id, userId: row.user_id, sessionId: row.id, displayName: user.display_name,
-      roleName: user.role_name, roleId: user.role_id, granted: authMode === 'enrollment' ? new Set([...granted].filter(c => c.startsWith('access.'))) : granted,
+      roleName: user.role_name, roleId: user.role_id, email:user.login_normalized,emailVerified:!!user.email_verified_at,granted: authMode === 'enrollment' ? new Set([...granted].filter(c => c.startsWith('access.'))) : granted,
       deviceMode: row.device_mode, authMode, legacy: false }
   }
   const result = await env.DB.prepare('UPDATE sessions SET last_seen_at = ? WHERE id = ? AND business_id = ? AND revoked_at IS NULL')

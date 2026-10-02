@@ -9,8 +9,13 @@ import { preflightCutover, cutoverBusinessAuth, issueInitialManager, issueEmerge
 const businessId='amor-e-sabor', now=new Date(), password='a quiet river flows'
 async function setup(t,activate=true) {
   const fixture=createSettingsDb();t.after(fixture.close)
-  const invite=await issueInitialManager(fixture.db,businessId,{identifier:' MANAGER ',displayName:'Manager'},now)
-  if(activate) await consumeAccessInvite(fixture.db,{token:invite.token,password,businessId,now})
+  const invite=await issueInitialManager(fixture.db,businessId,{identifier:' MANAGER@EXAMPLE.TEST ',displayName:'Manager'},now)
+  if(activate){
+    await consumeAccessInvite(fixture.db,{token:invite.token,password,businessId,now})
+    // Historical infrastructure invites do not verify email. A verified fixture
+    // is explicitly required for the new cutover readiness contract.
+    fixture.sqlite.prepare('UPDATE users SET email_verified_at=?').run(now.toISOString())
+  }
   return {...fixture,invite}
 }
 test('initial manager enrollment is atomic, hash only, reissues pending invitation and cannot claim activated account',async t=>{
@@ -18,12 +23,12 @@ test('initial manager enrollment is atomic, hash only, reissues pending invitati
   assert.equal(sqlite.prepare('SELECT mode FROM business_auth_state').get().mode,'enrollment')
   assert.equal(sqlite.prepare('SELECT count(*) n FROM user_credentials').get().n,0)
   assert.equal(JSON.stringify(sqlite.prepare('SELECT * FROM access_invites').all()).includes(invite.token),false)
-  const second=await issueInitialManager(db,businessId,{identifier:'manager',displayName:'Manager'},now)
+  const second=await issueInitialManager(db,businessId,{identifier:'manager@example.test',displayName:'Manager'},now)
   assert.equal(invite.userId,second.userId)
   await assert.rejects(consumeAccessInvite(db,{token:invite.token,password,businessId,now}))
   await consumeAccessInvite(db,{token:second.token,password,businessId,now})
   await assert.rejects(issueInitialManager(db,businessId,{identifier:'other',displayName:'Other'},now))
-  await assert.rejects(issueInitialManager(db,businessId,{identifier:'manager',displayName:'Manager'},now))
+  await assert.rejects(issueInitialManager(db,businessId,{identifier:'manager@example.test',displayName:'Manager'},now))
   assert.equal(sqlite.prepare('SELECT count(*) n FROM users').get().n,1)
 })
 test('preflight rejects absent managers, incomplete or unsupported verifiers and missing persisted grants',async t=>{
@@ -31,6 +36,8 @@ test('preflight rejects absent managers, incomplete or unsupported verifiers and
   assert.equal((await preflightCutover(db,businessId)).ready,false)
   await assert.rejects(cutoverBusinessAuth(db,businessId,now))
   await consumeAccessInvite(db,{token:invite.token,password,businessId,now})
+  assert.equal((await preflightCutover(db,businessId)).ready,false)
+  sqlite.prepare('UPDATE users SET email_verified_at=?').run(now.toISOString())
   assert.deepEqual(await preflightCutover(db,businessId),{ready:true,failures:[]})
   const original=sqlite.prepare('SELECT password_verifier FROM user_credentials').get().password_verifier
   for(const invalid of ['bad',original.replace('100000','99999'),original+'$extra',original.replace('==','$=')]) {

@@ -39,10 +39,10 @@ const readinessSql=`SELECT
   EXISTS (SELECT 1 FROM users u JOIN roles r ON r.business_id=u.business_id AND r.id=u.role_id
     JOIN user_credentials c ON c.business_id=u.business_id AND c.user_id=u.id
     JOIN role_capabilities rc ON rc.business_id=r.business_id AND rc.role_id=r.id AND rc.capability='access.users.manage'
-    WHERE u.business_id=? AND u.active=1 AND r.active=1 AND c.active=1 AND ${approvedCredential}) AS manager_ready,
+    WHERE u.business_id=? AND u.active=1 AND u.email_verified_at IS NOT NULL AND r.active=1 AND c.active=1 AND ${approvedCredential}) AS manager_ready,
   NOT EXISTS (SELECT 1 FROM users u LEFT JOIN roles r ON r.business_id=u.business_id AND r.id=u.role_id
     LEFT JOIN user_credentials c ON c.business_id=u.business_id AND c.user_id=u.id
-    WHERE u.business_id=? AND u.active=1 AND (r.id IS NULL OR r.active!=1 OR c.user_id IS NULL OR c.active!=1 OR NOT (${approvedCredential}))) AS credentials_ready,
+    WHERE u.business_id=? AND u.active=1 AND (u.email_verified_at IS NULL OR r.id IS NULL OR r.active!=1 OR c.user_id IS NULL OR c.active!=1 OR NOT (${approvedCredential}))) AS credentials_ready,
   NOT EXISTS (SELECT 1 FROM json_each(?) expected WHERE NOT EXISTS
     (SELECT 1 FROM roles r JOIN role_capabilities rc ON rc.business_id=r.business_id AND rc.role_id=r.id
      WHERE r.business_id=? AND r.active=1 AND r.code=json_extract(expected.value,'$.code')

@@ -14,8 +14,8 @@ async function setup(t, mode = 'user_only') {
   const fixture = createSettingsDb(); t.after(fixture.close)
   await seedBuiltinRoles(fixture.db, businessId, now)
   fixture.sqlite.prepare('UPDATE business_auth_state SET mode = ?').run(mode)
-  fixture.sqlite.prepare(`INSERT INTO users (id,business_id,display_name,login_normalized,role_id,created_at,updated_at)
-    VALUES ('user',?,'Person','person',?,?,?)`).run(businessId, `${businessId}:manager`, now.toISOString(), now.toISOString())
+  fixture.sqlite.prepare(`INSERT INTO users (id,business_id,display_name,login_normalized,role_id,email_verified_at,created_at,updated_at)
+    VALUES ('user',?,'Person','person@example.test',?,?,?,?)`).run(businessId, `${businessId}:manager`,now.toISOString(), now.toISOString(), now.toISOString())
   fixture.sqlite.prepare(`INSERT INTO user_credentials (business_id,user_id,password_verifier,password_changed_at,created_at,updated_at)
     VALUES (?,'user',?,?,?,?)`).run(businessId, await hashHumanPassword(password), now.toISOString(), now.toISOString(), now.toISOString())
   return fixture
@@ -71,7 +71,7 @@ test('enrollment user has access grants but cannot reach operational routes incl
   const { token } = await createUserSession({ DB: db }, { businessId, userId: 'user' })
   const status = await handleRequest(req(token), { DB: db })
   const body = await status.json()
-  assert.deepEqual(body.user, { id: 'user', displayName: 'Person', roleName: 'Gerente' })
+  assert.deepEqual(body.user, { id: 'user', displayName: 'Person', roleName: 'Gerente',email:'person@example.test',emailVerified:true })
   assert.ok(body.capabilities.includes('access.users.manage')); assert.equal(body.capabilities.includes('orders.create'), false)
   for (const [path,method,payload] of [['/api/orders','GET'],['/api/clients','POST',{name:'Denied'}],['/api/bootstrap','GET']]) {
     assert.equal((await handleRequest(req(token,path,method,payload), { DB: db })).status, 403)
@@ -79,10 +79,10 @@ test('enrollment user has access grants but cannot reach operational routes incl
 })
 test('human login is non-enumerating, ignores browser business and logs secret-free outcomes', async (t) => {
   const { db, sqlite } = await setup(t)
-  const login = (identifier, value = password) => handleRequest(req('', '/api/auth/login', 'POST', { identifier, password: value, businessId:'other' }), { DB: db })
-  const absent = await login('absent','wrong'); const wrong = await login('person','wrong')
+  const login = (email, value = password) => handleRequest(req('', '/api/auth/login', 'POST', { email, password: value, businessId:'other' }), { DB: db })
+  const absent = await login('absent@example.test','wrong'); const wrong = await login('person@example.test','wrong')
   assert.equal(absent.status,401); assert.deepEqual(await absent.json(), await wrong.json())
-  const success = await login(' PERSON ')
+  const success = await login(' PERSON@EXAMPLE.TEST ')
   assert.equal(success.status,200); assert.match(success.headers.get('set-cookie'), /Max-Age=43200/)
   assert.equal((await success.json()).businessId,businessId)
   const persisted = JSON.stringify(sqlite.prepare('SELECT * FROM audit_events').all())
@@ -116,7 +116,7 @@ test('prepared revocation rolls back with failed official writes and password ve
 
 test('unknown accounts are blocked by the same persisted quota and emit a secret-free block event', async(t)=>{
   const {db,sqlite}=await setup(t)
-  const attempt = () => handleRequest(req('','/api/auth/login','POST',{identifier:'unknown',password:'wrong'}),{DB:db})
+  const attempt = () => handleRequest(req('','/api/auth/login','POST',{email:'unknown@example.test',password:'wrong'}),{DB:db})
   for(let i=0;i<5;i++) assert.equal((await attempt()).status,401)
   const blocked=await attempt();assert.equal(blocked.status,429)
   assert.equal(sqlite.prepare("SELECT count(*) n FROM audit_events WHERE action='login.blocked'").get().n,1)
@@ -140,7 +140,7 @@ test('login revoked while recording success does not return a usable authenticat
       return result
     }}}}
   }}
-  const response=await handleRequest(req('','/api/auth/login','POST',{identifier:'person',password}),{DB:intercept})
+  const response=await handleRequest(req('','/api/auth/login','POST',{email:'person@example.test',password}),{DB:intercept})
   assert.equal(response.status,401);assert.equal(response.headers.get('set-cookie'),null)
 })
 
@@ -178,7 +178,7 @@ test('password reset between verification and session insertion rejects the just
       return bound.run()
     }}}}
   }}
-  const response=await handleRequest(req('','/api/auth/login','POST',{identifier:'person',password}),{DB:intercept})
+  const response=await handleRequest(req('','/api/auth/login','POST',{email:'person@example.test',password}),{DB:intercept})
   assert.equal(response.status,401)
   assert.equal(response.headers.get('set-cookie'),null)
   assert.equal(sqlite.prepare('SELECT count(*) n FROM sessions').get().n,0)

@@ -22,16 +22,23 @@ export async function reserveRecoveryRequest(db,{businessId,email,originKey,now=
   return {allowed,retryAfterSeconds:allowed ? 0 : 30*60}
 }
 
-export async function reserveEmailDelivery(db,{businessId,userId,challengeId,now=new Date(),dailyLimit=80,cooldownSeconds=60}) {
+export function prepareEmailDeliveryReservation(db,{businessId,userId,challengeId,now=new Date(),dailyLimit=80,cooldownSeconds=60,required=false}) {
   if (!Number.isSafeInteger(dailyLimit) || dailyLimit<1 || !Number.isSafeInteger(cooldownSeconds) || cooldownSeconds<0) throw apiError(503,'EMAIL_CONFIG_UNAVAILABLE','Envio de e-mail indisponível. Tente novamente mais tarde.')
   const day = `${now.toISOString().slice(0,10)}T00:00:00.000Z`
   const since = new Date(now.getTime()-cooldownSeconds*1000).toISOString()
-  const [result] = await db.batch([
-    db.prepare(`INSERT INTO auth_email_deliveries(id,business_id,user_id,created_at)
-      SELECT ?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM auth_email_deliveries WHERE id=?)
+  const predicate=`NOT EXISTS (SELECT 1 FROM auth_email_deliveries WHERE id=?)
       AND (SELECT count(*) FROM auth_email_deliveries WHERE created_at>=?)<?
-      AND (?=0 OR NOT EXISTS (SELECT 1 FROM auth_email_deliveries WHERE business_id=? AND user_id=? AND created_at>?))`)
-      .bind(challengeId,businessId,userId,now.toISOString(),challengeId,day,dailyLimit,cooldownSeconds,businessId,userId,since),
+      AND (?=0 OR NOT EXISTS (SELECT 1 FROM auth_email_deliveries WHERE business_id=? AND user_id=? AND created_at>?))`
+  const values=[challengeId,day,dailyLimit,cooldownSeconds,businessId,userId,since]
+  return required
+    ? db.prepare(`INSERT INTO auth_email_deliveries(id,business_id,user_id,created_at) VALUES (?,?,?,CASE WHEN ${predicate} THEN ? ELSE NULL END)`)
+      .bind(challengeId,businessId,userId,...values,now.toISOString())
+    : db.prepare(`INSERT INTO auth_email_deliveries(id,business_id,user_id,created_at) SELECT ?,?,?,? WHERE ${predicate}`)
+      .bind(challengeId,businessId,userId,now.toISOString(),...values)
+}
+export async function reserveEmailDelivery(db,{now=new Date(),...options}) {
+  const [result] = await db.batch([
+    prepareEmailDeliveryReservation(db,{...options,now}),
     cleanup(db,'auth_email_deliveries',now),
   ])
   const allowed = result.meta?.changes===1

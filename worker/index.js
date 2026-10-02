@@ -1,8 +1,6 @@
 import { clearSessionCookie, createSession, revokeSession, sessionCookie, SESSION_MAX_AGE, verifyPin } from './auth.js'
-import { authenticateHumanRequest, createUserSession, loadAuthMode, SESSION_DURATIONS } from './access/sessions.js'
-import { normalizeLogin } from './access/roles.js'
-import { verifyHumanPassword } from './access/credentials.js'
-import { checkLoginThrottle, completeLoginAttempt } from './access/loginThrottle.js'
+import { authenticateHumanRequest, loadAuthMode } from './access/sessions.js'
+import { handleEmailAuthApi, loginWithEmail } from './access/emailAuthApi.js'
 import { recordSecurityEvent, withAuditContext } from './access/audit.js'
 import { attachOperationalAttributions } from './access/attribution.js'
 import { createManualMovement, softDeleteManualMovement, updateManualMovement, upsertFinanceSettings } from './financeRepository.js'
@@ -57,45 +55,7 @@ const login = async (request, env) => {
   assertSameOriginMutation(request)
   const body = await readJson(request)
   const authMode = await loadAuthMode(env.DB, BUSINESS_ID)
-  if (authMode === 'enrollment' || authMode === 'user_only') {
-    if (Object.hasOwn(body, 'identifier') || authMode === 'user_only') {
-      const identifier = typeof body.identifier === 'string' ? normalizeLogin(body.identifier) : ''
-      const deviceMode = body.deviceMode === undefined ? 'shared' : body.deviceMode
-      if (!Object.hasOwn(SESSION_DURATIONS, deviceMode)) throw apiError(400, 'INVALID_DEVICE_MODE', 'Modo de dispositivo inválido.')
-      const attempt = await checkLoginThrottle(env.DB, { businessId: BUSINESS_ID, normalizedLogin: identifier,
-        originKey: request.headers.get('CF-Connecting-IP') || 'unknown', now: new Date() })
-      const event = { businessId: BUSINESS_ID, metadata: { deviceMode, authMode } }
-      if (!attempt.allowed) {
-        await recordSecurityEvent(env.DB, { ...event, action: 'login.blocked', result: 'blocked' })
-        throw apiError(429, 'LOGIN_RATE_LIMITED', 'Muitas tentativas de acesso. Aguarde e tente novamente.')
-      }
-      const credential = await env.DB.prepare(`SELECT u.id,u.display_name,c.password_verifier FROM users u
-        JOIN roles r ON r.business_id=u.business_id AND r.id=u.role_id AND r.active=1
-        JOIN user_credentials c ON c.business_id=u.business_id AND c.user_id=u.id AND c.active=1
-        WHERE u.business_id=? AND u.login_normalized=? AND u.active=1`).bind(BUSINESS_ID, identifier).first()
-      // A valid dummy verifier keeps unknown-account work comparable to wrong passwords.
-      const dummy = 'v1$pbkdf2-sha256$100000$AAAAAAAAAAAAAAAAAAAAAA==$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
-      const verified = await verifyHumanPassword(typeof body.password === 'string' ? body.password : '', credential?.password_verifier || dummy)
-      if (!credential || !verified) {
-        await recordSecurityEvent(env.DB, { ...event, action: 'login.failure', result: 'failure' })
-        throw apiError(401, 'INVALID_LOGIN', 'Identificador ou senha inválidos.')
-      }
-      let session
-      try { session = await createUserSession(env, { businessId: BUSINESS_ID, userId: credential.id, deviceMode, credentialVerifier: credential.password_verifier }) }
-      catch (error) {
-        if (error.status === 401) await recordSecurityEvent(env.DB, { ...event, action: 'login.failure', result: 'failure' })
-        throw error
-      }
-      const sessionRequest = new Request(request.url, { headers: { cookie: `amor_session=${session.token}` } })
-      const context = await authenticateHumanRequest(sessionRequest, env)
-      if (!context) throw apiError(401, 'INVALID_LOGIN', 'Identificador ou senha inválidos.')
-      await completeLoginAttempt(env.DB, attempt.attemptId, true)
-      await recordSecurityEvent(env.DB, { ...event, action: 'login.success', result: 'success',
-        context: { userId: credential.id, displayName: credential.display_name, sessionId: session.sessionId } })
-      return validateResponseSession(sessionRequest, env, context, authJson({ authenticated: true, businessId: BUSINESS_ID },
-        { headers: { 'set-cookie': sessionCookie(session.token, SESSION_DURATIONS[deviceMode]) } }))
-    }
-  }
+  if (authMode === 'user_only' || (authMode === 'enrollment' && (Object.hasOwn(body,'email') || Object.hasOwn(body,'identifier')))) return loginWithEmail(request,env,{businessId:BUSINESS_ID,body,validateSession:validateResponseSession})
   if (!['legacy', 'enrollment'].includes(authMode)) throw apiError(401, 'INVALID_LOGIN', 'Identificador ou senha inválidos.')
   await assertLoginAllowed(env)
   const pin = requireNonEmpty(body.pin, 'pin')
@@ -133,7 +93,7 @@ const sessionStatus = async (request, env) => {
   if (!session || session.businessId !== BUSINESS_ID) return authJson({ authenticated: false, authMode: await loadAuthMode(env.DB, BUSINESS_ID) })
   const context = await resolveRequestContext(env, session)
   return validateResponseSession(request, env, session, authJson({ authenticated: true, businessId: session.businessId, settingsContextId: context.settingsContextId,
-    capabilities: [...context.granted], user: session.userId ? { id: session.userId, displayName: session.displayName, roleName: session.roleName } : null,
+    capabilities: [...context.granted], user: session.userId ? { id: session.userId, displayName: session.displayName, roleName: session.roleName, email:session.email,emailVerified:session.emailVerified } : null,
     authMode: session.authMode, deviceMode: session.deviceMode }))
 }
 const clientInput = (body) => ({ name: requireNonEmpty(body.name, 'name'), phone: optionalText(body.phone), address: optionalText(body.address) })
@@ -477,6 +437,8 @@ export const handleRequest = async (request, env) => {
   try {
     const url = new URL(request.url)
     if (url.pathname === '/api/access/invitations/accept' && request.method === 'POST') return await acceptAccessInvitation(request, env, BUSINESS_ID)
+    const emailAuthResponse = url.pathname==='/api/auth/login' ? null : await handleEmailAuthApi(request,env,{businessId:BUSINESS_ID})
+    if (emailAuthResponse) return emailAuthResponse
     if (url.pathname === '/api/auth/login' && request.method === 'POST') return await login(request, env)
     if (url.pathname === '/api/auth/logout' && request.method === 'POST') return await logout(request, env)
     if (url.pathname === '/api/auth/session' && request.method === 'GET') return await sessionStatus(request, env)
@@ -485,7 +447,7 @@ export const handleRequest = async (request, env) => {
     if (url.pathname.startsWith('/api/')) return await authenticatedApi(request, env)
     if (!env.ASSETS?.fetch) throw apiError(404, 'NOT_FOUND', 'Página não encontrada.')
     return env.ASSETS.fetch(request)
-  } catch (error) { return handleError(error) }
+  } catch (error) { const response=handleError(error); if (/^\/api\/(auth|access)\//.test(new URL(request.url).pathname)) response.headers.set('cache-control','no-store'); return response }
 }
 
 export default { fetch: handleRequest }
