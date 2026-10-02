@@ -125,7 +125,10 @@ export async function storeBusinessLogo(bucket, businessId, logo, {
   })
 }
 
-export async function readBusinessLogo(bucket, objectKey) {
+const belongsToBusiness = (objectKey, businessId) => typeof objectKey === 'string' && objectKey.startsWith(`businesses/${trustedBusinessSegment(businessId)}/logo/`)
+
+export async function readBusinessLogo(bucket, objectKey, businessId = null) {
+  if (businessId !== null && !belongsToBusiness(objectKey, businessId)) throw logoError('BUSINESS_LOGO_SCOPE_MISMATCH', 403, 'Este logo não pertence à operação atual.')
   requireBucket(bucket, 'get')
   if (typeof objectKey !== 'string' || !objectKey.trim()) throw invalid('Referência de logo inválida.')
 
@@ -136,7 +139,8 @@ export async function readBusinessLogo(bucket, objectKey) {
   }
 }
 
-export async function deleteBusinessLogo(bucket, objectKey) {
+export async function deleteBusinessLogo(bucket, objectKey, businessId = null) {
+  if (businessId !== null && !belongsToBusiness(objectKey, businessId)) return false
   if (!bucket || typeof bucket.delete !== 'function' || typeof objectKey !== 'string' || !objectKey.trim()) return false
   try {
     await bucket.delete(objectKey)

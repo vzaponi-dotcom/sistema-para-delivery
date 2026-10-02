@@ -33,6 +33,12 @@ import { handleReportingApi } from './reporting/api.js'
 import { handleTableReservationApi } from './tableReservationApi.js'
 import { acceptAccessInvitation } from './access/invitations.js'
 import { handleAccessApi } from './access/api.js'
+import { handleGlobalAuthApi } from './identity/authApi.js'
+import { handleCompanyInvitationsApi } from './tenancy/invitationsApi.js'
+import { handlePlatformBusinessesApi } from './platform/businessesApi.js'
+import { classifyApiRoute, multiCompanyEnabled, resolveRequestContext } from './tenancy/routePolicy.js'
+import { requireBusinessContext } from './tenancy/businessContext.js'
+import { authenticateAccountRequest, contextChanged } from './identity/sessions.js'
 
 // Shared with the infrastructure CLI; never sourced from a request or CLI flag.
 export const BUSINESS_ID = 'amor-e-sabor'
@@ -70,10 +76,17 @@ const login = async (request, env) => {
 }
 
 const logout = async (request, env) => { assertSameOriginMutation(request); const context = await authenticateHumanRequest(request, env); await revokeSession(request, context ? {...env,DB:withAuditContext(env.DB,context)} : env); return authJson({ authenticated: false }, { headers: { 'set-cookie': clearSessionCookie() } }) }
-const resolveRequestContext = async (env, session) => resolveSettingsAccess(session,
+const resolveBusinessSettingsContext = async (env, session) => resolveSettingsAccess(session,
   session.legacy && typeof env.resolveCapabilities === 'function' ? await env.resolveCapabilities(session) : session.granted)
 
 const validateResponseSession = async (request, env, session, response) => {
+  if (multiCompanyEnabled(env)) {
+    const current = await authenticateAccountRequest(request, env)
+    if (!current || current.contextId !== session.contextId || current.accountId !== session.accountId
+      || current.businessId !== session.businessId || current.userId !== session.userId || current.roleId !== session.roleId
+      || current.roleVersion !== session.roleVersion || [...current.granted].sort().join('\n') !== [...session.granted].sort().join('\n')) throw contextChanged()
+    return response
+  }
   let validationRequest = request
   const url = new URL(request.url)
   // Only this server-controlled response can rotate its current session.
@@ -91,7 +104,7 @@ const validateResponseSession = async (request, env, session, response) => {
 const sessionStatus = async (request, env) => {
   const session = await authenticateHumanRequest(request, env)
   if (!session || session.businessId !== BUSINESS_ID) return authJson({ authenticated: false, authMode: await loadAuthMode(env.DB, BUSINESS_ID) })
-  const context = await resolveRequestContext(env, session)
+  const context = await resolveBusinessSettingsContext(env, session)
   return validateResponseSession(request, env, session, authJson({ authenticated: true, businessId: session.businessId, settingsContextId: context.settingsContextId,
     capabilities: [...context.granted], user: session.userId ? { id: session.userId, displayName: session.displayName, roleName: session.roleName, email:session.email,emailVerified:session.emailVerified } : null,
     authMode: session.authMode, deviceMode: session.deviceMode }))
@@ -122,10 +135,11 @@ const tablePatchInput = (body) => {
 }
 
 const authenticatedApi = async (request, env) => {
-  const session = await authenticateHumanRequest(request, env)
-  if (!session || session.businessId !== BUSINESS_ID) throw apiError(401, 'UNAUTHENTICATED', 'Sua sessão expirou. Entre novamente.')
+  const session = await resolveRequestContext(request, env)
+  if (multiCompanyEnabled(env)) requireBusinessContext(request, session)
+  else if (!session || session.businessId !== BUSINESS_ID) throw apiError(401, 'UNAUTHENTICATED', 'Sua sessão expirou. Entre novamente.')
   const url = new URL(request.url)
-  const context = await resolveRequestContext(env, session)
+  const context = await resolveBusinessSettingsContext(env, session)
   if (session.userId && session.authMode === 'enrollment' && !url.pathname.startsWith('/api/access/')) {
     await recordSecurityEvent(env.DB,{businessId:context.businessId,context,action:'access.denied',result:'denied'})
     throw apiError(403, 'ENROLLMENT_ONLY', 'Durante a preparação, use somente a administração de acesso.')
@@ -436,6 +450,20 @@ const dispatchAuthenticatedApi = async (request, env, session, context, url) => 
 export const handleRequest = async (request, env, executionContext) => {
   try {
     const url = new URL(request.url)
+    if (multiCompanyEnabled(env)) {
+      const options = { waitUntil: executionContext?.waitUntil?.bind(executionContext) }
+      const identity = await handleGlobalAuthApi(request, env, options)
+      if (identity) return identity
+      const invitation = await handleCompanyInvitationsApi(request, env)
+      if (invitation) return invitation
+      const policy = classifyApiRoute(request.method, url.pathname)
+      if (policy === 'platform') return await handlePlatformBusinessesApi(request, env, await resolveRequestContext(request, env), options)
+      if (policy === 'public-tv') return await handleKitchenTvPublicApi(request, env, url)
+      if (policy === 'business') return await authenticatedApi(request, env)
+      if (url.pathname.startsWith('/api/')) throw apiError(404, 'NOT_FOUND', 'Rota de API não encontrada.')
+      if (!env.ASSETS?.fetch) throw apiError(404, 'NOT_FOUND', 'Página não encontrada.')
+      return env.ASSETS.fetch(request)
+    }
     if (url.pathname === '/api/access/invitations/accept' && request.method === 'POST') return await acceptAccessInvitation(request, env, BUSINESS_ID)
     const emailAuthResponse = url.pathname==='/api/auth/login' ? null : await handleEmailAuthApi(request,env,{businessId:BUSINESS_ID,waitUntil:executionContext?.waitUntil?.bind(executionContext)})
     if (emailAuthResponse) return emailAuthResponse
@@ -447,7 +475,7 @@ export const handleRequest = async (request, env, executionContext) => {
     if (url.pathname.startsWith('/api/')) return await authenticatedApi(request, env)
     if (!env.ASSETS?.fetch) throw apiError(404, 'NOT_FOUND', 'Página não encontrada.')
     return env.ASSETS.fetch(request)
-  } catch (error) { const response=handleError(error); if (/^\/api\/(auth|access)\//.test(new URL(request.url).pathname)) response.headers.set('cache-control','no-store'); return response }
+  } catch (error) { const response=handleError(error); if (new URL(request.url).pathname.startsWith('/api/')) response.headers.set('cache-control','no-store'); return response }
 }
 
 export default { fetch: handleRequest }

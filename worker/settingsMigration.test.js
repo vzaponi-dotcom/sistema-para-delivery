@@ -135,8 +135,10 @@ test('upgrade seeds each business and retains overrides, earliest usage and ever
     assert.deepEqual(rows(sqlite, `SELECT ${columns} FROM ${table} ${table === 'business_print_settings' ? "WHERE business_id = 'amor-e-sabor'" : ''} ORDER BY rowid`), historical[table], table)
   }
   const schemaAfter = rows(sqlite, "SELECT * FROM sqlite_master WHERE tbl_name IN ('print_jobs', 'print_job_attempts') ORDER BY name")
-  assert.deepEqual(normalizedSchema(schemaAfter.filter(({ name }) => name !== 'print_jobs')),
+  assert.deepEqual(normalizedSchema(schemaAfter.filter(({ name }) => name !== 'print_jobs' && !name.startsWith('tenant_'))),
     normalizedSchema(jobSchema.filter(({ name }) => name !== 'print_jobs')))
+  assert.equal(schemaAfter.filter(row => row.name.startsWith('tenant_')).length, 6)
+  assert.ok(schemaAfter.filter(row => row.name.startsWith('tenant_')).every(row => row.type === 'trigger'))
   assert.match(schemaAfter.find(({ name }) => name === 'print_jobs').sql,
     /type = 'table-tab'.*copies_requested IN \(1, 2\)/s)
   assert.ok(rows(sqlite, 'SELECT timing_policy_snapshot_json FROM orders').every((row) => row.timing_policy_snapshot_json === null))
@@ -215,7 +217,7 @@ test('catalog identities cannot be moved, renamed after use, or demoted from nat
   for (const table of ['business_cancel_reasons', 'business_finance_categories']) {
     const id = table === 'business_cancel_reasons' ? 'entry_error' : 'gas'
     for (const change of ["id = 'custom'", "label = 'Renamed'", 'is_system = 0', "business_id = 'third'"]) {
-      assert.throws(() => sqlite.exec(`UPDATE ${table} SET ${change} WHERE business_id = 'amor-e-sabor' AND id = '${id}'`), /constraint|SETTINGS_/i)
+      assert.throws(() => sqlite.exec(`UPDATE ${table} SET ${change} WHERE business_id = 'amor-e-sabor' AND id = '${id}'`), /constraint|SETTINGS_|TENANT_OWNERSHIP_IMMUTABLE/i)
     }
     insert(sqlite, table, { business_id: BUSINESS, id: 'custom', label: 'Custom', name_key: 'custom', active: 1,
       is_system: 0, sort_order: 20, ...(table === 'business_finance_categories' ? { type: 'saida' } : {}) })
