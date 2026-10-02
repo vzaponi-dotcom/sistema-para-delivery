@@ -4,6 +4,14 @@ import React from 'react'
 import { workspaceHarness } from '../../../test-support/renderWorkspace.js'
 import { setup, manager, response, fill, submit, nodeText, act } from '../../../test-support/accessUi.js'
 
+test('global account remains available in identity scope without a company membership', async t => {
+  const sessionContext = { authenticated: true, authMode: 'multi_company', scope: 'identity', contextId: 'identity-A', account: { id: 'account-A', displayName: 'Ana', email: 'ana@example.test' } }
+  const { screen } = await setup(t, 'MyAccount', { sessionContext }, () => assert.fail('no read required'))
+  assert.match(nodeText(screen.root), /Ana.*ana@example.test/s)
+  assert.match(nodeText(screen.root), /todas as empresas/)
+  assert.equal(screen.root.findAllByType('input').filter(node => node.props.name === 'password').length, 1)
+})
+
 test('account displays the confirmed email without offering an email mutation',async t=>{
   const {screen}=await setup(t,'MyAccount',{sessionContext:manager},()=>assert.fail('no read needed'))
   assert.match(nodeText(screen.root),/E-mail.*maria@example.test/)

@@ -248,11 +248,11 @@ test('cliente captura o contexto de origem', async () => {
 
 **Interfaces:** `createCompaniesApi({request})` expõe listagem, inspect/accept de convite e seleção. `CompanySelection({account,items,currentBusinessId,onSelect,onLogout,pending,error})`; `CompanyInvitationAccept({api,session,onLogin,onAccepted})`. URL de convite `/aceitar-convite`, token capturado uma vez e removido do fragmento antes de inspeção; navegação pública não carrega runtime empresarial.
 
-- [ ] Escrever testes: login sem campo empresa, uma entrada direta, várias com nome/perfil, zero sem bootstrap e opção sair; menu trocar empresa; convite existente solicita autenticação da pessoa correta e confirmação explícita, novo solicita senha; vínculo aceito não seleciona automaticamente outra empresa se sessão já existir.
-- [ ] Fixar Review Focus 4 no nível da tela: troca e inspeção superadas por sessão nova não publicam dados antigos; empresa sem vínculo não aparece; Deep link empresarial sem seleção vai à seleção e só retorna a destino autorizado. `Minha conta` trata senha global; equipe deixa de oferecer reset administrativo de outra pessoa.
-- [ ] Executar `node --test src/domains/companies/ui/CompanySelection.test.js src/domains/companies/ui/CompanyInvitationAccept.test.js src/domains/companies/infrastructure/companiesApi.test.js`; esperar FAIL.
-- [ ] Implementar telas e rotas com componentes Mesiva existentes, mobile/desktop, estados de loading/erro/vazio, foco e labels. `AppRoot` renderiza seletor/plataforma sem exigir bootstrap empresarial; acesso operacional depende estritamente do escopo. Convite/recuperação não guardam tokens em query/storage. Adaptar entradas/retornos sem redirecionamento externo.
-- [ ] Executar testes novos e login/menu/equipe/conta/runtime afetados; esperar PASS. Commit: `feat(ui): add company selection and membership acceptance`.
+- [x] Escrever testes: login sem campo empresa, uma entrada direta, várias com nome/perfil, zero sem bootstrap e opção sair; menu trocar empresa; convite existente solicita autenticação da pessoa correta e confirmação explícita, novo solicita senha; vínculo aceito não seleciona automaticamente outra empresa se sessão já existir.
+- [x] Fixar Review Focus 4 no nível da tela: troca e inspeção superadas por sessão nova não publicam dados antigos; empresa sem vínculo não aparece; Deep link empresarial sem seleção vai à seleção e só retorna a destino autorizado. `Minha conta` trata senha global; equipe deixa de oferecer reset administrativo de outra pessoa.
+- [x] Executar `node --test src/domains/companies/ui/CompanySelection.test.js src/domains/companies/ui/CompanyInvitationAccept.test.js src/domains/companies/infrastructure/companiesApi.test.js`; esperar FAIL.
+- [x] Implementar telas e rotas com componentes Mesiva existentes, mobile/desktop, estados de loading/erro/vazio, foco e labels. `AppRoot` renderiza seletor/plataforma sem exigir bootstrap empresarial; acesso operacional depende estritamente do escopo. Convite/recuperação não guardam tokens em query/storage. Adaptar entradas/retornos sem redirecionamento externo.
+- [x] Executar testes novos e login/menu/equipe/conta/runtime afetados; esperar PASS. Commit: `feat(ui): add company selection and membership acceptance`.
 
 ## Task 12: Painel Mesiva responsivo
 

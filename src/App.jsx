@@ -1,3 +1,5 @@
+import { ACCOUNT_CONTEXT_PATHS } from './app/navigation/routes.js'
+import { CompanySelection, CompanyInvitationAccept, createCompaniesApi } from './domains/companies/index.js'
 import { ContextApi } from './infrastructure/api/ContextApi.js'
 import { createContextHttpClient } from './infrastructure/api/contextHttpClient.js'
 import { createBootstrapApi } from './infrastructure/api/bootstrapApi.js'
@@ -94,6 +96,10 @@ const IMPLEMENTED_DESTINATIONS = new Set(['orders', 'history', 'kitchen-tv-contr
 const currency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 
 function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <AccessSurface {...props} /> } = {}) {
+  const routeLocation = useLocation()
+  const navigateContext = useNavigate()
+  const [companySelectionOpen, setCompanySelectionOpen] = useState(false)
+  const [companyList, setCompanyList] = useState({ owner: null, items: [], loading: false, error: '' })
   const [requestKey, setRequestKey] = useState(null)
   const [activityDetail, setActivityDetail] = useState(null)
   const [kitchenSoundEnabled, setKitchenSoundEnabled] = useState(readKitchenSoundPreference)
@@ -174,7 +180,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
   const clientsForContext = useMemo(() => ({
     orders: createOrdersApi(contextClient), reservations: createTableReservationApi(contextClient),
     tables: createTableServiceApi(contextClient), customers: createCustomersApi(contextClient),
-    printing: createPrintingApi(contextClient), bootstrap: createBootstrapApi(contextClient),
+    companies: createCompaniesApi(contextClient), printing: createPrintingApi(contextClient), bootstrap: createBootstrapApi(contextClient),
     effective: createEffectiveConfigApi(contextClient), payments: createPaymentApi(contextClient), refunds: createRefundApi(contextClient),
   }), [contextClient])
   const newOrderDraft = useNewOrderDraft({
@@ -189,6 +195,19 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     onError: (error) => newOrderDraftTargetsRef.current.onError(error),
     onConflict: (context, error) => newOrderDraftTargetsRef.current.onConflict(context, error),
   })
+
+  const globalSession = sessionContext?.authMode === 'multi_company'
+  const choosingCompany = globalSession && (sessionContext.scope !== 'business' || companySelectionOpen || routeLocation.pathname === ACCOUNT_CONTEXT_PATHS.companies)
+  const loadCompanies = useCallback(async () => {
+    if (!globalSession || !sessionContext?.contextId) return
+    const owner = sessionContext.contextId
+    setCompanyList({ owner, items: [], loading: true, error: '' })
+    try {
+      const result = await clientsForContext.companies.listBusinesses()
+      if (contextOwnerRef.current === owner) setCompanyList({ owner, items: result?.businesses || [], loading: false, error: '' })
+    } catch (error) { if (contextOwnerRef.current === owner) setCompanyList({ owner, items: [], loading: false, error: error?.message || 'Não foi possível carregar suas empresas.' }) }
+  }, [clientsForContext, globalSession, sessionContext])
+  useEffect(() => { if (choosingCompany) void loadCompanies() }, [choosingCompany, loadCompanies])
 
   const trustedGrants = useMemo(
     () => capabilities === undefined
@@ -263,7 +282,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     accessContextId,
   })
   useRouteGate({
-    ready: authState === 'authenticated' && (!operationalAccess || bootstrapState === 'ready'),
+    ready: authState === 'authenticated' && !choosingCompany && (!operationalAccess || bootstrapState === 'ready'),
     authenticated: authState === 'authenticated' && Boolean(sessionContext?.user?.id),
     granted,
     implemented: IMPLEMENTED_DESTINATIONS,
@@ -474,6 +493,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
   sessionRuntimeTargetsRef.current.resetSyncState = resetSyncState
 
   const clearBusinessData = () => {
+    setCompanySelectionOpen(false)
     resetNavigation()
     resetQueries()
     resetComandaSelection()
@@ -560,6 +580,8 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
   }
   const handleLogout = () => requestSessionExit(handleSessionLogout, getPendingSessionEffects)
   const handleSwitchUser = () => requestSessionExit(handleSessionLogout, getPendingSessionEffects)
+  const handleSwitchCompany = () => requestSessionExit(() => { setCompanySelectionOpen(true); return true }, getPendingSessionEffects)
+  const handlePlatform = () => requestSessionExit(() => selectPlatform(), getPendingSessionEffects)
 
   const handleKitchenSoundEnabledChange = (enabled) => {
     if (!canUseLocalPreferences) return false
@@ -669,8 +691,14 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
   const activityOrder = activityDetail?.owner === accessContextId && activeTab === 'access-activity'
     ? resolveActivityOrder({ resourceType: 'order', resourceId: activityDetail.orderId }) : null
 
+  const listedCompanies = companyList.owner === sessionContext?.contextId ? companyList : { items: [], loading: true, error: '' }
+  const contextSurface = choosingCompany ? routeLocation.pathname === '/minha-conta'
+    ? <main className="company-entry"><Button variant="secondary" onClick={() => navigateContext(ACCOUNT_CONTEXT_PATHS.companies, { replace: true })}>Voltar às empresas</Button>{renderAccessSurface({ ...accessProps, section: 'my-account' })}</main>
+    : <CompanySelection account={sessionContext.account} items={listedCompanies.items} currentBusinessId={sessionContext.businessId} loading={listedCompanies.loading} pending={contextChangePending} error={listedCompanies.error || loginError} onRetry={loadCompanies} onLogout={handleLogout} onAccount={() => navigateContext('/minha-conta')} onSelect={async id => { if (await selectBusiness(id)) { setCompanySelectionOpen(false); if (routeLocation.pathname === ACCOUNT_CONTEXT_PATHS.companies) navigateContext('/', { replace: true }) } }} onCancel={sessionContext.scope === 'business' ? () => setCompanySelectionOpen(false) : undefined} onPlatform={sessionContext.scope !== 'platform' && sessionContext.platformCapabilities?.includes('platform.businesses.view') ? handlePlatform : undefined} />
+    : null
   return (
     <ContextApi.Provider value={contextClient}><AppRoot
+      contextSurface={contextSurface}
       isOnline={isOnline}
       authState={authState}
       authMode={authMode}
@@ -709,7 +737,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
         }}
       >
       <NavigationProvider authenticated={authState === 'authenticated' && Boolean(sessionContext?.user?.id)} activeTab={activeTab} activeMobileEntry={activeMobileEntry} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} moreOpen={moreOpen} requestNavigation={requestNavigation} openMore={openMore} closeMore={closeMore}>
-      <AppShell user={sessionContext?.user} onSwitchUser={handleSwitchUser} businessId={sessionContext?.businessId} businessName={business?.name} businessHasLogo={business?.hasLogo} businessLogoVersion={business?.logoVersion} navigationBadges={{ orders: operationalOrderCount, comandas: openComandaCount, 'print-queue': printing.activeJobCount }} onLogout={handleLogout} logoutDisabled={writesBlocked}>
+      <AppShell user={sessionContext?.user} onSwitchUser={handleSwitchUser} onSwitchCompany={globalSession ? handleSwitchCompany : undefined} onPlatform={globalSession && sessionContext.platformCapabilities?.includes('platform.businesses.view') ? handlePlatform : undefined} businessId={sessionContext?.businessId} businessName={business?.name} businessHasLogo={business?.hasLogo} businessLogoVersion={business?.logoVersion} navigationBadges={{ orders: operationalOrderCount, comandas: openComandaCount, 'print-queue': printing.activeJobCount }} onLogout={handleLogout} logoutDisabled={writesBlocked}>
         {['my-account', 'access-team', 'access-activity'].includes(activeTab) && renderAccessSurface(accessProps)}
         {activityOrder && <OrderDetail order={activityOrder} currency={currency} onClose={() => setActivityDetail(null)} canExecutePrinting={false} canCancelOrders={false} />}
         {activeTab === 'dashboard' && <DashboardSurface orders={orders} movements={movements} currency={currency} queryState={query.dashboard} onQueryChange={(patch) => patchQuery('dashboard', patch)} />}
@@ -810,9 +838,15 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
   )
 }
 
+function CompanyInvitationRoute({ location, navigate }) {
+  const runtime = useSessionRuntime()
+  return <CompanyInvitationAccept location={location} session={runtime.sessionContext} sessionChecking={runtime.authState === 'checking'} loginError={runtime.loginError} onLogin={runtime.handleLogin} onLogout={runtime.handleLogout} onAccepted={() => navigate('/', { replace: true })} />
+}
+
 export default function App(props) {
   const location = useLocation()
   const navigate = useNavigate()
+  if (location.pathname === ACCOUNT_CONTEXT_PATHS.invitation) return <CompanyInvitationRoute location={location} navigate={navigate} />
   if (location.pathname === '/recuperar-senha') return <PasswordRecovery onLogin={() => navigate('/', { replace: true })} />
   if (['/ativar-conta','/redefinir-senha'].includes(location.pathname)) return <InvitationAccept key={location.key} location={location} expectedPurpose={location.pathname==='/redefinir-senha'?'password_reset':'activation'} onLogin={() => navigate('/', { replace: true })} />
   return <ApplicationRuntime {...props} />

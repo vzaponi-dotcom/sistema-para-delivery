@@ -54,7 +54,7 @@ function LoginScreen({ onLogin, authMode = null, loading = false, error = '', di
             {loading ? 'Entrando…' : 'Entrar'}
           </Button>
         </form>
-        {authMode !== 'legacy' && <><div className="access-auth-footer"><a href="/recuperar-senha">Esqueci minha senha</a></div><div className="access-auth-footer">Primeiro acesso? <a href="/ativar-conta">Tenho um convite</a></div><p className="access-auth-help">Abra o convite recebido por e-mail para ativar sua conta.</p></>}
+        {authMode !== 'legacy' && <><div className="access-auth-footer"><a href="/recuperar-senha">Esqueci minha senha</a></div><div className="access-auth-footer">Primeiro acesso? <a href={authMode === 'multi_company' ? '/aceitar-convite' : '/ativar-conta'}>Tenho um convite</a></div><p className="access-auth-help">Abra o convite recebido por e-mail para ativar sua conta.</p></>}
     </AccessAuthLayout>
   )
 }

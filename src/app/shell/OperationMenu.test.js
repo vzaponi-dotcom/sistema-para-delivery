@@ -5,7 +5,7 @@ import { act } from 'react-test-renderer'
 import { workspaceHarness, buttonNamed, nodeText } from '../../test-support/renderWorkspace.js'
 
 const implemented = new Set(['orders', 'settings-home', 'settings-business-profile', 'settings-device', 'my-account'])
-const renderMenu = async (t, { granted = new Set(['operations.settings.view', 'preferences.local']), authenticated = false, user, onSwitchUser, onLogout = () => {}, logoutDisabled = false, businessName = 'Pizzaria Bella', businessHasLogo = false, businessLogoVersion = null, mobile = false } = {}) => {
+const renderMenu = async (t, { granted = new Set(['operations.settings.view', 'preferences.local']), authenticated = false, user, onSwitchCompany, onSwitchUser, onLogout = () => {}, logoutDisabled = false, businessName = 'Pizzaria Bella', businessHasLogo = false, businessLogoVersion = null, mobile = false } = {}) => {
   const h = await workspaceHarness(t, { mobile })
   const { NavigationProvider } = await h.load('/src/app/navigation/NavigationContext.jsx')
   const { default: OperationMenu } = await h.load('/src/app/shell/OperationMenu.jsx')
@@ -13,7 +13,7 @@ const renderMenu = async (t, { granted = new Set(['operations.settings.view', 'p
   const renderer = await h.render(NavigationProvider, {
     activeTab: 'orders', granted, authenticated, implemented, moreOpen: false,
     requestNavigation: (id) => navigations.push(id), openMore() {}, closeMore() {},
-    children: React.createElement(OperationMenu, { businessName, businessHasLogo, businessLogoVersion, user, onSwitchUser, onLogout, logoutDisabled }),
+    children: React.createElement(OperationMenu, { businessName, businessHasLogo, businessLogoVersion, user, onSwitchCompany, onSwitchUser, onLogout, logoutDisabled }),
   }, { createNodeMock: (element) => element.props?.className === 'operation-menu-trigger'
     ? { focus: h.recordFocus }
     : element.props?.role === 'dialog' ? { querySelectorAll: () => [], querySelector: () => null } : {} })
@@ -191,4 +191,13 @@ test('unknown personal profile uses its supplied name without claiming manager a
   assert.match(nodeText(renderer.root), /Equipe externa/)
   assert.doesNotMatch(nodeText(renderer.root), /Gerente/)
   assert.equal(buttonNamed(renderer.root, 'Editar identidade'), undefined)
+})
+
+test('company switch closes account menu and respects pending-operation guard', async t => {
+  let selected = 0
+  const { renderer } = await renderMenu(t, { onSwitchCompany: () => { selected++ } })
+  await act(async () => buttonNamed(renderer.root, 'Pizzaria Bella, operação atual').props.onClick())
+  await act(async () => buttonNamed(renderer.root, 'Trocar empresa').props.onClick())
+  assert.equal(selected, 1)
+  assert.equal(renderer.root.findAllByProps({ role: 'dialog' }).length, 0)
 })

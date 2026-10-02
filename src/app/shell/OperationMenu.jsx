@@ -31,7 +31,7 @@ function MenuAction({ label, description, icon, onClick, disabled = false, class
   </button>
 }
 
-export default function OperationMenu({ businessName, businessHasLogo = false, businessLogoVersion = null, showLogo = true, user, onSwitchUser, onLogout, logoutDisabled = false }) {
+export default function OperationMenu({ businessName, businessHasLogo = false, businessLogoVersion = null, showLogo = true, user, onSwitchCompany, onPlatform, onSwitchUser, onLogout, logoutDisabled = false }) {
   const { granted, implemented, requestNavigation, authenticated } = useNavigation()
   const operationName = normalizeOperationName(businessName)
   const initials = operationInitials(operationName)
@@ -91,6 +91,8 @@ export default function OperationMenu({ businessName, businessHasLogo = false, b
           {identityEntry && <button className="operation-menu-identity" type="button" onClick={() => navigate(identityEntry.id)}><Icon name="edit" size={15} />Editar identidade</button>}
         </div>
       </div>
+      {onSwitchCompany && <MenuAction label="Trocar empresa" description="Escolher outra operação" icon="clients" disabled={logoutDisabled} onClick={() => { close(); onSwitchCompany() }} />}
+      {onPlatform && <MenuAction label="Administração Mesiva" icon="settings" disabled={logoutDisabled} onClick={() => { close(); onPlatform() }} />}
       {settingsEntry && <MenuAction label="Configurações" icon="settings" onClick={() => navigate(settingsEntry.id)} />}
     </section>
     <section className="operation-menu-section" aria-label="Preferências e ajuda">
