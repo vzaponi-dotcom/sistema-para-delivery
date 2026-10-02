@@ -7,7 +7,7 @@ export const unavailableEmailConfig = () => apiError(503,'EMAIL_CONFIG_UNAVAILAB
 
 export function readEmailConfig(env) {
   try {
-    if (env.AUTH_EMAIL_ENABLED!=='true' && env.AUTH_EMAIL_ENABLED!==true) throw unavailableEmailConfig()
+    if (![env.AUTH_EMAIL_ENABLED,env.AUTH_MULTI_COMPANY_ENABLED,env.AUTH_MULTI_COMPANY_PREPARE_ENABLED].some(value=>value==='true' || value===true)) throw unavailableEmailConfig()
     const apiKey = env.RESEND_API_KEY, from = env.AUTH_EMAIL_FROM, publicOrigin = env.AUTH_PUBLIC_ORIGIN
     if (typeof apiKey!=='string' || !apiKey || /\s/.test(apiKey) || typeof from!=='string' || [...from].some(char=>char.charCodeAt(0)<32 || char.charCodeAt(0)===127)) throw unavailableEmailConfig()
     const sender = from.match(/^[^<>]+ <([^<>]+)>$/)?.[1] || from
@@ -22,7 +22,7 @@ export function readEmailConfig(env) {
 
 export async function deliverEmailChallenge(env,challenge,{fetchImpl=fetch}={}) {
   const config = readEmailConfig(env)
-  const path = challenge.purpose==='activation' ? '/ativar-conta' : '/redefinir-senha'
+  const path = challenge.purpose==='activation' ? '/ativar-conta' : challenge.purpose==='company_invitation' ? '/aceitar-convite' : '/redefinir-senha'
   const url = new URL(path,config.publicOrigin)
   url.hash = new URLSearchParams({token:challenge.token}).toString()
   const email = buildChallengeEmail({...challenge,link:url.href,isStaging:new URL(config.publicOrigin).hostname.startsWith('staging.')})
