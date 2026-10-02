@@ -96,8 +96,8 @@ Tipos lógicos compartilhados no plano:
 
 **Interfaces:** `prepareAccountSession(db,{accountId,expectedCredentialRevision,scope,businessId?,familyId?,expiresAt?,deviceMode,now}): Promise<Prepared<{token,identitySessionId,contextId,expiresAt,scope,businessSessionId?}>>`; `authenticateAccountRequest(request,env,now): Promise<IdentityContext|BusinessContext|PlatformContext|null>`. `selectAccountScope(db,context,{scope,businessId?,contextId},now)` retorna nova sessão após um único batch. `requireBusinessContext(request,context): BusinessContext` e `requirePlatformContext(request,context,capability): PlatformContext`. `revokeBrowserFamily(db,context,now)` revoga somente a família daquele navegador.
 
-- [ ] Escrever testes de sessão global sem operação, empresarial com FK ao ator correto, plataforma sem grants empresariais, cookie `mesiva_session`, expiração em 12 horas/7 dias, histórico de auditoria intacto e troca A→B sem prolongar prazo.
-- [ ] Escrever teste de concorrência e Review Focus 5: duas trocas sobre a mesma sessão têm um vencedor; revogação de vínculo/concessão, revisão de senha ou vencimento antes do commit impede a troca. Conta com grant Mesiva não abre B sem vínculo. Marker ausente/divergente gera 409 `SESSION_CONTEXT_CHANGED` antes de consulta de domínio.
+- [x] Escrever testes de sessão global sem operação, empresarial com FK ao ator correto, plataforma sem grants empresariais, cookie `mesiva_session`, expiração em 12 horas/7 dias, histórico de auditoria intacto e troca A→B sem prolongar prazo.
+- [x] Escrever teste de concorrência e Review Focus 5: duas trocas sobre a mesma sessão têm um vencedor; revogação de vínculo/concessão, revisão de senha ou vencimento antes do commit impede a troca. Conta com grant Mesiva não abre B sem vínculo. Marker ausente/divergente gera 409 `SESSION_CONTEXT_CHANGED` antes de consulta de domínio.
 
 ```js
 test('uma sessão só permite uma troca concorrente', async t => {
@@ -112,9 +112,9 @@ test('uma sessão só permite uma troca concorrente', async t => {
 })
 ```
 
-- [ ] Executar `node --test worker/identity/sessions.test.js worker/tenancy/businessContext.test.js worker/tenancy/scopeSelection.test.js`; esperar FAIL pelas novas interfaces ausentes.
-- [ ] Implementar criação/rotação transacional: guardas revalidam origem, identidade, revisão, família vigente e destino; criam sessão global e registro empresarial quando necessário; revogam os anteriores e atualizam a sessão vigente da família. Autenticação exige que a sessão seja a vigente da família, além de conta/vínculo/perfil/concessão ativos. Nunca mudar `business_id` de sessão histórica. Cookie seguro, host-only, HttpOnly, SameSite=Strict, Path=/ e Max-Age limitado ao prazo restante.
-- [ ] Executar os três arquivos; esperar PASS. Commit: `feat(auth): select trusted company or platform session scopes`.
+- [x] Executar `node --test worker/identity/sessions.test.js worker/tenancy/businessContext.test.js worker/tenancy/scopeSelection.test.js`; esperar FAIL pelas novas interfaces ausentes.
+- [x] Implementar criação/rotação transacional: guardas revalidam origem, identidade, revisão, família vigente e destino; criam sessão global e registro empresarial quando necessário; revogam os anteriores e atualizam a sessão vigente da família. Autenticação exige que a sessão seja a vigente da família, além de conta/vínculo/perfil/concessão ativos. Nunca mudar `business_id` de sessão histórica. Cookie seguro, host-only, HttpOnly, SameSite=Strict, Path=/ e Max-Age limitado ao prazo restante.
+- [x] Executar os três arquivos; esperar PASS. Commit: `feat(auth): select trusted company or platform session scopes`.
 
 ## Task 4: Login global, ativação, recuperação e senha própria
 

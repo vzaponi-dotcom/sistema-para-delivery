@@ -91,6 +91,13 @@ export const sessionCookie = (token, maxAgeSeconds = SESSION_MAX_AGE_SECONDS) =>
 export const clearSessionCookie = () =>
   `${SESSION_COOKIE_NAME}=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0`
 
+export const accountSessionCookie = (token, expiresAt, now = new Date()) => {
+  if (!/^[A-Za-z0-9_-]{43}$/.test(token) || !Number.isFinite(Date.parse(expiresAt))) throw new TypeError('Invalid account session cookie')
+  const remaining = Math.max(0, Math.floor((Date.parse(expiresAt) - now.getTime()) / 1000))
+  return `mesiva_session=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${remaining}`
+}
+export const clearAccountSessionCookie = () => 'mesiva_session=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0'
+
 export const createSession = async (env, businessId, now = new Date()) => {
   const tokenBytes = crypto.getRandomValues(new Uint8Array(32))
   const token = bytesToBase64Url(tokenBytes)
