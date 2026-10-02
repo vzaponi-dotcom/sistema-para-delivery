@@ -862,7 +862,7 @@ export const usePrintingManager = ({ api = legacyPrintingApi, businessId, authen
     return response.document
   }, [api, qzTransport])
 
-  const printTableTab = useCallback((tableTabId, copies) => api.createManualTableTabPrintJob(tableTabId, copies), [])
+  const printTableTab = useCallback((tableTabId, copies) => api.createManualTableTabPrintJob(tableTabId, copies), [api])
 
   useEffect(() => {
     if (!authenticated) {

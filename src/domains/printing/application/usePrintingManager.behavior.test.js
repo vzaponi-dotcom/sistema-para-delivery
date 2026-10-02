@@ -26,6 +26,17 @@ import { runClaimedPrintJob } from './printJobRunner.js'
 const managerSource = await readFile(new URL('./usePrintingManager.js', import.meta.url), 'utf8')
 const managerModule = await import('./usePrintingManager.js')
 
+test('table-tab printing uses the API captured by the current context after login or company selection', async t => {
+  const h = await workspaceHarness(t, { userAgent: 'Android' }), calls = []
+  const apiA = { createManualTableTabPrintJob: async (...args) => { calls.push(['A', ...args]); return { job: { id: 'A' } } } }
+  const apiB = { createManualTableTabPrintJob: async (...args) => { calls.push(['B', ...args]); return { job: { id: 'B' } } } }
+  function Probe({ api }) { return React.createElement('printing-probe', { value: usePrintingManager({ authenticated: false, api }) }) }
+  const renderer = await h.render(Probe, { api: apiA })
+  await act(async () => renderer.update(React.createElement(Probe, { api: apiB })))
+  assert.deepEqual(await renderer.root.findByType('printing-probe').props.value.printTableTab('tab-B', 2), { job: { id: 'B' } })
+  assert.deepEqual(calls, [['B', 'tab-B', 2]])
+})
+
 const awaitingSecondCopyJob = {
   id: 'job-second-copy',
   status: 'awaiting_second_copy',

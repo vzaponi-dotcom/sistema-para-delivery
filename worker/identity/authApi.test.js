@@ -3,6 +3,30 @@ import assert from 'node:assert/strict'
 import { setImmediate } from 'node:timers/promises'
 import { createTenancyFixture } from '../test-support/tenancyDb.js'
 import { handleGlobalAuthApi } from './authApi.js'
+import { createSessionApi } from '../../src/infrastructure/auth/sessionApi.js'
+
+test('the actual session client enters the platform from identity and business scopes with its bodyless POST', async t => {
+  const f = await createTenancyFixture(t)
+  for (const initialScope of ['identity', 'business']) {
+    f.sqlite.prepare("INSERT OR IGNORE INTO platform_grants(account_id,capability,created_at) VALUES(?, 'platform.businesses.view', ?)").run(f.accounts.alice, f.now.toISOString())
+    // Obtain a fresh real family rather than use a fabricated session marker.
+    const loggedIn = await send(f, '/api/auth/login', { email: 'alice@example.test', password: 'Fixture password 2026!' })
+    let cookie = loggedIn.headers.get('set-cookie').split(';')[0], context = await loggedIn.json()
+    if (initialScope === 'business') {
+      const selected = await send(f, '/api/auth/select-business', { businessId: f.businesses.A }, { headers: { cookie, 'X-Mesiva-Context': context.contextId } })
+      cookie = selected.headers.get('set-cookie').split(';')[0]; context = await selected.json()
+    }
+    const client = createSessionApi({ request: async (path, options) => {
+      const response = await handleGlobalAuthApi(new Request(`https://staging.example.test${path}`, { ...options, headers: { ...options.headers, cookie, origin: 'https://staging.example.test' } }), { DB: f.db, ...config }, { now: f.now })
+      assert.equal(response.status, 200, JSON.stringify(await response.clone().json()))
+      cookie = response.headers.get('set-cookie').split(';')[0]
+      return response.json()
+    } })
+    const selected = await client.selectPlatform(context)
+    assert.equal(selected.scope, 'platform')
+    assert.notEqual(selected.contextId, context.contextId)
+  }
+})
 
 const config = { AUTH_MULTI_COMPANY_ENABLED: 'true', AUTH_EMAIL_ENABLED: 'true', AUTH_EMAIL_FROM: 'Mesiva <access@example.test>', AUTH_PUBLIC_ORIGIN: 'https://staging.example.test', RESEND_API_KEY: 're_synthetic_test_key' }
 const req = (path, body, headers = {}) => new Request(`https://staging.example.test${path}`, { method: body === undefined ? 'GET' : 'POST', headers: { origin: 'https://staging.example.test', 'content-type': 'application/json', ...headers }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) })

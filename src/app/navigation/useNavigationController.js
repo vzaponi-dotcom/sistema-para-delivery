@@ -310,11 +310,11 @@ export function useNavigationController({
 
   const openMore = useCallback(() => setMoreOpen(true), [])
   const closeMore = useCallback(() => setMoreOpen(false), [])
-  const resetNavigation = useCallback(() => {
+  const resetNavigation = useCallback(({ preservePath = false } = {}) => {
     setMoreOpen(false)
     pendingNavigationRef.current = null
     setPendingNavigation(null)
-    navigateApprovedPath('/', { replace: true })
+    if (!preservePath) navigateApprovedPath('/', { replace: true })
   }, [navigateApprovedPath])
 
   return {

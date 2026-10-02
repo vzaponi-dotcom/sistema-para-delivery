@@ -7,6 +7,18 @@ import { acceptCompanyInvitation } from '../tenancy/companyInvitations.js'
 import { handleRequest } from '../index.js'
 import { sha256Hex } from '../auth.js'
 
+test('private verified-manager activation revalidates recipient account eligibility in its batch', async t => {
+  for (const mutation of ['active=0', 'email_verified_at=NULL']) {
+    const f = await createTenancyFixture(t)
+    await preparePlatformAdministrator(f.db, { name: 'Admin', email: 'admin@example.test', ownershipVerified: true, now: f.now })
+    let batches = 0
+    const db = { ...f.db, batch: async statements => { if (++batches === 2) f.sqlite.prepare(`UPDATE accounts SET ${mutation} WHERE id=?`).run(f.accounts.alice); return f.db.batch(statements) } }
+    await assert.rejects(prepareExistingBusinessManager(db, { businessId: 'amor-e-sabor', name: 'Alice', email: 'alice@example.test', ownershipVerified: true, now: f.now }))
+    assert.equal(f.sqlite.prepare('SELECT access_status FROM businesses WHERE id=?').get('amor-e-sabor').access_status, 'legacy')
+    assert.equal(f.sqlite.prepare('SELECT count(*) n FROM users WHERE business_id=? AND account_id=?').get('amor-e-sabor', f.accounts.alice).n, 0)
+  }
+})
+
 test('private administrator requires ownership; repeat preserves active credential and grants', async t => {
   const f = await createTenancyFixture(t)
   await assert.rejects(preparePlatformAdministrator(f.db, { name: 'Admin', email: 'admin@example.test', now: f.now }), /titularidade/)

@@ -153,7 +153,7 @@ export const useSessionRuntime = ({ api = defaultApi, coordinatorFactory = creat
     } finally { releaseAuthRequest(operation) }
   }, [api, clear, isOnline, requestKey, sessionContext, setRequestKey, settleAuth, releaseAuthRequest])
   const changeContext = useCallback(async (scope, businessId) => {
-    if (!isOnline || authState !== 'authenticated' || requestKey !== null || credentialChangeRef.current || contextChangeRef.current || !canChangeContext()) return false
+    if (!isOnline || authState !== 'authenticated' || requestKey !== null || credentialChangeRef.current || contextChangeRef.current || !canChangeContext({ scope, businessId })) return false
     const origin = sessionContext
     const pending = {}
     contextChangeRef.current = pending; setContextChangePending(true)

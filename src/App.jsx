@@ -1,4 +1,4 @@
-import { PlatformRoutes } from './domains/platform/index.js'
+import { PlatformRoutes, createProvisioningAttempts } from './domains/platform/index.js'
 import { ACCOUNT_CONTEXT_PATHS } from './app/navigation/routes.js'
 import { CompanySelection, CompanyInvitationAccept, createCompaniesApi } from './domains/companies/index.js'
 import { ContextApi } from './infrastructure/api/ContextApi.js'
@@ -14,7 +14,7 @@ import {
   paymentDefaultFromEffective,
   paymentOptionsFromEffective,
 } from './domains/finance/index.js'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import './App.css'
 import './central-data.css'
 import AppShell from './app/shell/AppShell.jsx'
@@ -101,7 +101,8 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
   const navigateContext = useNavigate()
   const platformEntry = routeLocation.pathname === '/mesiva' || routeLocation.pathname.startsWith('/mesiva/')
   const platformEntryRef = useRef(platformEntry); platformEntryRef.current = platformEntry
-  const [platformPending, setPlatformPending] = useState(false)
+  const [platformActionPending, setPlatformPending] = useState(false)
+  const [provisioningAttempts] = useState(createProvisioningAttempts)
   const platformPendingRef = useRef(false)
   const changePlatformPending = useCallback(value => { platformPendingRef.current = value; setPlatformPending(value) }, [])
   const platformSelectionRef = useRef(null)
@@ -172,13 +173,16 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
   } = useSessionRuntime({
     isOnline,
     requestKey,
-    canChangeContext: () => sessionRuntimeTargetsRef.current.canChangeContext?.() !== false,
+    canChangeContext: target => sessionRuntimeTargetsRef.current.canChangeContext?.(target) !== false,
     setRequestKey,
     resetOperationalData: resetOperationalDataForSession,
     refreshBootstrap: refreshBootstrapForSession,
     onClearApplicationState: clearApplicationStateForSession,
   })
 
+  const provisioningAttempt = useSyncExternalStore(provisioningAttempts.subscribe, () => provisioningAttempts.getSnapshot(sessionContext?.account?.id))
+  const platformPending = platformActionPending || ['pending', 'uncertain'].includes(provisioningAttempt?.status)
+  const isPlatformPending = () => platformPendingRef.current || provisioningAttempts.isBlocking(sessionContext?.account?.id)
   const operationalAccess = sessionOperationalAccess && !platformEntry
   const contextOwnerRef = useRef(null)
   contextOwnerRef.current = sessionContext?.contextId
@@ -255,7 +259,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     authenticated: authState === 'authenticated' && Boolean(sessionContext?.user?.id),
     implemented: IMPLEMENTED_DESTINATIONS,
     navigationPending: platformPending,
-    getNavigationPending: () => platformPendingRef.current,
+    getNavigationPending: isPlatformPending,
     checkoutPending: newOrderDraft.checkoutPending,
     dirtyOrder: newOrderDraft.dirty,
     onDiscardOrder: newOrderDraft.discard,
@@ -264,9 +268,9 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     onFeedback: setToastMessage,
   })
   useNewOrderUnloadGuard({
-    active: activeTab === 'new-order' || platformPending,
+    active: activeTab === 'new-order' || platformPending || provisioningAttempts.hasUnresolved(),
     dirty: newOrderDraft.dirty,
-    checkoutPending: newOrderDraft.checkoutPending || platformPending,
+    checkoutPending: newOrderDraft.checkoutPending || platformPending || provisioningAttempts.hasUnresolved(),
   })
   const handleOperationalUnauthorized = useCallback((error) => operationalRuntimeTargetsRef.current.onUnauthorized?.(error), [])
   const getEffectiveConfigVersion = useCallback(() => effectiveConfigVersionRef.current, [])
@@ -509,7 +513,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
 
   const clearBusinessData = () => {
     setCompanySelectionOpen(false)
-    resetNavigation()
+    resetNavigation({ preservePath: platformEntryRef.current || provisioningAttempts.hasUnresolved() })
     resetQueries()
     resetComandaSelection()
     resetSyncState()
@@ -588,10 +592,11 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     paymentPending: Boolean(tableTabPayment.busy || tableTabPayment.syncState || orderPayment.dialog?.submitting || clientOrdersPayment.dialog?.submitting),
     printPending: Boolean(printing.busyJobId || printing.jobs.some((job) => ['unknown', 'awaiting_confirmation', 'waiting_confirmation', 'printing'].includes(job.status) || job.physicalOutcome === 'unknown')),
   }
-  const getPendingSessionEffects = () => ({ ...pendingSessionEffectsRef.current, contextChangePending: contextChangePending || platformPendingRef.current, checkoutPending: newOrderDraft.checkoutPending, credentialChangePending: isCredentialChangePending() })
-  sessionRuntimeTargetsRef.current.canChangeContext = () => {
+  const getPendingSessionEffects = () => ({ ...pendingSessionEffectsRef.current, contextChangePending: contextChangePending || isPlatformPending(), checkoutPending: newOrderDraft.checkoutPending, credentialChangePending: isCredentialChangePending() })
+  sessionRuntimeTargetsRef.current.canChangeContext = target => {
     const effects = getPendingSessionEffects()
-    return !platformPendingRef.current && !effects.credentialChangePending && !effects.checkoutPending && !effects.paymentPending && !effects.printPending && !newOrderDraft.dirty && !policyNavigationBridge.getNavigationDraft()?.dirty
+    const resumeAuthor = target?.scope === 'platform' && platformEntryRef.current && !platformPendingRef.current && provisioningAttempts.getSnapshot(sessionContext?.account?.id)?.status === 'uncertain'
+    return (!isPlatformPending() || resumeAuthor) && !effects.credentialChangePending && !effects.checkoutPending && !effects.paymentPending && !effects.printPending && !newOrderDraft.dirty && !policyNavigationBridge.getNavigationDraft()?.dirty
   }
   const handleLogout = () => requestSessionExit(handleSessionLogout, getPendingSessionEffects)
   const handleSwitchUser = () => requestSessionExit(handleSessionLogout, getPendingSessionEffects)
@@ -713,7 +718,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     : choosingCompany
       ? <CompanySelection account={sessionContext.account} items={listedCompanies.items} currentBusinessId={sessionContext.businessId} loading={listedCompanies.loading} pending={contextChangePending} error={listedCompanies.error || loginError} onRetry={loadCompanies} onLogout={handleLogout} onAccount={() => navigateContext('/minha-conta')} onSelect={async id => { if (await selectBusiness(id)) { setCompanySelectionOpen(false); if (routeLocation.pathname === ACCOUNT_CONTEXT_PATHS.companies) navigateContext('/', { replace: true }) } }} onCancel={sessionContext.scope === 'business' ? () => setCompanySelectionOpen(false) : undefined} onPlatform={sessionContext.platformCapabilities?.includes('platform.businesses.view') ? handlePlatform : undefined} />
       : inPlatform
-        ? <PlatformRoutes session={sessionContext} path={routeLocation.pathname} pending={platformPending || contextChangePending} onPendingChange={changePlatformPending} onNavigate={path => { if (!platformPendingRef.current) navigateContext(path) }} onLogout={handleLogout} onAccount={() => { if (!platformPendingRef.current) navigateContext('/minha-conta') }} onSelectBusiness={() => { if (!platformPendingRef.current) { setCompanySelectionOpen(true); navigateContext(ACCOUNT_CONTEXT_PATHS.companies) } }} />
+        ? <PlatformRoutes attempts={provisioningAttempts} session={sessionContext} path={routeLocation.pathname} pending={platformPending || contextChangePending} onPendingChange={changePlatformPending} onNavigate={path => { if (!isPlatformPending()) navigateContext(path) }} onLogout={handleLogout} onAccount={() => { if (!isPlatformPending()) navigateContext('/minha-conta') }} onSelectBusiness={() => { if (!isPlatformPending()) { setCompanySelectionOpen(true); navigateContext(ACCOUNT_CONTEXT_PATHS.companies) } }} />
         : platformEntry ? <main className="company-entry"><p role="alert">{globalSession && sessionContext.platformCapabilities?.includes('platform.businesses.view') ? loginError || 'Confirmando acesso ao painel Mesiva…' : 'Você não tem acesso ao painel Mesiva.'}</p></main> : null
   return (
     <ContextApi.Provider value={contextClient}><AppRoot

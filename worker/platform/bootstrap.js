@@ -85,7 +85,8 @@ export async function prepareExistingBusinessManager(db, { businessId, name, ema
       : db.prepare("INSERT INTO users(id,business_id,display_name,login_normalized,role_id,account_id,membership_state,created_at,updated_at) VALUES(?,?,?,?,?,?,'invited',?,?)").bind(userId, businessId, name.trim(), email, roleId, account.id, timestamp, timestamp),
   ]
   if (alreadyVerified) statements.push(
-    guard(db, 'SELECT EXISTS(SELECT 1 FROM account_credentials WHERE account_id=? AND version=1 AND revision=? AND password_verifier=?)', [account.id, credential.revision, credential.password_verifier]),
+    guard(db, `SELECT EXISTS(SELECT 1 FROM account_credentials c JOIN accounts a ON a.id=c.account_id
+      WHERE c.account_id=? AND c.version=1 AND c.revision=? AND c.password_verifier=? AND a.active=1 AND a.email_verified_at IS NOT NULL)`, [account.id, credential.revision, credential.password_verifier]),
     db.prepare("UPDATE users SET membership_state='active',email_verified_at=? WHERE business_id=? AND id=?").bind(timestamp, businessId, userId),
     db.prepare("UPDATE businesses SET access_status='active' WHERE id=?").bind(businessId),
   )

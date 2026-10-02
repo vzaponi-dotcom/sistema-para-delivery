@@ -47,6 +47,7 @@ const capableManager = `u.active = 1 AND u.membership_state = 'active' AND a.act
   AND c.version = 1 AND r.active = 1 AND EXISTS (SELECT 1 FROM role_capabilities rc WHERE rc.business_id = u.business_id AND rc.role_id = u.role_id AND rc.capability = 'access.users.manage')`
 
 export async function updateMembership(db, context, userId, input, now = new Date()) {
+  const started = performance.now()
   const issuer = await prepareCompanyIssuer(db, context, { businessId: context.businessId }, now)
   const row = await db.prepare('SELECT * FROM users WHERE business_id = ? AND id = ? AND account_id IS NOT NULL').bind(context.businessId, userId).first()
   if (!row) throw apiError(404, 'USER_NOT_FOUND', 'Usuário não encontrado.')
@@ -67,10 +68,11 @@ export async function updateMembership(db, context, userId, input, now = new Dat
   const managerValues = [context.businessId, context.businessId, userId, active, context.businessId, roleId, context.businessId, userId]
   const managerCheck = await db.prepare(managerPredicate).bind(...managerValues).first()
   if (!Object.values(managerCheck)[0]) throw apiError(409, 'LAST_MANAGER', 'Mantenha pelo menos um gerente ativo.')
-  const timestamp = now.toISOString()
+  const commitNow = new Date(now.getTime() + Math.max(0, Math.floor(performance.now() - started)))
+  const timestamp = commitNow.toISOString()
   // An invitation that was never accepted stays invited when disabled/reactivated.
   const membershipState = row.membership_state === 'invited' ? 'invited' : active ? 'active' : 'inactive'
-  const statements = [issuer.statement,
+  const statements = [prepareSessionSnapshotAssertion(db, issuer.snapshot, commitNow),
     prepareIdentityAssertion(db, crypto.randomUUID(), 'SELECT EXISTS(SELECT 1 FROM users WHERE business_id = ? AND id = ? AND account_id = ? AND role_id = ? AND active = ? AND membership_state = ?)', [context.businessId, userId, row.account_id, row.role_id, row.active, row.membership_state]),
     prepareIdentityAssertion(db, crypto.randomUUID(), 'SELECT EXISTS(SELECT 1 FROM roles WHERE business_id = ? AND id = ? AND active = 1 AND version = ?)', [context.businessId, roleId, role.version]),
     prepareIdentityAssertion(db, crypto.randomUUID(), managerPredicate, managerValues),
@@ -81,7 +83,7 @@ export async function updateMembership(db, context, userId, input, now = new Dat
     db.prepare('UPDATE sessions SET revoked_at = COALESCE(revoked_at,?) WHERE business_id = ? AND user_id = ?').bind(timestamp, context.businessId, userId),
     db.prepare('UPDATE company_invitations SET revoked_at = COALESCE(revoked_at,?) WHERE business_id = ? AND user_id = ? AND consumed_at IS NULL').bind(timestamp, context.businessId, userId),
   )
-  statements.push(prepareAuditEvent(db, issuer.context, { action: Object.hasOwn(input, 'roleId') ? 'access.user.role-changed' : Object.hasOwn(input, 'active') ? active ? 'access.user.activated' : 'access.user.deactivated' : 'access.user.updated', resourceType: 'user', resourceId: userId, now }))
+  statements.push(prepareAuditEvent(db, issuer.context, { action: Object.hasOwn(input, 'roleId') ? 'access.user.role-changed' : Object.hasOwn(input, 'active') ? active ? 'access.user.activated' : 'access.user.deactivated' : 'access.user.updated', resourceType: 'user', resourceId: userId, now: commitNow }))
   try { await commitIdentityStatements(db, statements) }
   catch (error) { if (/CHECK constraint failed: ok\s*=\s*1/.test(String(error?.message))) throw apiError(409, 'MEMBERSHIP_CHANGED', 'O acesso mudou. Atualize a tela antes de continuar.'); throw error }
   return { user: await loadCompanyMember(db, context.businessId, userId, now) }

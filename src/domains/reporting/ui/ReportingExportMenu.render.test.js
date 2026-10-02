@@ -1,7 +1,24 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { act } from 'react-test-renderer'
+import React from 'react'
 import { workspaceHarness, nodeText } from '../../../test-support/renderWorkspace.js'
+
+test('late exports cannot download after unmount, context replacement or permission loss', async t => {
+  const h = await workspaceHarness(t), { ReportingExportMenu } = await h.load('/src/domains/reporting/ui/ReportingExportMenu.jsx')
+  for (const change of ['unmount', 'context', 'permission']) {
+    let resolve, operation
+    const downloads = [], props = { query: { from: '2026-10-01', to: '2026-10-02' }, granted: new Set(['reports.export']), api: { exportModel: () => new Promise(done => { resolve = done }) }, onDownload: value => downloads.push(value) }
+    const renderer = await h.render(ReportingExportMenu, props)
+    await act(async () => { operation = renderer.root.findAllByType('button').find(node => nodeText(node).startsWith('CSV')).props.onClick() })
+    await act(async () => {
+      if (change === 'unmount') renderer.unmount()
+      else renderer.update(React.createElement(ReportingExportMenu, { ...props, ...(change === 'context' ? { api: { exportModel: async () => ({}) } } : { granted: new Set() }) }))
+    })
+    await act(async () => { resolve({ data: { title: 'A', period: props.query, columnKeys: ['client_name_snapshot'], columns: ['Client'], rows: [['Private client A']] } }); await operation })
+    assert.deepEqual(downloads, [], change)
+  }
+})
 
 test('export menu distinguishes detailed data exports from the executive PDF and requests the full order dataset', async (t) => {
   const harness = await workspaceHarness(t)

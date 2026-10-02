@@ -82,7 +82,9 @@ export async function handleGlobalAuthApi(request, env, { waitUntil, now = new D
   try {
     assertSameOriginMutation(request)
     if (path === '/api/auth/session') return response(await accountSessionView(env.DB, await authenticateAccountRequest(request, env, now)))
-    const body = request.method === 'POST' && path !== '/api/auth/logout' ? await readJson(request) : null
+    // Platform selection, like logout, is a bodyless command. Its authority and
+    // source scope come solely from the authenticated cookie and context marker.
+    const body = request.method === 'POST' && !['/api/auth/logout', '/api/auth/select-platform'].includes(path) ? await readJson(request) : {}
     if (path === '/api/auth/login') return await login(request, env, body, now)
     if (path === '/api/auth/password-recovery') {
       const config = readEmailConfig(env), email = normalizeAccessEmail(body.email)

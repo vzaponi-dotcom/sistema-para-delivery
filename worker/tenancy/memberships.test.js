@@ -3,6 +3,24 @@ import assert from 'node:assert/strict'
 import { createTenancyFixture } from '../test-support/tenancyDb.js'
 import { listEligibleBusinesses, updateMembership } from './memberships.js'
 
+test('membership edits that outlive the original session roll back the member and audit', async t => {
+  for (const input of [{ active: false }, { roleId: 'company-A:manager' }]) {
+    const f = await createTenancyFixture(t)
+    const expiresAt = new Date(f.now.getTime() + 20).toISOString()
+    f.sqlite.prepare('UPDATE identity_sessions SET expires_at=? WHERE id=?').run(expiresAt, f.contexts.aliceA.identitySessionId)
+    f.sqlite.prepare('UPDATE identity_session_families SET expires_at=? WHERE id=?').run(expiresAt, f.contexts.aliceA.familyId)
+    f.sqlite.prepare('UPDATE sessions SET expires_at=? WHERE id=?').run(expiresAt, f.contexts.aliceA.sessionId)
+    const before = f.sqlite.prepare('SELECT * FROM users WHERE id=?').get(f.members.bobA)
+    const audits = f.sqlite.prepare('SELECT count(*) n FROM audit_events').get().n
+    const db = { ...f.db, prepare(sql) { const statement = f.db.prepare(sql); if (!sql.startsWith('SELECT * FROM users WHERE')) return statement
+      return { ...statement, bind(...values) { const bound = statement.bind(...values); return { ...bound, async first() { await new Promise(resolve => setTimeout(resolve, 60)); return bound.first() } } } }
+    } }
+    await assert.rejects(updateMembership(db, f.contexts.aliceA, f.members.bobA, input, f.now), { status: 409 })
+    assert.deepEqual(f.sqlite.prepare('SELECT * FROM users WHERE id=?').get(f.members.bobA), before)
+    assert.equal(f.sqlite.prepare('SELECT count(*) n FROM audit_events').get().n, audits)
+  }
+})
+
 test('eligible businesses belong only to the account and show its own role', async (t) => {
   const f = await createTenancyFixture(t)
   assert.deepEqual(await listEligibleBusinesses(f.db, f.accounts.alice), [{ businessId: f.businesses.A, name: 'Company A', roleName: 'Gerente' }, { businessId: f.businesses.B, name: 'Company B', roleName: 'Operador' }])
