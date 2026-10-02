@@ -78,7 +78,7 @@ test('an invited reset-pending inactive-role or grantless manager cannot replace
   const {db,sqlite,context}=await setup(t,false)
   await createUser(db,context,{displayName:'Pending',identifier:'pending',roleId:`${businessId}:manager`},now)
   for(const patch of [{active:false},{roleId:`${businessId}:operator`}]) await assert.rejects(updateUser(db,context,'a',patch,now),{status:409,code:'LAST_MANAGER'})
-  sqlite.exec("INSERT INTO user_credentials SELECT business_id,id,'pending',1,0,created_at,created_at,updated_at FROM users WHERE id!='a'")
+  sqlite.exec("INSERT INTO user_credentials(business_id,user_id,password_verifier,version,active,password_changed_at,created_at,updated_at) SELECT business_id,id,'pending',1,0,created_at,created_at,updated_at FROM users WHERE id!='a'")
   await assert.rejects(updateUser(db,context,'a',{active:false},now),{code:'LAST_MANAGER'})
   const pendingId=sqlite.prepare("SELECT id FROM users WHERE id!='a'").get().id
   const managerRole=`${businessId}:other-manager`
