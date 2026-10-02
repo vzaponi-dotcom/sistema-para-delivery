@@ -16,6 +16,7 @@ export function useNavigationController({
   authenticated = false,
   implemented,
   checkoutPending,
+  navigationPending = false,
   dirtyOrder,
   onDiscardOrder,
   getNavigationDraft,
@@ -62,6 +63,7 @@ export function useNavigationController({
 
   const shouldBlockRouterNavigation = useCallback(({ currentLocation, nextLocation }) => {
     if (currentLocation.pathname === nextLocation.pathname) return false
+    if (navigationPending) return true
     if (approvedPathRef.current === nextLocation.pathname) return false
     if (pendingNavigationRef.current) return true
 
@@ -80,7 +82,7 @@ export function useNavigationController({
 
     const draft = resolveNavigationDraft?.(currentDestination)
     return shouldConfirmDraftExit(draft, currentDestination, nextDestination)
-  }, [authenticated, checkoutPending, dirtyOrder, granted, implemented, resolveNavigationDraft])
+  }, [authenticated, checkoutPending, navigationPending, dirtyOrder, granted, implemented, resolveNavigationDraft])
 
   const blocker = useBlocker(shouldBlockRouterNavigation)
 
@@ -112,6 +114,7 @@ export function useNavigationController({
     }
     if (blockerResettingRef.current) return
 
+    if (navigationPending) { resetBlockedNavigation(); onFeedback?.('Aguarde a confirmação do cadastro antes de navegar.'); return }
     const pending = pendingNavigationRef.current
     if (pending) {
       if (pending.source !== 'blocker') blocker.reset()
@@ -159,6 +162,7 @@ export function useNavigationController({
     blocker.proceed()
   }, [
     blocker,
+    navigationPending,
     checkoutPending,
     dirtyOrder,
     granted,

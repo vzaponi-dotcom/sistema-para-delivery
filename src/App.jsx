@@ -1,3 +1,4 @@
+import { PlatformRoutes } from './domains/platform/index.js'
 import { ACCOUNT_CONTEXT_PATHS } from './app/navigation/routes.js'
 import { CompanySelection, CompanyInvitationAccept, createCompaniesApi } from './domains/companies/index.js'
 import { ContextApi } from './infrastructure/api/ContextApi.js'
@@ -98,6 +99,12 @@ const currency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', 
 function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <AccessSurface {...props} /> } = {}) {
   const routeLocation = useLocation()
   const navigateContext = useNavigate()
+  const platformEntry = routeLocation.pathname === '/mesiva' || routeLocation.pathname.startsWith('/mesiva/')
+  const platformEntryRef = useRef(platformEntry); platformEntryRef.current = platformEntry
+  const [platformPending, setPlatformPending] = useState(false)
+  const platformPendingRef = useRef(false)
+  const changePlatformPending = useCallback(value => { platformPendingRef.current = value; setPlatformPending(value) }, [])
+  const platformSelectionRef = useRef(null)
   const [companySelectionOpen, setCompanySelectionOpen] = useState(false)
   const [companyList, setCompanyList] = useState({ owner: null, items: [], loading: false, error: '' })
   const [requestKey, setRequestKey] = useState(null)
@@ -135,7 +142,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
 
 
   const refreshBootstrapForSession = useCallback(
-    (...args) => sessionRuntimeTargetsRef.current.refreshBootstrap(...args),
+    (...args) => platformEntryRef.current ? Promise.resolve() : sessionRuntimeTargetsRef.current.refreshBootstrap(...args),
     [],
   )
   const resetOperationalDataForSession = useCallback(
@@ -153,7 +160,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     sessionContext,
     sessionGeneration,
     authMode,
-    operationalAccess,
+    operationalAccess: sessionOperationalAccess,
     selectBusiness, selectPlatform, listBusinesses, contextChangePending,
     refreshSession,
     runCredentialChange,
@@ -172,6 +179,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     onClearApplicationState: clearApplicationStateForSession,
   })
 
+  const operationalAccess = sessionOperationalAccess && !platformEntry
   const contextOwnerRef = useRef(null)
   contextOwnerRef.current = sessionContext?.contextId
   const contextClient = useMemo(() => createContextHttpClient({ context: sessionContext, onContextChanged: () => {
@@ -197,7 +205,12 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
   })
 
   const globalSession = sessionContext?.authMode === 'multi_company'
-  const choosingCompany = globalSession && (sessionContext.scope !== 'business' || companySelectionOpen || routeLocation.pathname === ACCOUNT_CONTEXT_PATHS.companies)
+  const choosingCompany = globalSession && !platformEntry && (sessionContext.scope === 'identity' || companySelectionOpen || routeLocation.pathname === ACCOUNT_CONTEXT_PATHS.companies)
+  useEffect(() => {
+    if (!platformEntry || !globalSession || sessionContext.scope === 'platform' || !sessionContext.platformCapabilities?.includes('platform.businesses.view') || platformSelectionRef.current === sessionContext.contextId) return
+    platformSelectionRef.current = sessionContext.contextId
+    void selectPlatform()
+  }, [platformEntry, globalSession, sessionContext, selectPlatform])
   const loadCompanies = useCallback(async () => {
     if (!globalSession || !sessionContext?.contextId) return
     const owner = sessionContext.contextId
@@ -241,6 +254,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     granted,
     authenticated: authState === 'authenticated' && Boolean(sessionContext?.user?.id),
     implemented: IMPLEMENTED_DESTINATIONS,
+    navigationPending: platformPending,
     checkoutPending: newOrderDraft.checkoutPending,
     dirtyOrder: newOrderDraft.dirty,
     onDiscardOrder: newOrderDraft.discard,
@@ -249,9 +263,9 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     onFeedback: setToastMessage,
   })
   useNewOrderUnloadGuard({
-    active: activeTab === 'new-order',
+    active: activeTab === 'new-order' || platformPending,
     dirty: newOrderDraft.dirty,
-    checkoutPending: newOrderDraft.checkoutPending,
+    checkoutPending: newOrderDraft.checkoutPending || platformPending,
   })
   const handleOperationalUnauthorized = useCallback((error) => operationalRuntimeTargetsRef.current.onUnauthorized?.(error), [])
   const getEffectiveConfigVersion = useCallback(() => effectiveConfigVersionRef.current, [])
@@ -282,7 +296,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     accessContextId,
   })
   useRouteGate({
-    ready: authState === 'authenticated' && !choosingCompany && (!operationalAccess || bootstrapState === 'ready'),
+    ready: authState === 'authenticated' && !choosingCompany && !platformEntry && sessionContext?.scope !== 'platform' && (!operationalAccess || bootstrapState === 'ready'),
     authenticated: authState === 'authenticated' && Boolean(sessionContext?.user?.id),
     granted,
     implemented: IMPLEMENTED_DESTINATIONS,
@@ -573,15 +587,15 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     paymentPending: Boolean(tableTabPayment.busy || tableTabPayment.syncState || orderPayment.dialog?.submitting || clientOrdersPayment.dialog?.submitting),
     printPending: Boolean(printing.busyJobId || printing.jobs.some((job) => ['unknown', 'awaiting_confirmation', 'waiting_confirmation', 'printing'].includes(job.status) || job.physicalOutcome === 'unknown')),
   }
-  const getPendingSessionEffects = () => ({ ...pendingSessionEffectsRef.current, contextChangePending, checkoutPending: newOrderDraft.checkoutPending, credentialChangePending: isCredentialChangePending() })
+  const getPendingSessionEffects = () => ({ ...pendingSessionEffectsRef.current, contextChangePending: contextChangePending || platformPendingRef.current, checkoutPending: newOrderDraft.checkoutPending, credentialChangePending: isCredentialChangePending() })
   sessionRuntimeTargetsRef.current.canChangeContext = () => {
     const effects = getPendingSessionEffects()
-    return !effects.credentialChangePending && !effects.checkoutPending && !effects.paymentPending && !effects.printPending && !newOrderDraft.dirty && !policyNavigationBridge.getNavigationDraft()?.dirty
+    return !platformPendingRef.current && !effects.credentialChangePending && !effects.checkoutPending && !effects.paymentPending && !effects.printPending && !newOrderDraft.dirty && !policyNavigationBridge.getNavigationDraft()?.dirty
   }
   const handleLogout = () => requestSessionExit(handleSessionLogout, getPendingSessionEffects)
   const handleSwitchUser = () => requestSessionExit(handleSessionLogout, getPendingSessionEffects)
   const handleSwitchCompany = () => requestSessionExit(() => { setCompanySelectionOpen(true); return true }, getPendingSessionEffects)
-  const handlePlatform = () => requestSessionExit(() => selectPlatform(), getPendingSessionEffects)
+  const handlePlatform = () => requestSessionExit(async () => { if (await selectPlatform()) navigateContext(ACCOUNT_CONTEXT_PATHS.platform); return true }, getPendingSessionEffects)
 
   const handleKitchenSoundEnabledChange = (enabled) => {
     if (!canUseLocalPreferences) return false
@@ -692,10 +706,14 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     ? resolveActivityOrder({ resourceType: 'order', resourceId: activityDetail.orderId }) : null
 
   const listedCompanies = companyList.owner === sessionContext?.contextId ? companyList : { items: [], loading: true, error: '' }
-  const contextSurface = choosingCompany ? routeLocation.pathname === '/minha-conta'
-    ? <main className="company-entry"><Button variant="secondary" onClick={() => navigateContext(ACCOUNT_CONTEXT_PATHS.companies, { replace: true })}>Voltar às empresas</Button>{renderAccessSurface({ ...accessProps, section: 'my-account' })}</main>
-    : <CompanySelection account={sessionContext.account} items={listedCompanies.items} currentBusinessId={sessionContext.businessId} loading={listedCompanies.loading} pending={contextChangePending} error={listedCompanies.error || loginError} onRetry={loadCompanies} onLogout={handleLogout} onAccount={() => navigateContext('/minha-conta')} onSelect={async id => { if (await selectBusiness(id)) { setCompanySelectionOpen(false); if (routeLocation.pathname === ACCOUNT_CONTEXT_PATHS.companies) navigateContext('/', { replace: true }) } }} onCancel={sessionContext.scope === 'business' ? () => setCompanySelectionOpen(false) : undefined} onPlatform={sessionContext.scope !== 'platform' && sessionContext.platformCapabilities?.includes('platform.businesses.view') ? handlePlatform : undefined} />
-    : null
+  const inPlatform = globalSession && sessionContext.scope === 'platform'
+  const contextSurface = (choosingCompany || inPlatform) && routeLocation.pathname === '/minha-conta'
+    ? <main className="company-entry"><Button variant="secondary" onClick={() => navigateContext(inPlatform ? ACCOUNT_CONTEXT_PATHS.platform : ACCOUNT_CONTEXT_PATHS.companies, { replace: true })}>Voltar</Button>{renderAccessSurface({ ...accessProps, section: 'my-account' })}</main>
+    : choosingCompany
+      ? <CompanySelection account={sessionContext.account} items={listedCompanies.items} currentBusinessId={sessionContext.businessId} loading={listedCompanies.loading} pending={contextChangePending} error={listedCompanies.error || loginError} onRetry={loadCompanies} onLogout={handleLogout} onAccount={() => navigateContext('/minha-conta')} onSelect={async id => { if (await selectBusiness(id)) { setCompanySelectionOpen(false); if (routeLocation.pathname === ACCOUNT_CONTEXT_PATHS.companies) navigateContext('/', { replace: true }) } }} onCancel={sessionContext.scope === 'business' ? () => setCompanySelectionOpen(false) : undefined} onPlatform={sessionContext.platformCapabilities?.includes('platform.businesses.view') ? handlePlatform : undefined} />
+      : inPlatform
+        ? <PlatformRoutes session={sessionContext} path={routeLocation.pathname} pending={platformPending || contextChangePending} onPendingChange={changePlatformPending} onNavigate={path => { if (!platformPendingRef.current) navigateContext(path) }} onLogout={handleLogout} onAccount={() => { if (!platformPendingRef.current) navigateContext('/minha-conta') }} onSelectBusiness={() => { if (!platformPendingRef.current) { setCompanySelectionOpen(true); navigateContext(ACCOUNT_CONTEXT_PATHS.companies) } }} />
+        : platformEntry ? <main className="company-entry"><p role="alert">{globalSession && sessionContext.platformCapabilities?.includes('platform.businesses.view') ? loginError || 'Confirmando acesso ao painel Mesiva…' : 'Você não tem acesso ao painel Mesiva.'}</p></main> : null
   return (
     <ContextApi.Provider value={contextClient}><AppRoot
       contextSurface={contextSurface}
@@ -705,7 +723,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
       operationalAccess={operationalAccess}
       loginLoading={requestKey === 'auth:login'}
       loginError={loginError}
-      onLogin={handleLogin}
+      onLogin={credentials => handleLogin(platformEntry && typeof credentials === 'object' ? { ...credentials, destination: 'platform' } : credentials)}
       bootstrapState={operationalBootstrapState}
       onRetryBootstrap={() => void refreshBootstrap()}
       retryDisabled={!isOnline || requestKey !== null}
