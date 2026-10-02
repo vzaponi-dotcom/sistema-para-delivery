@@ -47,9 +47,11 @@ export async function verifyStagingAuth({ baseUrl, pin, attempts = 6, fetchImpl 
 
   const bootstrap = await call('/api/bootstrap')
   ensure(bootstrap.status === 401 && !bootstrap.headers.get('set-cookie') && (await bootstrap.json()).error?.code === 'UNAUTHENTICATED', 'Anonymous bootstrap must be denied.')
-  const post = (headers, body) => call('/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) })
+  const postRoute = (route, headers, body) => call(route, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) })
+  const post = (headers, body) => postRoute('/api/auth/login', headers, body)
+  const uncachedWithoutCookie = response => response.headers.get('cache-control')?.includes('no-store') && !response.headers.get('set-cookie')
   const crossOrigin = await post({ origin: 'https://invalid-staging-origin.example' }, {})
-  ensure(crossOrigin.status === 403 && !crossOrigin.headers.get('set-cookie') && (await crossOrigin.json()).error?.code === 'ORIGIN_NOT_ALLOWED', 'Login must reject a foreign origin.')
+  ensure(crossOrigin.status === 403 && uncachedWithoutCookie(crossOrigin) && (await crossOrigin.json()).error?.code === 'ORIGIN_NOT_ALLOWED', 'Login must reject a foreign origin.')
 
   if (session.authMode !== 'user_only') ensure(pin, 'STAGING_PIN is required for legacy/enrollment smoke.')
   const login = await post({ origin }, { pin: pin || 'staging-disabled-pin-probe' })
@@ -57,10 +59,28 @@ export async function verifyStagingAuth({ baseUrl, pin, attempts = 6, fetchImpl 
   if (session.authMode === 'user_only') {
     const denied = login.status === 401 && loginBody.error?.code === 'INVALID_LOGIN'
       || login.status === 429 && loginBody.error?.code === 'LOGIN_RATE_LIMITED'
-    ensure(denied && !login.headers.get('set-cookie') && loginBody.authenticated !== true, 'user_only PIN rejection must not create a session.')
+    ensure(denied && uncachedWithoutCookie(login) && loginBody.authenticated !== true, 'user_only PIN rejection must not create a session.')
+    const identifier = await post({ origin }, { identifier: 'staging-disabled-identifier-probe', password: 'synthetic-smoke-password' })
+    const identifierBody = await identifier.json()
+    const identifierDenied = identifier.status === 401 && identifierBody.error?.code === 'INVALID_LOGIN'
+      || identifier.status === 429 && identifierBody.error?.code === 'LOGIN_RATE_LIMITED'
+    ensure(identifierDenied && uncachedWithoutCookie(identifier) && identifierBody.authenticated !== true, 'user_only identifier rejection must not create a session.')
+    // GETs and foreign-origin requests cannot consume challenges or send email.
+    for (const route of ['/api/auth/password-recovery', '/api/auth/email-challenges/inspect', '/api/auth/email-challenges/complete']) {
+      const read = await call(route)
+      ensure(read.status === 401 && uncachedWithoutCookie(read), 'Public email boundary GET must be denied without side effects.')
+      const foreign = await postRoute(route, { origin: 'https://invalid-staging-origin.example' }, {})
+      ensure(foreign.status === 403 && uncachedWithoutCookie(foreign) && (await foreign.json()).error?.code === 'ORIGIN_NOT_ALLOWED', 'Public email boundary must reject foreign origins without caching or cookies.')
+    }
+    for (const action of ['inspect', 'complete']) {
+      // Deliberately malformed synthetic value; never create/consume a real link.
+      const probe = await postRoute('/api/auth/email-challenges/' + action, { origin }, { token: 'invalid-smoke-probe', password: 'synthetic-smoke-password' })
+      const body = await probe.json()
+      ensure(probe.status === 400 && body.error?.code === 'INVALID_EMAIL_CHALLENGE' && uncachedWithoutCookie(probe) && !body.completed, 'Public challenge ' + (action === 'complete' ? 'completion' : 'inspection') + ' must reject an invalid challenge without issuing a cookie.')
+    }
     const after = await call('/api/auth/session')
-    ensure(after.ok && anonymous(await after.json()), 'Anonymous session must remain anonymous after PIN rejection.')
-    log(`Staging user_only PIN rejection HTTP ${login.status}; anonymous boundaries OK`)
+    ensure(after.ok && uncachedWithoutCookie(after) && anonymous(await after.json()), 'Anonymous session must remain anonymous after login and challenge probes.')
+    log('Staging user_only PIN and identifier rejection OK; public email and anonymous boundaries OK')
   } else {
     const setCookie = login.headers.get('set-cookie') || ''
     ensure(login.ok && loginBody.authenticated === true && /^amor_session=[A-Za-z0-9_-]{43};/.test(setCookie), 'Staging PIN login failed or did not issue a session.')

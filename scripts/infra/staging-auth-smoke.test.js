@@ -101,3 +101,43 @@ for (const mode of ['legacy', 'enrollment', 'user_only']) test(`PIN configuratio
   assert.equal(fixture.sqlite.prepare("SELECT pin_hash FROM auth_credentials WHERE business_id='amor-e-sabor'").get().pin_hash, mode === 'user_only' ? old : "new'verifier")
   assert.equal(fixture.sqlite.prepare("SELECT mode FROM business_auth_state WHERE business_id='amor-e-sabor'").get().mode, mode)
 })
+
+test('email smoke checks identifier rejection and public challenge boundaries without sending any email', async t => {
+  const fixture = await setup(t, 'user_only')
+  const calls = [], logs = []
+  await smoke({ log: value => logs.push(value), fetchImpl: (url, options) => {
+    calls.push({ path: new URL(url).pathname, method: options?.method || 'GET', origin: options?.headers?.origin, body: options?.body && JSON.parse(options.body) })
+    return fixture.fetchImpl(url, options)
+  } })
+  assert.ok(calls.some(call => call.path === '/api/auth/login' && call.body?.identifier))
+  for (const route of ['/api/auth/password-recovery', '/api/auth/email-challenges/inspect', '/api/auth/email-challenges/complete']) {
+    assert.ok(calls.some(call => call.path === route && call.method === 'GET'))
+    assert.ok(calls.some(call => call.path === route && call.origin === 'https://invalid-staging-origin.example'))
+  }
+  assert.equal(calls.filter(call => call.path === '/api/auth/password-recovery' && call.method === 'POST' && call.origin === baseUrl).length, 0)
+  assert.equal(fixture.sqlite.prepare('SELECT count(*) n FROM auth_email_deliveries').get().n, 0)
+  assert.equal(fixture.sqlite.prepare('SELECT count(*) n FROM sessions').get().n, 0)
+  assert.doesNotMatch(logs.join('\n'), /token|PRIVATE-/i)
+})
+
+test('email smoke rejects an identifier-only login that issues a cookie', async t => {
+  const fixture = await setup(t, 'user_only')
+  await assert.rejects(smoke({ fetchImpl: (url, options) => {
+    const body = options?.body && JSON.parse(options.body)
+    return new URL(url).pathname === '/api/auth/login' && body?.identifier
+      ? Promise.resolve(Response.json({ authenticated: true }, { headers: { 'set-cookie': 'amor_session=PRIVATE-SESSION' } })) : fixture.fetchImpl(url, options)
+  } }), /identifier rejection/)
+})
+
+test('email smoke rejects a challenge completion that issues a cookie and never logs its response', async t => {
+  const fixture = await setup(t, 'user_only'), logs = []
+  await assert.rejects(smoke({ log: value => logs.push(value), fetchImpl: (url, options) => new URL(url).pathname === '/api/auth/email-challenges/complete' && options?.headers?.origin === baseUrl
+    ? Promise.resolve(Response.json({ completed: true, token: 'PRIVATE-TOKEN' }, { status: 400, headers: { 'cache-control': 'no-store', 'set-cookie': 'amor_session=PRIVATE-SESSION' } })) : fixture.fetchImpl(url, options) }), /challenge completion/)
+  assert.doesNotMatch(logs.join('\n'), /PRIVATE-/)
+})
+
+test('email smoke requires uncached rejection of public email mutations', async t => {
+  const fixture = await setup(t, 'user_only')
+  await assert.rejects(smoke({ fetchImpl: (url, options) => new URL(url).pathname === '/api/auth/password-recovery'
+    ? Promise.resolve(Response.json({ error: { code: 'ORIGIN_NOT_ALLOWED' } }, { status: 403 })) : fixture.fetchImpl(url, options) }), /email boundary/)
+})

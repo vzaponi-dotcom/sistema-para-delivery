@@ -135,6 +135,8 @@ jobs:
             '/configuracoes/equipe',
             '/configuracoes/atividades',
             '/ativar-conta',
+            '/recuperar-senha',
+            '/redefinir-senha',
             '/cozinha-tv',
           ]
 

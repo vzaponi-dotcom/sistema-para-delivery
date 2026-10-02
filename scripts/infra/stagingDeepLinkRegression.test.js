@@ -40,10 +40,10 @@ test('staging smoke requests SPA deep links/assets and preserves approved automa
   })
   const paths = requested.map((value) => new URL(value, baseUrl).pathname)
   assert.ok(requested.every((value) => new URL(value).origin === baseUrl), 'SPA and assets must use the configured staging domain')
-  assert.equal(new Set(paths.filter((path) => !path.startsWith('/assets/'))).size, 14)
+  assert.equal(new Set(paths.filter((path) => !path.startsWith('/assets/'))).size, 16)
   assert.ok(paths.includes('/relatorios'))
   assert.ok(paths.includes('/pedidos/controle-da-tv'))
-  for (const path of ['/minha-conta', '/configuracoes/equipe', '/configuracoes/atividades', '/ativar-conta']) {
+  for (const path of ['/minha-conta', '/configuracoes/equipe', '/configuracoes/atividades', '/ativar-conta', '/recuperar-senha', '/redefinir-senha']) {
     assert.ok(paths.includes(path), `access deep link ${path} must be checked`)
   }
   assert.ok(paths.includes('/assets/app.js'))
