@@ -8,7 +8,13 @@ import { emailAccessFixture, EMAIL_BUSINESS, EMAIL_PASSWORD } from '../test-supp
 
 const config={AUTH_EMAIL_ENABLED:'true',RESEND_API_KEY:'synthetic-key',AUTH_EMAIL_FROM:'Mesiva <acesso@example.test>',AUTH_PUBLIC_ORIGIN:'https://staging.example.test'}
 const req=(path,body,origin='https://delivery.test')=>new Request(`https://delivery.test/api/auth/${path}`,{method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify(body)})
-const send=(db,path,body,options={})=>handleEmailAuthApi(req(path,body),{DB:db,...config},{businessId:EMAIL_BUSINESS,...options})
+const send=async(db,path,body,options={})=>{
+  const tasks=[]
+  const response=await handleEmailAuthApi(req(path,body),{DB:db,...config},{businessId:EMAIL_BUSINESS,waitUntil:task=>tasks.push(task),...options})
+  // Existing state assertions inspect completed work; explicit contexts test early response.
+  if(!options.waitUntil)await Promise.all(tasks)
+  return response
+}
 
 test('email login canonicalizes a verified email and works without Resend configuration',async t=>{
   const {db}=await emailAccessFixture(t)
@@ -99,4 +105,51 @@ test('recovery cannot change the recipient after the account lookup',async t=>{
   const raced={...db,async batch(statements){writes++;if(writes===2)sqlite.exec("UPDATE users SET login_normalized='changed@example.test' WHERE id='u1'");return db.batch(statements)}}
   const result=await send(raced,'password-recovery',{email:'manager@example.test'},{fetchImpl:async()=>{sends++;return new Response('{}')}})
   assert.equal(result.status,200);assert.equal(sends,0);assert.equal(sqlite.prepare('SELECT count(*) n FROM auth_email_challenges').get().n,0)
+})
+
+test('public recovery responds before account lookup and a pending provider, under registered Worker lifetime',async t=>{
+  for(const phase of ['lookup','provider'])for(const email of ['manager@example.test','missing@example.test']){
+    const {db,sqlite}=await emailAccessFixture(t),tasks=[]
+    let releaseLookup,releaseProvider
+    const lookupGate=new Promise(resolve=>{releaseLookup=resolve})
+    const providerGate=new Promise(resolve=>{releaseProvider=resolve})
+    let calls=0,registered=false
+    if(phase==='provider')releaseLookup()
+    const gated={...db,prepare(sql){
+      const statement=db.prepare(sql)
+      if(!sql.includes('SELECT u.id,u.display_name,u.role_id,c.revision'))return statement
+      return {...statement,bind(...values){const bound=statement.bind(...values);return {...bound,async first(){await lookupGate;return bound.first()}}}}
+    }}
+    const pending=send(gated,'password-recovery',{email},{waitUntil(task){registered=true;tasks.push(task)},fetchImpl:async()=>{calls++;await providerGate;return new Response(JSON.stringify({id:'018f7600-0000-4000-8000-000000000001'}))}})
+    let watchdog
+    const outcome=await Promise.race([pending.then(response=>({response})),new Promise(resolve=>{watchdog=setTimeout(()=>resolve({blocked:true}),2000)})])
+    clearTimeout(watchdog)
+    // Release both gates even on failure, so RED never leaves work or SQLite open.
+    releaseLookup();releaseProvider()
+    const response=await pending
+    await Promise.all(tasks)
+    assert.equal(outcome.blocked,undefined,'public response must not await account lookup or delivery')
+    assert.equal(registered,true,'recovery work must be registered with Worker lifetime')
+    assert.equal(response.status,200);assert.equal(response.headers.get('set-cookie'),null)
+    assert.equal((await response.json()).message,'Se houver uma conta ativa com esse e-mail, enviaremos um link para redefinir sua senha.')
+    assert.equal(calls,email==='manager@example.test'?1:0)
+    assert.equal(sqlite.prepare('SELECT count(*) n FROM auth_email_requests').get().n,1)
+  }
+})
+
+test('Worker dispatch binds recovery background work and audits failure after a generic response',async t=>{
+  const {db,sqlite}=await emailAccessFixture(t),tasks=[]
+  const context={waitUntil(task){assert.equal(this,context);tasks.push(task)}}
+  const failing={...db,prepare(sql){
+    if(sql.includes('SELECT u.id,u.display_name,u.role_id,c.revision'))throw new Error('synthetic-private-details')
+    return db.prepare(sql)
+  }}
+  const response=await handleRequest(req('password-recovery',{email:'manager@example.test'}),{DB:failing,...config},context)
+  assert.equal(response.status,200);assert.equal(tasks.length,1)
+  assert.equal((await response.json()).message,'Se houver uma conta ativa com esse e-mail, enviaremos um link para redefinir sua senha.')
+  await Promise.all(tasks)
+  const audits=sqlite.prepare('SELECT action,metadata_json FROM audit_events').all()
+  assert.ok(audits.some(event=>event.action==='access.email.password_reset.processing.failure'))
+  assert.doesNotMatch(JSON.stringify(audits),/synthetic-private-details|manager@example.test/)
+  assert.equal(sqlite.prepare('SELECT count(*) n FROM auth_email_challenges').get().n,0)
 })

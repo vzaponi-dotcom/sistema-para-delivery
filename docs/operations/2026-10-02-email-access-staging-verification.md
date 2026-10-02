@@ -11,10 +11,11 @@ Implementação na branch feature/issue-44-users-profiles-access, PR #85. Sem me
 - Build de frontend: exit 0; aviso de chunks maiores que 500 kB.
 - Arquitetura: exit 0, limites de importação aprovados.
 - Lint: exit 0; avisos React presentes, não tratado como execução sem avisos.
-- Suíte integrada final: 3.274 testes aprovados, zero falhas, exit 0 (131.645 ms).
+- Suíte integrada após a revisão: 3.276 testes aprovados, zero falhas, exit 0 (138.652 ms).
 - Bundle Worker de staging: dry-run Wrangler 4.128.0 exit 0; sem deploy remoto.
 - Branch inclui a master atual consultada no GitHub; nenhum commit da master está faltando.
-- Revisão independente: resultado será registrado após conclusão.
+- Revisão independente de aed142da..f98f406d, gpt-6-astra, somente leitura: nenhum Critical, um Important, nenhum Minor. Achado: duração do envio revelava elegibilidade da conta. Corrigido em uma rodada RED→GREEN com resposta anterior à consulta/provedor, tarefa registrada em ExecutionContext.waitUntil e auditoria de falha sanitizada; 73 testes focados e suíte completa aprovados. Sem segunda revisão por rotina.
+- Contexto Worker é passado e vinculado ao handler público; sem contexto de execução a recuperação retorna configuração indisponível uniformemente. Testes de estado aguardam explicitamente as tarefas; testes de resposta provam que consulta/provedor pendentes não bloqueiam a resposta.
 - Testes com SQLite incluem consumo concorrente, quota global, rollback, elegibilidade/revisão da credencial, inventário de bootstrap e preservação de contas posteriores. UI cobre StrictMode, histórico limpo antes de inspeção, ausência de storage e respostas obsoletas após navegação.
 
 ## Configuração externa observada

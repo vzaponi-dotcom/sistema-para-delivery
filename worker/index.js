@@ -433,11 +433,11 @@ const dispatchAuthenticatedApi = async (request, env, session, context, url) => 
   throw apiError(404, 'NOT_FOUND', 'Rota de API não encontrada.')
 }
 
-export const handleRequest = async (request, env) => {
+export const handleRequest = async (request, env, executionContext) => {
   try {
     const url = new URL(request.url)
     if (url.pathname === '/api/access/invitations/accept' && request.method === 'POST') return await acceptAccessInvitation(request, env, BUSINESS_ID)
-    const emailAuthResponse = url.pathname==='/api/auth/login' ? null : await handleEmailAuthApi(request,env,{businessId:BUSINESS_ID})
+    const emailAuthResponse = url.pathname==='/api/auth/login' ? null : await handleEmailAuthApi(request,env,{businessId:BUSINESS_ID,waitUntil:executionContext?.waitUntil?.bind(executionContext)})
     if (emailAuthResponse) return emailAuthResponse
     if (url.pathname === '/api/auth/login' && request.method === 'POST') return await login(request, env)
     if (url.pathname === '/api/auth/logout' && request.method === 'POST') return await logout(request, env)

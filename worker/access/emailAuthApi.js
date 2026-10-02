@@ -7,7 +7,7 @@ import { checkLoginThrottle, completeLoginAttempt } from './loginThrottle.js'
 import { recordSecurityEvent } from './audit.js'
 import { prepareEmailChallenge, commitEmailStatements, inspectEmailChallenge, completeEmailChallenge } from './emailChallenges.js'
 import { reserveRecoveryRequest, reserveEmailDelivery } from './emailThrottle.js'
-import { readEmailConfig, deliverEmailChallenge, deliverPersistedChallenge } from './emailDelivery.js'
+import { readEmailConfig, unavailableEmailConfig, deliverEmailChallenge, deliverPersistedChallenge } from './emailDelivery.js'
 
 export const RECOVERY_MESSAGE='Se houver uma conta ativa com esse e-mail, enviaremos um link para redefinir sua senha.'
 const invalidLogin=()=>apiError(401,'INVALID_LOGIN','E-mail ou senha inválidos.')
@@ -45,10 +45,20 @@ export async function loginWithEmail(request,env,{businessId,body,validateSessio
   return validateSession?validateSession(sessionRequest,env,context,result):result
 }
 
-async function recover(request,env,businessId,body,fetchImpl) {
+async function recover(request,env,businessId,body,fetchImpl,waitUntil) {
   const config=readEmailConfig(env),email=normalizeAccessEmail(body.email)
+  if(typeof waitUntil!=='function')throw unavailableEmailConfig()
   const reservation=await reserveRecoveryRequest(env.DB,{businessId,email,originKey:request.headers.get('CF-Connecting-IP')||'unknown'})
   if(!reservation.allowed)throw apiError(429,'RECOVERY_RATE_LIMITED','Muitas solicitações. Aguarde antes de tentar novamente.')
+  // Respond before account-specific lookup and delivery; only hashed public quota is awaited.
+  waitUntil(processRecovery(env,businessId,email,config,fetchImpl).catch(async()=>{
+    try { await recordSecurityEvent(env.DB,{businessId,action:'access.email.password_reset.processing.failure',result:'failure'}) }
+    catch { /* Storage failure cannot expose private details through logs or the public response. */ }
+  }))
+  return response({message:RECOVERY_MESSAGE})
+}
+
+async function processRecovery(env,businessId,email,config,fetchImpl) {
   const user=await env.DB.prepare(`SELECT u.id,u.display_name,u.role_id,c.revision FROM users u
     JOIN roles r ON r.business_id=u.business_id AND r.id=u.role_id AND r.active=1
     JOIN user_credentials c ON c.business_id=u.business_id AND c.user_id=u.id AND c.active=1
@@ -64,17 +74,16 @@ async function recover(request,env,businessId,body,fetchImpl) {
       if(challenge)await deliverPersistedChallenge(env.DB,env,{...challenge,businessId,userId:user.id,purpose:'password_reset',displayName:user.display_name},{deliver:(deliveryEnv,data)=>deliverEmailChallenge(deliveryEnv,data,{fetchImpl})})
     }
   }
-  return response({message:RECOVERY_MESSAGE})
 }
 
-export async function handleEmailAuthApi(request,env,{businessId,fetchImpl=fetch,validateSession}={}) {
+export async function handleEmailAuthApi(request,env,{businessId,fetchImpl=fetch,validateSession,waitUntil}={}) {
   const path=new URL(request.url).pathname
   if(!paths.has(path)||request.method!=='POST')return null
   try {
     assertSameOriginMutation(request)
     const body=await readJson(request)
     if(path==='/api/auth/login')return await loginWithEmail(request,env,{businessId,body,validateSession})
-    if(path==='/api/auth/password-recovery')return await recover(request,env,businessId,body,fetchImpl)
+    if(path==='/api/auth/password-recovery')return await recover(request,env,businessId,body,fetchImpl,waitUntil)
     const input={businessId,token:body.token}
     if(path.endsWith('/inspect'))return response(await inspectEmailChallenge(env.DB,input))
     return response(await completeEmailChallenge(env.DB,{...input,password:body.password}))
