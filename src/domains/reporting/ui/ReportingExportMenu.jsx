@@ -1,5 +1,6 @@
+import { useContextApi } from '../../../infrastructure/api/ContextApi.js'
 import { useRef, useState } from 'react'
-import { reportingApi } from '../infrastructure/reportingApi.js'
+import { reportingApi, createReportingApi } from '../infrastructure/reportingApi.js'
 
 const EXPORT_OPTIONS = Object.freeze([
   {
@@ -32,7 +33,8 @@ const filenameFor = (format, query) => format === 'pdf'
   ? `resumo-relatorio-${query.from}-${query.to}.pdf`
   : `pedidos-${query.from}-${query.to}.${format}`
 
-export function ReportingExportMenu({ query, granted, api = reportingApi, onDownload = download }) {
+export function ReportingExportMenu({ query, granted, api: suppliedApi = reportingApi, onDownload = download }) {
+  const api = useContextApi(createReportingApi, suppliedApi, reportingApi)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const detailsRef = useRef(null)

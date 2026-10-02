@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { getSession, login, logout } from '../../../infrastructure/auth/sessionApi.js'
+import { getSession, login, logout, selectBusiness, selectPlatform, listBusinesses } from '../../../infrastructure/auth/sessionApi.js'
 import { createBrowserSessionCoordinator } from './browserSessionCoordinator.js'
-const defaultApi = { getSession, login, logout }
-export const sessionHasOperationalAccess = (session) => Boolean(session?.authenticated && !(session.user?.id && session.authMode === 'enrollment'))
-export const useSessionRuntime = ({ api = defaultApi, coordinatorFactory = createBrowserSessionCoordinator, isOnline = true, requestKey = null, setRequestKey = () => {}, resetOperationalData = () => {}, refreshBootstrap = async () => {}, onClearApplicationState = () => {} } = {}) => {
+const defaultApi = { getSession, login, logout, selectBusiness, selectPlatform, listBusinesses }
+export const sessionHasOperationalAccess = (session) => Boolean(session?.authenticated && (session.authMode === 'multi_company' ? session.scope === 'business' : !(session.user?.id && session.authMode === 'enrollment')))
+export const useSessionRuntime = ({ api = defaultApi, coordinatorFactory = createBrowserSessionCoordinator, isOnline = true, requestKey = null, setRequestKey = () => {}, resetOperationalData = () => {}, refreshBootstrap = async () => {}, onClearApplicationState = () => {}, canChangeContext = () => true } = {}) => {
   const [authState, setAuthState] = useState('checking')
   const [sessionContext, setSessionContext] = useState(null)
   const [sessionGeneration, setSessionGeneration] = useState(0)
   const [authMode, setAuthMode] = useState(null)
   const [loginError, setLoginError] = useState('')
+  const contextChangeRef = useRef(null)
+  const [contextChangePending, setContextChangePending] = useState(false)
   const operationRef = useRef(0)
   const authRequestRef = useRef(null)
   const coordinatorRef = useRef(null)
@@ -22,7 +24,7 @@ export const useSessionRuntime = ({ api = defaultApi, coordinatorFactory = creat
   }, [resetOperationalData, onClearApplicationState])
   const accept = useCallback(async (session, operation) => {
     if (operation !== operationRef.current) return false
-    if (['legacy', 'enrollment', 'user_only'].includes(session?.authMode)) setAuthMode(session.authMode)
+    if (['legacy', 'enrollment', 'user_only', 'multi_company'].includes(session?.authMode)) setAuthMode(session.authMode)
     if (!session?.authenticated) { setSessionContext(null); setAuthState('anonymous'); return false }
     setSessionContext(session); setSessionGeneration((value) => value + 1); setAuthState('authenticated')
     return operation === operationRef.current
@@ -62,7 +64,7 @@ export const useSessionRuntime = ({ api = defaultApi, coordinatorFactory = creat
     return () => { coordinator.close(); coordinatorRef.current = null }
   }, [coordinatorFactory])
   const runCredentialChange = useCallback(async (operation) => {
-    if (!isOnline || authState !== 'authenticated' || !sessionContext?.user?.id || credentialChangeRef.current) return false
+    if (!isOnline || authState !== 'authenticated' || !(sessionContext?.user?.id || sessionContext?.account?.id) || credentialChangeRef.current || contextChangeRef.current) return false
     const pending = {}
     // Register synchronously before invoking the operation that sends POST.
     // This lifetime belongs to the runtime, independently of the account screen.
@@ -117,7 +119,7 @@ export const useSessionRuntime = ({ api = defaultApi, coordinatorFactory = creat
     return refreshSessionRef.current({ broadcast: true, preserveRequestKey: true, scope: currentScope, requireContext: true })
   }, [releaseAuthRequest])
   const handleLogin = useCallback(async (credentials) => {
-    if (!isOnline || requestKey !== null || credentialChangeRef.current) return false
+    if (!isOnline || requestKey !== null || credentialChangeRef.current || contextChangeRef.current) return false
     const operation = ++operationRef.current
     authRequestRef.current = operation
     setRequestKey('auth:login'); setLoginError('')
@@ -134,12 +136,12 @@ export const useSessionRuntime = ({ api = defaultApi, coordinatorFactory = creat
     } finally { releaseAuthRequest(operation) }
   }, [api, clear, isOnline, requestKey, setRequestKey, settleAuth, releaseAuthRequest])
   const handleLogout = useCallback(async () => {
-    if (!isOnline || requestKey !== null || credentialChangeRef.current) return false
+    if (!isOnline || requestKey !== null || credentialChangeRef.current || contextChangeRef.current) return false
     const operation = ++operationRef.current
     authRequestRef.current = operation
     setRequestKey('auth:logout'); clear(); setAuthState('checking')
     try {
-      await api.logout()
+      await api.logout(sessionContext)
       if (operation === operationRef.current) setLoginError('')
       await settleAuth(operation)
       return true
@@ -149,6 +151,28 @@ export const useSessionRuntime = ({ api = defaultApi, coordinatorFactory = creat
       else if (operation === operationRef.current) setAuthState('anonymous')
       return false
     } finally { releaseAuthRequest(operation) }
-  }, [api, clear, isOnline, requestKey, setRequestKey, settleAuth, releaseAuthRequest])
-  return { authState, sessionContext, sessionGeneration, authMode, operationalAccess: sessionHasOperationalAccess(sessionContext), loginError, handleLogin, handleLogout, expireSession, refreshSession, runCredentialChange, credentialChangePending, isCredentialChangePending }
+  }, [api, clear, isOnline, requestKey, sessionContext, setRequestKey, settleAuth, releaseAuthRequest])
+  const changeContext = useCallback(async (scope, businessId) => {
+    if (!isOnline || authState !== 'authenticated' || requestKey !== null || credentialChangeRef.current || contextChangeRef.current || !canChangeContext()) return false
+    const origin = sessionContext
+    const pending = {}
+    contextChangeRef.current = pending; setContextChangePending(true)
+    let success = false
+    try {
+      if (scope === 'platform') await api.selectPlatform(origin)
+      else await api.selectBusiness(businessId, origin)
+      success = true
+    } catch (error) { setLoginError(error?.message || 'Não foi possível trocar de empresa.') }
+    finally {
+      // A response can carry Set-Cookie even when its body or UI owner is lost.
+      await refreshSessionRef.current({ broadcast: true, requireContext: true })
+      let latest
+      do { latest = sessionDiscoveryRef.current; await latest?.promise } while (latest !== sessionDiscoveryRef.current)
+      if (contextChangeRef.current === pending) { contextChangeRef.current = null; setContextChangePending(false) }
+    }
+    return success
+  }, [api, authState, canChangeContext, isOnline, requestKey, sessionContext])
+  const selectCompany = useCallback(businessId => changeContext('business', businessId), [changeContext])
+  const selectAdministration = useCallback(() => changeContext('platform'), [changeContext])
+  return { selectBusiness: selectCompany, selectPlatform: selectAdministration, contextChangePending, listBusinesses: () => api.listBusinesses(sessionContext), authState, sessionContext, sessionGeneration, authMode, operationalAccess: sessionHasOperationalAccess(sessionContext), loginError, handleLogin, handleLogout, expireSession, refreshSession, runCredentialChange, credentialChangePending, isCredentialChangePending }
 }

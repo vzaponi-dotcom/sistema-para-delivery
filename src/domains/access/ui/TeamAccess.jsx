@@ -1,3 +1,4 @@
+import { useContextApi } from '../../../infrastructure/api/ContextApi.js'
 import { useEffect, useRef } from 'react'
 import { capabilityLabel } from './accessLabels.js'
 import Button from '../../../shared/ui/Button'
@@ -5,12 +6,13 @@ import PageHeader from '../../../shared/ui/PageHeader'
 import Modal from '../../../shared/ui/Modal'
 import AccessSelectField from './AccessSelectField'
 import Icon from '../../../shared/ui/Icon'
-import { accessApi } from '../infrastructure/accessApi.js'
+import { accessApi, createAccessApi } from '../infrastructure/accessApi.js'
 import { useAccessRequest } from './useAccessRequest.js'
 import './access.css'
 
 const statusLabel = user => !user.active ? 'Desativada' : ({ active: 'Ativa', invited: 'Convite pendente' }[user.credentialState] || 'Não informado')
-export default function TeamAccess({ sessionContext, api = accessApi, onApiError, refreshSession, writesBlocked = false }) {
+export default function TeamAccess({ sessionContext, api: suppliedApi = accessApi, onApiError, refreshSession, writesBlocked = false }) {
+  const api = useContextApi(createAccessApi, suppliedApi, accessApi)
   const canView = sessionContext?.capabilities?.includes('access.users.view')
   const canManage = sessionContext?.capabilities?.includes('access.users.manage')
   const { state, patch, run, owns } = useAccessRequest(sessionContext, onApiError)

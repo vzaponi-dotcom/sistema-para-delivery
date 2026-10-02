@@ -8,3 +8,5 @@ export {
   ClientDuplicateModal,
   CustomersWorkspace,
 } from './ui/customerSurfaces.js'
+
+export { createCustomersApi } from './infrastructure/customersApi.js'

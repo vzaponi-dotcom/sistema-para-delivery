@@ -1,7 +1,8 @@
+import { useContextApi } from '../../../infrastructure/api/ContextApi.js'
 import { useMutationOwner } from '../../../app/runtime/session/useMutationOwner.js'
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import { reservationMutationNeedsDiscount } from '../domain/tableReservation.js'
-import { tableReservationApi } from '../infrastructure/tableReservationApi.js'
+import { tableReservationApi, createTableReservationApi } from '../infrastructure/tableReservationApi.js'
 
 const messages = Object.freeze({
   edit: 'Reserva atualizada com sucesso',
@@ -11,7 +12,7 @@ const messages = Object.freeze({
 })
 
 export function useTableReservationCommands({
-  api = tableReservationApi,
+  api: suppliedApi = tableReservationApi,
   writesBlocked = false,
   canCreateOrders = false,
   canCancelOrders = false,
@@ -23,6 +24,7 @@ export function useTableReservationCommands({
   onError = () => {},
   onResult = () => {},
 } = {}) {
+  const api = useContextApi(createTableReservationApi, suppliedApi, tableReservationApi)
   const ownsMutation = useMutationOwner(applyOfficialEffects)
   const [actionKey, setActionKeyState] = useState(null)
   const actionRef = useRef(null)

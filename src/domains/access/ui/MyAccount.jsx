@@ -1,14 +1,16 @@
+import { useContextApi } from '../../../infrastructure/api/ContextApi.js'
 import { useState } from 'react'
 import Button from '../../../shared/ui/Button'
 import PageHeader from '../../../shared/ui/PageHeader'
 import PasswordField from '../../../shared/ui/PasswordField'
 import Icon from '../../../shared/ui/Icon'
-import { accessApi } from '../infrastructure/accessApi.js'
+import { accessApi, createAccessApi } from '../infrastructure/accessApi.js'
 import { useAccessRequest } from './useAccessRequest.js'
 import './access.css'
 
 const unavailableCredentialChange = async () => { throw new Error('Não foi possível confirmar o contexto da sessão. Entre novamente.') }
-export default function MyAccount({ sessionContext, api = accessApi, runCredentialChange = unavailableCredentialChange, onApiError, writesBlocked = false }) {
+export default function MyAccount({ sessionContext, api: suppliedApi = accessApi, runCredentialChange = unavailableCredentialChange, onApiError, writesBlocked = false }) {
+  const api = useContextApi(createAccessApi, suppliedApi, accessApi)
   const { state, run, owns, patch } = useAccessRequest(sessionContext, onApiError)
   const [passwords, setPasswords] = useState({ owner: sessionContext, currentPassword: '', password: '', confirmPassword: '' })
   const values = passwords.owner === sessionContext ? passwords : { currentPassword: '', password: '', confirmPassword: '' }

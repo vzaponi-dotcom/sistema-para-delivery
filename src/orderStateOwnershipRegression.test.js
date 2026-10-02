@@ -11,7 +11,7 @@ test('Orders owns cancellation orchestration while History consumes the central 
   const shell = await read('./app/shell/AppShell.jsx')
 
   assert.match(app, /useOrderCommands/)
-  assert.match(app, /api: ordersApi/)
+  assert.match(app, /api: clientsForContext\.orders/)
   assert.match(app, /<OrderHistory/)
   assert.match(app, /onCancelOrder=\{orderCommands\.cancelOrder\}/)
   assert.doesNotMatch(app, /cancelOrder as cancelOrderApi|const handleCancelOrder/)

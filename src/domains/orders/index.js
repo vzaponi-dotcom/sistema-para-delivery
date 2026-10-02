@@ -26,3 +26,9 @@ export { useOrderCommands } from './application/useOrderCommands.js'
 export { useOrderPaymentPromise } from './application/useOrderPaymentPromise.js'
 export { NewOrderRoute } from './ui/NewOrderRoute.js'
 export { OrderDetail, OrderHistory, Orders } from './ui/orderSurfaces.js'
+
+export { createOrdersApi } from './infrastructure/ordersApi.js'
+
+export { createOperationsPolicy } from './infrastructure/operationsPolicy.js'
+
+export { createCancellationReasonsPolicy } from './infrastructure/cancellationReasonsPolicy.js'

@@ -73,13 +73,27 @@ const bytesToBase64 = (bytes) => {
   return globalThis.btoa(binary)
 }
 
-export const configureQzSecurity = ({ qzApi, getCertificate, signPayload }) => {
+export const configureQzSecurity = ({ qzApi, getCertificate, signPayload, businessId }) => {
+  const payloads = new Map()
+  if (businessId) {
+    if (!qzApi.api?.setSha256Type) throw qzError('QZ_REQUEST_CONTEXT_MISSING', 'Atualize o QZ Tray antes de imprimir.')
+    qzApi.api.setSha256Type(async raw => {
+      const bytes = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw))
+      const hash = Array.from(new Uint8Array(bytes), byte => byte.toString(16).padStart(2, '0')).join('')
+      if (payloads.size >= 64) payloads.delete(payloads.keys().next().value)
+      payloads.set(hash, raw)
+      return hash
+    })
+  }
   qzApi.security.setCertificatePromise((resolve, reject) => {
     getCertificate().then(resolve, reject)
   })
   qzApi.security.setSignatureAlgorithm('SHA512')
   qzApi.security.setSignaturePromise((toSign) => (resolve, reject) => {
-    signPayload(toSign).then(resolve, reject)
+    const payload = payloads.get(toSign)
+    payloads.delete(toSign)
+    if (businessId && !payload) { reject(qzError('QZ_REQUEST_CONTEXT_MISSING', 'A requisição de impressão perdeu seu contexto.')); return }
+    Promise.resolve().then(() => businessId ? signPayload(toSign, payload) : signPayload(toSign)).then(resolve, reject)
   })
 }
 
@@ -142,11 +156,12 @@ export const createQzTransport = ({
   signPayload,
   storage = globalThis.localStorage,
   qzApi = qz,
+  businessId,
 } = {}) => {
   const readiness = createQzReadinessController()
   return {
     kind: 'qz',
-    configureSecurity: () => configureQzSecurity({ qzApi, getCertificate, signPayload }),
+    configureSecurity: () => configureQzSecurity({ qzApi, getCertificate, signPayload, businessId }),
     isConnected: () => Boolean(qzApi.websocket?.isActive?.()),
     connect: () => ensureQzConnected(qzApi),
     onClosed: (callback) => qzApi.websocket?.setClosedCallbacks?.([callback]),
@@ -155,8 +170,8 @@ export const createQzTransport = ({
     resolvePrinter: (name) => resolveQzPrinter(qzApi, name),
     print: (printerName, bytes, options) => printQzRawBytes(qzApi, printerName, bytes, options),
     createStatusMonitor: (args) => createQzStatusMonitor({ qzApi, ...args }),
-    readPrinterName: (stationId) => getQzPrinterName(storage, stationId),
-    savePrinterName: (stationId, name) => saveQzPrinterName(storage, stationId, name),
-    clearPrinterName: (stationId) => clearQzPrinterName(storage, stationId),
+    readPrinterName: (stationId) => businessId ? getQzPrinterName(storage, businessId, stationId) : getQzPrinterName(storage, stationId),
+    savePrinterName: (stationId, name) => businessId ? saveQzPrinterName(storage, businessId, stationId, name) : saveQzPrinterName(storage, stationId, name),
+    clearPrinterName: (stationId) => businessId ? clearQzPrinterName(storage, businessId, stationId) : clearQzPrinterName(storage, stationId),
   }
 }

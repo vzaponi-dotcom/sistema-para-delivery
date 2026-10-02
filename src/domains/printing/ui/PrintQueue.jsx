@@ -1,3 +1,4 @@
+import { useContextApi } from '../../../infrastructure/api/ContextApi.js'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import PageHeader from '../../../shared/ui/PageHeader'
 import StatCard from '../../../shared/ui/StatCard'
@@ -16,7 +17,7 @@ import { formatOrderCustomerIdentity } from '../../../../shared/orderPrintDocume
 import { formatOrderDisplayNumber } from '../../../../shared/orderDisplayNumber.js'
 import { PRINT_QUEUE_ORIGIN_FILTERS, PRINT_QUEUE_STATUS_FILTERS } from './printQueueFilters.js'
 import { getPrintJobDetails } from './printQueueDetails.js'
-import { getPrintJobs, getPrintQueueSummary } from '../infrastructure/printingApi.js'
+import { createPrintingApi } from '../infrastructure/printingApi.js'
 import { sortPrintQueueJobsForDisplay, togglePrintQueueSort, updatePrintQueueQuery } from './printQueueQuery.js'
 
 const formatJobTime = (createdAt) => {
@@ -62,6 +63,7 @@ const cacheKeyForQuery = (query) => JSON.stringify([
 ])
 
 function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, queryState, onQueryChange, canExecutePrinting = true, canDiscardPrinting = true, canForcePrinting = false, isOnline = true }) {
+  const { getPrintJobs, getPrintQueueSummary } = useContextApi(createPrintingApi)
   const station = printing?.localStation ?? null
   const query = queryState
   const [operationalPage, setOperationalPage] = useState({ jobs: [], pageInfo: { page: 1, pageSize: 10, totalItems: 0, totalPages: 1 } })

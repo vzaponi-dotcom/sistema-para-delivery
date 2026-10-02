@@ -27,3 +27,9 @@ export {
 } from './domain/paymentPresentation.js'
 
 export { FinanceWorkspace, Receivables } from './ui/financeSurfaces.js'
+
+export { createFinanceApi } from './infrastructure/financeApi.js'
+
+export { createPaymentMethodsPolicy } from './infrastructure/paymentMethodsPolicy.js'
+
+export { createFinanceCategoriesPolicy } from './infrastructure/financeCategoriesPolicy.js'

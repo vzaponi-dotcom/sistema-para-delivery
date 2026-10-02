@@ -1,7 +1,8 @@
+import { useContextApi } from '../../../infrastructure/api/ContextApi.js'
 import { useMutationOwner } from '../../../app/runtime/session/useMutationOwner.js'
 import { useCallback } from 'react'
 import { validateTransferIntent } from '../domain/tableTransfer.js'
-import { tableServiceApi } from '../infrastructure/tableServiceApi.js'
+import { tableServiceApi, createTableServiceApi } from '../infrastructure/tableServiceApi.js'
 
 const successMessages = Object.freeze({
   create: 'Mesa adicionada com sucesso',
@@ -12,7 +13,7 @@ const successMessages = Object.freeze({
 })
 
 export function useTableServiceCommands({
-  api = tableServiceApi,
+  api: suppliedApi = tableServiceApi,
   getOfficialTables = () => [],
   applyOfficialEffects = () => {},
   refreshOfficialData = async () => false,
@@ -24,6 +25,7 @@ export function useTableServiceCommands({
   onError = () => {},
   onStaleTarget = () => {},
 } = {}) {
+  const api = useContextApi(createTableServiceApi, suppliedApi, tableServiceApi)
   const ownsMutation = useMutationOwner(applyOfficialEffects)
   const createTable = useCallback(async (name) => {
     if (!canManageTables || writesBlocked) return false

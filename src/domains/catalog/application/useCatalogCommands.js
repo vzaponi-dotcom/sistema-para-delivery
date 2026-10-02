@@ -1,9 +1,10 @@
+import { useContextApi } from '../../../infrastructure/api/ContextApi.js'
 import { useMutationOwner } from '../../../app/runtime/session/useMutationOwner.js'
 import { useCallback } from 'react'
-import { catalogApi } from '../infrastructure/catalogApi.js'
+import { catalogApi, createCatalogApi } from '../infrastructure/catalogApi.js'
 
 export function useCatalogCommands({
-  api = catalogApi,
+  api: suppliedApi = catalogApi,
   applyOfficialEffects = () => {},
   writesBlocked = false,
   canManageProducts = false,
@@ -11,6 +12,7 @@ export function useCatalogCommands({
   onSuccess = () => {},
   onError = () => {},
 } = {}) {
+  const api = useContextApi(createCatalogApi, suppliedApi, catalogApi)
   const ownsMutation = useMutationOwner(applyOfficialEffects)
   const createProduct = useCallback(async (payload) => {
     if (!canManageProducts || writesBlocked) return null

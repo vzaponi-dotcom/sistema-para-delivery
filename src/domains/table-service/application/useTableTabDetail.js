@@ -1,13 +1,15 @@
+import { useContextApi } from '../../../infrastructure/api/ContextApi.js'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { tableServiceApi } from '../infrastructure/tableServiceApi.js'
+import { tableServiceApi, createTableServiceApi } from '../infrastructure/tableServiceApi.js'
 const emptySnapshot = Object.freeze({ detail: null, loading: false, error: null })
 
 export function useTableTabDetail({
   selection,
   officialTables = [],
-  api = tableServiceApi,
+  api: suppliedApi = tableServiceApi,
   onUnauthorized = () => {},
 } = {}) {
+  const api = useContextApi(createTableServiceApi, suppliedApi, tableServiceApi)
   const apiRef = useRef(api)
   const onUnauthorizedRef = useRef(onUnauthorized)
   const ownerRef = useRef(null)

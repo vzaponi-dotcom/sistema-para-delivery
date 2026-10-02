@@ -1,11 +1,12 @@
+import { useContextApi } from '../../../infrastructure/api/ContextApi.js'
 import { useMutationOwner } from '../../../app/runtime/session/useMutationOwner.js'
 import { useCallback, useState } from 'react'
-import { financeApi } from '../infrastructure/financeApi.js'
+import { financeApi, createFinanceApi } from '../infrastructure/financeApi.js'
 
 const initialMovementDialog = Object.freeze({ open: false, movement: null })
 
 export function useFinanceCommands({
-  api = financeApi,
+  api: suppliedApi = financeApi,
   applyOfficialEffects = () => {},
   writesBlocked = false,
   canManageMovements = false,
@@ -13,6 +14,7 @@ export function useFinanceCommands({
   onSuccess = () => {},
   onError = () => {},
 } = {}) {
+  const api = useContextApi(createFinanceApi, suppliedApi, financeApi)
   const ownsMutation = useMutationOwner(applyOfficialEffects)
   const [movementDialog, setMovementDialog] = useState(initialMovementDialog)
   const [openingBalanceOpen, setOpeningBalanceOpen] = useState(false)

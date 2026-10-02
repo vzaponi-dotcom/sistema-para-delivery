@@ -1,3 +1,9 @@
+import { ContextApi } from './infrastructure/api/ContextApi.js'
+import { createContextHttpClient } from './infrastructure/api/contextHttpClient.js'
+import { createBootstrapApi } from './infrastructure/api/bootstrapApi.js'
+import { createEffectiveConfigApi } from './infrastructure/api/effectiveConfigApi.js'
+import { createPaymentApi } from './app/workflows/payments/paymentApi.js'
+import { createRefundApi } from './app/workflows/refunds/refundApi.js'
 import {
   FinanceWorkspace,
   financeCategoryOptionsFromEffective,
@@ -26,7 +32,7 @@ import {
   OrderHistory,
   OrderDetail,
   Orders,
-  ordersApi,
+  createOrdersApi,
   toLocalDateValue,
   useKitchenClock,
   useNewOrderDraft,
@@ -40,8 +46,9 @@ import {
   resolveOpenComanda,
   useComandaSelection,
   useTableServiceCommands,
+  createTableServiceApi,
   getOpenComandaCount,
-  tableReservationApi,
+  createTableReservationApi,
   useTableReservationCommands,
 } from './domains/table-service/index.js'
 import DashboardSurface from './app/surfaces/dashboard/DashboardSurface.jsx'
@@ -70,9 +77,9 @@ import { useOperationalDataRuntime } from './app/runtime/data/useOperationalData
 import { useFeedbackRuntime } from './app/runtime/feedback/useFeedbackRuntime.js'
 import { useOnlineStatus } from './app/runtime/network/useOnlineStatus.js'
 import { useSessionRuntime } from './app/runtime/session/useSessionRuntime.js'
-import { CustomersWorkspace, useQuickCreateCustomerCommand } from './domains/customers/index.js'
+import { CustomersWorkspace, useQuickCreateCustomerCommand, createCustomersApi } from './domains/customers/index.js'
 import { CatalogWorkspace } from './domains/catalog/index.js'
-import { PrintQueue, PrintingOverlays, usePrintingManager } from './domains/printing/index.js'
+import { PrintQueue, PrintingOverlays, usePrintingManager, createPrintingApi } from './domains/printing/index.js'
 import {
   readKitchenSoundPreference,
   readKitchenSoundProfilePreference,
@@ -119,18 +126,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     onConflict: async () => {},
   })
   const orderCommandTargetsRef = useRef({ onError: () => {} })
-  const newOrderDraft = useNewOrderDraft({
-    getAccessOwner: () => sessionOwnerRef.current,
-    submitOrder: ordersApi.createOrder,
-    submitReservationEdit: tableReservationApi.updateReservation,
-    refreshReservation: tableReservationApi.getReservation,
-    canSubmit: (payload, context) => newOrderDraftTargetsRef.current.canSubmit(payload, context),
-    commitOfficialEffects: (result) => newOrderDraftTargetsRef.current.commitOfficialEffects(result),
-    onCommitted: (result, context) => newOrderDraftTargetsRef.current.onCommitted(result, context),
-    onSuccess: (order, context) => newOrderDraftTargetsRef.current.onSuccess(order, context),
-    onError: (error) => newOrderDraftTargetsRef.current.onError(error),
-    onConflict: (context, error) => newOrderDraftTargetsRef.current.onConflict(context, error),
-  })
+
 
   const refreshBootstrapForSession = useCallback(
     (...args) => sessionRuntimeTargetsRef.current.refreshBootstrap(...args),
@@ -152,6 +148,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     sessionGeneration,
     authMode,
     operationalAccess,
+    selectBusiness, selectPlatform, listBusinesses, contextChangePending,
     refreshSession,
     runCredentialChange,
     isCredentialChangePending,
@@ -162,10 +159,35 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
   } = useSessionRuntime({
     isOnline,
     requestKey,
+    canChangeContext: () => sessionRuntimeTargetsRef.current.canChangeContext?.() !== false,
     setRequestKey,
     resetOperationalData: resetOperationalDataForSession,
     refreshBootstrap: refreshBootstrapForSession,
     onClearApplicationState: clearApplicationStateForSession,
+  })
+
+  const contextOwnerRef = useRef(null)
+  contextOwnerRef.current = sessionContext?.contextId
+  const contextClient = useMemo(() => createContextHttpClient({ context: sessionContext, onContextChanged: () => {
+    if (contextOwnerRef.current === sessionContext?.contextId) void refreshSession({ requireContext: true })
+  } }), [sessionContext, refreshSession])
+  const clientsForContext = useMemo(() => ({
+    orders: createOrdersApi(contextClient), reservations: createTableReservationApi(contextClient),
+    tables: createTableServiceApi(contextClient), customers: createCustomersApi(contextClient),
+    printing: createPrintingApi(contextClient), bootstrap: createBootstrapApi(contextClient),
+    effective: createEffectiveConfigApi(contextClient), payments: createPaymentApi(contextClient), refunds: createRefundApi(contextClient),
+  }), [contextClient])
+  const newOrderDraft = useNewOrderDraft({
+    getAccessOwner: () => sessionOwnerRef.current,
+    submitOrder: clientsForContext.orders.createOrder,
+    submitReservationEdit: clientsForContext.reservations.updateReservation,
+    refreshReservation: clientsForContext.reservations.getReservation,
+    canSubmit: (payload, context) => newOrderDraftTargetsRef.current.canSubmit(payload, context),
+    commitOfficialEffects: (result) => newOrderDraftTargetsRef.current.commitOfficialEffects(result),
+    onCommitted: (result, context) => newOrderDraftTargetsRef.current.onCommitted(result, context),
+    onSuccess: (order, context) => newOrderDraftTargetsRef.current.onSuccess(order, context),
+    onError: (error) => newOrderDraftTargetsRef.current.onError(error),
+    onConflict: (context, error) => newOrderDraftTargetsRef.current.onConflict(context, error),
   })
 
   const trustedGrants = useMemo(
@@ -179,7 +201,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
   const granted = useMemo(() => !operationalAccess && sessionContext?.user?.id
     ? new Set([...trustedGrants].filter(capability => capability.startsWith('access.')))
     : trustedGrants, [operationalAccess, sessionContext, trustedGrants])
-  const accessContextId = useMemo(() => authState === 'authenticated' ? JSON.stringify([sessionContext?.businessId, sessionContext?.user?.id || 'legacy', sessionContext?.settingsContextId, [...granted].sort(), sessionGeneration]) : null, [authState, sessionContext, granted, sessionGeneration])
+  const accessContextId = useMemo(() => authState === 'authenticated' ? JSON.stringify([sessionContext?.contextId, sessionContext?.scope, sessionContext?.account?.id, sessionContext?.businessId, sessionContext?.user?.id || 'legacy', sessionContext?.settingsContextId, [...granted].sort(), sessionGeneration]) : null, [authState, sessionContext, granted, sessionGeneration])
   sessionOwnerRef.current = accessContextId
   const { query, patchQuery, resetQueries } = useQueryContext()
   const policyNavigationBridge = useMemo(() => createPolicyNavigationBridge(), [])
@@ -233,6 +255,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     getOfficialRevision,
     getOfficialTables,
   } = useOperationalDataRuntime({
+    api: { ...clientsForContext.bootstrap, getOrders: clientsForContext.orders.getOrders },
     onUnauthorized: handleOperationalUnauthorized,
     globalSyncEnabled: operationalAccess && isOnline && authState === 'authenticated',
     ordersSyncEnabled: operationalAccess && (activeTab === 'orders' || activeTab === 'kitchen-tv-control') && isOnline && authState === 'authenticated',
@@ -276,7 +299,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
         capabilities: [...granted],
       }
     : null, [authState, granted, operationalAccess, sessionContext, sessionGeneration])
-  const effectiveConfig = useEffectiveBusinessConfig({ owner: effectiveConfigOwner, bootstrapConfig: bootstrapEffectiveConfig })
+  const effectiveConfig = useEffectiveBusinessConfig({ owner: effectiveConfigOwner, bootstrapConfig: bootstrapEffectiveConfig, load: clientsForContext.effective.getEffectiveConfig })
   // Mount operational consumers only after the supplied config initializes their confirmed defaults.
   const operationalBootstrapState = bootstrapState === 'ready' && bootstrapEffectiveConfig && effectiveConfig.status === 'loading'
     ? 'loading' : bootstrapState
@@ -332,7 +355,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
   const writesBlockedWithoutOrderCommands = !isOnline || requestKey !== null || newOrderDraft.checkoutPending
   const orderCommands = useOrderCommands({
     orders,
-    api: ordersApi,
+    api: clientsForContext.orders,
     canFinalizeOrders,
     canCancelOrders,
     canRefundPayments,
@@ -343,12 +366,13 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
   })
   const writesBlocked = writesBlockedWithoutOrderCommands || orderCommands.pending
   const reservationCommands = useTableReservationCommands({
+    api: clientsForContext.reservations,
     writesBlocked,
     canCreateOrders,
     canCancelOrders,
     canDiscountOrders: canAdjustOrders,
     applyOfficialEffects,
-    refreshReservation: tableReservationApi.getReservation,
+    refreshReservation: clientsForContext.reservations.getReservation,
     setRequestKey,
     onSuccess: showSuccessMessage,
     onError: showApiError,
@@ -364,6 +388,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     },
   })
   const quickCreateCustomer = useQuickCreateCustomerCommand({
+    api: clientsForContext.customers,
     writesBlocked,
     canCreateClients,
     applyOfficialEffects,
@@ -371,6 +396,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     onError: showApiError,
   })
   const orderPayment = useOrderPaymentWorkflow({
+    api: clientsForContext.payments,
     orders,
     granted,
     canReceivePayments,
@@ -385,6 +411,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     onError: showApiError,
   })
   const clientOrdersPayment = useClientOrdersPaymentWorkflow({
+    api: clientsForContext.payments,
     orders,
     canReceivePayments,
     writesBlocked,
@@ -398,6 +425,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     onError: showApiError,
   })
   const tableTabPayment = useTableTabPaymentWorkflow({
+    api: clientsForContext.payments,
     writesBlocked,
     selectionGeneration: selectedComandaGeneration,
     resetKey: sessionGeneration,
@@ -413,6 +441,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     onError: showApiError,
   })
   const refund = useRefundWorkflow({
+    api: clientsForContext.refunds,
     canRefundPayments,
     writesBlocked,
     applyOfficialEffects,
@@ -427,7 +456,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     cancelDiscard()
     window.requestAnimationFrame(() => document.querySelector?.('.app-content')?.focus?.())
   }, [cancelDiscard])
-  const printing = usePrintingManager({ authenticated: operationalAccess && authState === 'authenticated' && bootstrapState === 'ready', accessContextId, isOnline, onPhysicalJobFailure: handlePhysicalJobFailure })
+  const printing = usePrintingManager({ api: clientsForContext.printing, businessId: sessionContext?.authMode === 'multi_company' ? sessionContext.businessId : undefined, authenticated: operationalAccess && authState === 'authenticated' && bootstrapState === 'ready', accessContextId, isOnline, onPhysicalJobFailure: handlePhysicalJobFailure })
   const kitchenNow = useKitchenClock(orders, { active: activeTab === 'orders' || activeTab === 'kitchen-tv-control', currentTiming })
   const operationalNow = activeTab === 'orders' ? kitchenNow : new Date()
   const operationalOrderCount = getOperationalOrderCount(orders, operationalNow, currentTiming)
@@ -501,12 +530,13 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
   function showApiError(error) {
     if (sessionOwnerRef.current !== accessContextId || errorOwnerGuard !== getSyncGuard()) return
     if (error?.status === 401) return expireSession()
-    if (error?.status === 403 && error?.code === 'ACCESS_CHANGED') return void refreshSession()
+    if (error?.code === 'SESSION_CONTEXT_CHANGED' || (error?.status === 403 && error?.code === 'ACCESS_CHANGED')) return void refreshSession()
     setToastMessage(error?.message || 'Não foi possível concluir a operação.')
   }
   newOrderDraftTargetsRef.current.onError = showApiError
   orderCommandTargetsRef.current.onError = showApiError
   const tableServiceCommands = useTableServiceCommands({
+    api: clientsForContext.tables,
     getOfficialTables,
     applyOfficialEffects,
     refreshOfficialData: refreshBootstrapSilently,
@@ -523,7 +553,11 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     paymentPending: Boolean(tableTabPayment.busy || tableTabPayment.syncState || orderPayment.dialog?.submitting || clientOrdersPayment.dialog?.submitting),
     printPending: Boolean(printing.busyJobId || printing.jobs.some((job) => ['unknown', 'awaiting_confirmation', 'waiting_confirmation', 'printing'].includes(job.status) || job.physicalOutcome === 'unknown')),
   }
-  const getPendingSessionEffects = () => ({ ...pendingSessionEffectsRef.current, credentialChangePending: isCredentialChangePending() })
+  const getPendingSessionEffects = () => ({ ...pendingSessionEffectsRef.current, contextChangePending, checkoutPending: newOrderDraft.checkoutPending, credentialChangePending: isCredentialChangePending() })
+  sessionRuntimeTargetsRef.current.canChangeContext = () => {
+    const effects = getPendingSessionEffects()
+    return !effects.credentialChangePending && !effects.checkoutPending && !effects.paymentPending && !effects.printPending && !newOrderDraft.dirty && !policyNavigationBridge.getNavigationDraft()?.dirty
+  }
   const handleLogout = () => requestSessionExit(handleSessionLogout, getPendingSessionEffects)
   const handleSwitchUser = () => requestSessionExit(handleSessionLogout, getPendingSessionEffects)
 
@@ -598,7 +632,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     if (!canCreateOrders || writesBlocked || !order?.tableReservationId) return false
     try {
       const owner = sessionOwnerRef.current
-      const detail = await tableReservationApi.getReservation(order.tableReservationId)
+      const detail = await clientsForContext.reservations.getReservation(order.tableReservationId)
       if (owner !== sessionOwnerRef.current) return false
       const opened = newOrderDraft.openReservationEdit(detail, { returnDestination: 'orders' })
       if (!opened) return false
@@ -636,7 +670,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     ? resolveActivityOrder({ resourceType: 'order', resourceId: activityDetail.orderId }) : null
 
   return (
-    <AppRoot
+    <ContextApi.Provider value={contextClient}><AppRoot
       isOnline={isOnline}
       authState={authState}
       authMode={authMode}
@@ -659,7 +693,8 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
               : <section><h1>{activeTab === 'access-team' ? 'Equipe e acessos' : 'Minha conta'}</h1><p>Sua conta está ativa; o acesso operacional aguarda liberação.</p></section>}
           </AppShell>
         </NavigationProvider>
-      ) : <SettingsPolicyBoundary
+      ) : <SettingsPolicyBoundary key={accessContextId}
+        client={contextClient}
         effectiveConfigOwner={effectiveConfigOwner}
         storage={getSessionStorage()}
         navigationBridge={policyNavigationBridge}
@@ -771,7 +806,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
         onError={showApiError}
         onSuccess={showSuccessMessage}
       />
-    </AppRoot>
+    </AppRoot></ContextApi.Provider>
   )
 }
 

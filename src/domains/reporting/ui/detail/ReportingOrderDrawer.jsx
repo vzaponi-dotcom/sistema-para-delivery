@@ -1,6 +1,7 @@
+import { useContextApi } from '../../../../infrastructure/api/ContextApi.js'
 import { useEffect, useMemo, useState } from 'react'
 import Icon from '../../../../shared/ui/Icon.jsx'
-import { reportingApi } from '../../infrastructure/reportingApi.js'
+import { reportingApi, createReportingApi } from '../../infrastructure/reportingApi.js'
 import { ReportingReceivableLink } from '../ReportingReceivableLink.jsx'
 import { getReportingOrderReference } from './reportingOrderReference.js'
 
@@ -296,7 +297,8 @@ function ClientTab({ order, onOpenClient, onSelectOrder, view, onViewChange, fil
   </div>
 }
 
-export function ReportingOrderDrawer({ id, onClose, api = reportingApi, onOpenClient, onSelectOrder }) {
+export function ReportingOrderDrawer({ id, onClose, api: suppliedApi = reportingApi, onOpenClient, onSelectOrder }) {
+  const api = useContextApi(createReportingApi, suppliedApi, reportingApi)
   const [state, setState] = useState({ loading: true, data: null, error: null })
   const [tab, setTab] = useState('details')
   const [clientView, setClientView] = useState('profile')

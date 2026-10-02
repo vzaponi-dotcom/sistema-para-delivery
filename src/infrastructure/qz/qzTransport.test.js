@@ -12,6 +12,21 @@ import {
   printQzRawBytes,
 } from './qzTransport.js'
 
+test('company QZ security pairs the exact raw request with its SHA256 signature input', async () => {
+  let hasher, signature, sent
+  const qzApi = fakeQzApi([])
+  qzApi.api = { setSha256Type(fn) { hasher = fn } }
+  qzApi.security.setSignaturePromise = fn => { signature = fn }
+  configureQzSecurity({ qzApi, businessId: 'A', getCertificate: async () => 'CERT', signPayload: async (...args) => { sent = args; return 'SIGNED' } })
+  assert.equal(typeof hasher, 'function')
+  const raw = JSON.stringify({ call: 'print', params: { options: { jobName: 'owned-attempt' } }, timestamp: 100 })
+  const hash = await hasher(raw)
+  assert.match(hash, /^[a-f0-9]{64}$/)
+  assert.equal(await new Promise(signature(hash)), 'SIGNED')
+  assert.deepEqual(sent, [hash, raw])
+  await assert.rejects(new Promise(signature(hash)), { code: 'QZ_REQUEST_CONTEXT_MISSING' })
+})
+
 class MapStorage {
   constructor() { this.values = new Map() }
   getItem(key) { return this.values.get(key) ?? null }

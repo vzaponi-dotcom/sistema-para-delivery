@@ -1,3 +1,4 @@
+import { useContextBlob } from '../../../../infrastructure/api/useContextBlob.js'
 import { useEffect, useRef, useState } from 'react'
 import Button from '../../../../shared/ui/Button.jsx'
 import SystemSelect from '../../../../shared/ui/SystemSelect.jsx'
@@ -207,7 +208,8 @@ function BusinessProfileSettings({
 
   const address = data?.address || EMPTY_ADDRESS
   const logo = data?.logo || EMPTY_LOGO
-  const effectiveLogoUrl = previewUrl || logoUrl(logo)
+  const confirmedLogoUrl = useContextBlob(logoUrl(logo))
+  const effectiveLogoUrl = previewUrl || confirmedLogoUrl
   const previewName = String(data?.name || '').trim() || 'Nome da operação'
   const previewDetails = [
     String(data?.phone || '').trim(),

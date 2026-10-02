@@ -25,19 +25,13 @@ const profileDataForServer = (data) => ({
 
 const attachmentError = (code, message) => Object.assign(new Error(message), { code })
 
-const readJsonResponse = async (response) => {
+const profileRequest = async (path, options = {}) => {
+  const response = await fetch(path, { ...options, credentials: 'same-origin' })
   const payload = await response.json().catch(() => null)
   if (!response.ok) throw requestError(response, payload)
   return payload
 }
-
-const loadProfile = async () => {
-  const response = await fetch(PROFILE_PATH, {
-    credentials: 'same-origin',
-    headers: { 'content-type': 'application/json' },
-  })
-  return normalizeResource(await readJsonResponse(response))
-}
+const loadProfile = async request => normalizeResource(await request(PROFILE_PATH))
 
 const resolveReplaceBlob = async (data, transient) => {
   const match = typeof data?.logo?.version === 'string' ? data.logo.version.match(LOCAL_LOGO_VERSION) : null
@@ -51,7 +45,7 @@ const resolveReplaceBlob = async (data, transient) => {
   return transient.logoBlob
 }
 
-const saveProfile = async (input, transient) => {
+const saveProfile = async (input, transient, request) => {
   const requestedLogoAction = input?.data?.logoAction || 'keep'
   if (!['keep', 'replace', 'remove'].includes(requestedLogoAction)) {
     throw policyClientError('BUSINESS_PROFILE_INVALID', 'A ação de logo é inválida.')
@@ -78,34 +72,31 @@ const saveProfile = async (input, transient) => {
     form.append('logo', blob, 'logo.webp')
   }
 
-  const response = await fetch(PROFILE_PATH, {
-    method: 'PUT',
-    credentials: 'same-origin',
-    body: form,
-  })
-  const payload = await readJsonResponse(response)
+  const payload = await request(PROFILE_PATH, { method: 'PUT', body: form })
   return {
     resource: normalizeResource(payload?.resource),
     receipt: payload?.receipt,
   }
 }
 
-export const businessProfilePolicy = Object.freeze({
+export const createBusinessProfilePolicy = ({ request = profileRequest } = {}) => Object.freeze({
   id: 'businessProfile',
   destinations: Object.freeze(['settings-business-profile']),
   capability: 'business.profile.view',
   load: async (scopeId) => {
     validatePolicyScope({}, scopeId)
-    return loadProfile()
+    return loadProfile(request)
   },
   save: async (input, scopeId, transient) => {
     validatePolicyScope({}, scopeId)
-    return saveProfile(input, transient)
+    return saveProfile(input, transient, request)
   },
   loadReceipt: (mutationId, scopeId) => {
     validatePolicyScope({}, scopeId)
-    return loadPolicyReceipt('businessProfile', mutationId)
+    return loadPolicyReceipt('businessProfile', mutationId, undefined, request)
   },
 })
 
 export { normalizeResource as normalizeBusinessProfileResource }
+
+export const businessProfilePolicy = createBusinessProfilePolicy()
