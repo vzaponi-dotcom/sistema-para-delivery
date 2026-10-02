@@ -63,3 +63,27 @@ O usuário autorizou publicação e homologação. Bundle publicado a partir do 
 O titular preencheu as credenciais no terminal privado. A conexão administrativa real `getPlatformProxy` com o D1 de staging e o comando `prepare-admin` concluíram com sucesso. As três concessões do painel foram confirmadas no banco. O Resend retornou `accepted` para o convite enviado ao destinatário autorizado; isso confirma aceite pelo provedor, não recebimento na caixa de entrada.
 
 Na conferência após o envio, a conta estava ativa, ainda não verificada e sem credencial global. A ativação e a criação de senha foram entregues ao titular no navegador. O auxiliar privado aguarda o próximo checkpoint; nenhum vínculo de gerente, corte global ou finalização legado foi executado. Não repetir automaticamente o envio aceito enquanto o titular abre o convite.
+
+## Corte global e testes autenticados — 2026-10-02
+
+O titular concluiu a ativação; D1 confirmou conta ativa/verificada com credencial global versão 1. O preparo privado vinculou a mesma conta como gerente de Amor & Sabor sem trocar a senha; `check-ready` retornou `ready=true`.
+
+A versão `08212f2d-24ab-4c04-a74f-ecbfbff3afab` ativou o flag global e desligou preparo. Metadados remotos e `/api/auth/session` confirmaram o modo multiempresa. O titular entrou no navegador do Codex; foram observados `/pedidos` para Amor & Sabor, menu Victor/Gerente e a seleção oficial de Administração Mesiva com lista de empresas. Somente depois dessas observações, `finalize-legacy` concluiu. D1 confirmou bootstrap finalizado, zero usuários históricos ativos e zero credenciais PIN. Credenciais do auxiliar privado foram removidas do processo ao final.
+
+- Login com corpo de PIN foi recusado com 401 e mensagem de e-mail/senha.
+- Desativar ou rebaixar o último gerente da primeira empresa pela API oficial retornou 409 `LAST_MANAGER`.
+- API operacional no escopo de painel retornou 403; API de painel no escopo operacional retornou 403.
+- Cadastro real pelo painel criou `[TESTE87] Cozinha de Homologação`, com vínculo convidado para a identidade já existente: uma conta global, credencial com revisão 1, sem substituição de senha. Empresa pendente não foi listada entre acessos elegíveis; tentativa direta de seleção retornou 403, mantendo escopo e marcador inalterados.
+- Duas abas reais: seleção de painel na segunda removeu os dados operacionais da primeira e mudou sua interface para o painel. Leitura de bootstrap com o marcador anterior retornou 409 `SESSION_CONTEXT_CHANGED`.
+
+## Falha de transporte de e-mail encontrada e corrigida
+
+O convite da segunda empresa e uma recuperação autorizada ficaram incertos; o Resend não tinha registro dessas chamadas. A ativação enviada pelo processo Node privado estava entregue. Um probe no runtime local workerd 4.128.0 reproduziu `TypeError` antes de I/O: o runtime aceita `manual`/`follow` e rejeita o modo `error` usado pelo transporte, embora Node o aceite. Isso não era detectado pelos mocks do provedor.
+
+Correção `587b8bef87b112df4ca0cd292f8bf5933d6d664f`: usar `redirect:manual`; respostas 301/302/303/307/308 continuam rejeitadas, sem seguir a localização nem encaminhar autorização/desafio. Seis novas regressões falharam RED e passaram GREEN; 38 testes relacionados passaram e a suíte completa passou **3435/3435**, zero falhas/skips/cancelamentos, 162474.9814 ms. Arquitetura, lint, build e ambos os bundles passaram. O probe real workerd deixou de falhar no transporte e recebeu rejeição normal do provedor com chave propositalmente sintética; nenhum destinatário/chave real nesse probe.
+
+Versão corrigida publicada em staging: `f265e1d0-5c8a-4bcb-b0b3-458536a56d81`, mantendo global ligado/preparo desligado. O reenvio explícito do convite da empresa de teste foi aceito pelo Worker/Resend; o convite anterior foi revogado. O conector Resend confirmou **delivered** para ativação e novo convite. CI manual da correção: [run 37068837287](https://github.com/vzaponi-dotcom/sistema-para-delivery/actions/runs/37068837287), resultado acompanhado separadamente.
+
+**Pendente:** titular aceitar o convite da segunda empresa; seleção e isolamento entre ambas; consentimento para destinatário da conta de operador; recuperação concluída/revogação de sessões; abas sem canais e TV em duas empresas. Impressão física permanece o limite conhecido. A Task 14 continua aberta, assim como merge/produção.
+
+**Ajuste informativo adiado:** na empresa existente vinculada pelo preparo privado, a projeção do painel procura o primeiro gerente somente por convite de empresa. O vínculo já verificado foi feito sem esse convite; a lista/detalhe mostram "ainda não preparado", apesar do acesso ativo. Nome e e-mail aparecem corretamente para a empresa criada pelo painel. Registrado como item menor de apresentação, junto ao contraste do logo no tema escuro; não altera elegibilidade ou concessões.
