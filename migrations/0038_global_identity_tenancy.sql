@@ -97,10 +97,14 @@ CREATE TABLE identity_email_deliveries (
   id TEXT PRIMARY KEY,
   account_id TEXT REFERENCES accounts(id),
   business_id TEXT REFERENCES businesses(id),
+  emitter_id TEXT REFERENCES accounts(id),
   kind TEXT NOT NULL CHECK(kind IN ('activation','password_reset','company_invitation')),
   created_at TEXT NOT NULL
 );
 CREATE INDEX identity_email_deliveries_created_idx ON identity_email_deliveries(created_at);
+CREATE INDEX identity_email_deliveries_recipient_idx ON identity_email_deliveries(account_id,business_id,created_at);
+CREATE INDEX identity_email_deliveries_emitter_idx ON identity_email_deliveries(emitter_id,kind,created_at);
+CREATE INDEX identity_email_deliveries_business_idx ON identity_email_deliveries(business_id,kind,created_at);
 CREATE TABLE identity_audit_events (
   id TEXT PRIMARY KEY,
   account_id TEXT REFERENCES accounts(id),
