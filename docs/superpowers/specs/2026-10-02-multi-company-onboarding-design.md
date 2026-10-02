@@ -2,7 +2,7 @@
 
 **Data:** 2026-10-02
 **Issue:** [#87 — Implementar multiempresa e onboarding pelo painel interno da Mesiva](https://github.com/vzaponi-dotcom/sistema-para-delivery/issues/87)
-**Estado:** desenho conversacional aprovado; Spec escrita para revisão. A implementação depende da aprovação desta Spec e do plano de implementação.
+**Estado:** desenho conversacional e Spec escrita aprovados em 2026-10-02. A implementação depende da revisão/aprovação do plano e escolha do método de execução.
 **Base inspecionada:** `550a073fa92ba5213eb9e67b70a1008402626247`, branch da issue #44, PR [#85](https://github.com/vzaponi-dotcom/sistema-para-delivery/pull/85).
 
 ## 1. Resultado pretendido
