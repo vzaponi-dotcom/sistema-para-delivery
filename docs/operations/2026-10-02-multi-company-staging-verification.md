@@ -57,3 +57,9 @@ O usuário autorizou publicação e homologação. Bundle publicado a partir do 
 - Tela de ativação publicada inspecionada no navegador; layout em viewport de 375 px ficou com conteúdo de 375 px, sem rolagem horizontal. Nenhuma credencial foi preenchida no navegador.
 
 **Pendente:** credenciais no processo administrativo privado, preparo do administrador, ativação pelo titular, vínculo do primeiro gerente, readiness, ativação do flag global, logins reais e finalização dos acessos antigos. Um terminal privado com entradas mascaradas está aberto. As credenciais permanecem somente na memória desse processo; o auxiliar executa comandos administrativos fixos e aguarda checkpoints explícitos antes do vínculo e da finalização. Nenhum e-mail foi enviado neste checkpoint. A Task 14 permanece aberta até os testes autenticados e a homologação de dispositivos.
+
+## Preparo do administrador remoto — 2026-10-02
+
+O titular preencheu as credenciais no terminal privado. A conexão administrativa real `getPlatformProxy` com o D1 de staging e o comando `prepare-admin` concluíram com sucesso. As três concessões do painel foram confirmadas no banco. O Resend retornou `accepted` para o convite enviado ao destinatário autorizado; isso confirma aceite pelo provedor, não recebimento na caixa de entrada.
+
+Na conferência após o envio, a conta estava ativa, ainda não verificada e sem credencial global. A ativação e a criação de senha foram entregues ao titular no navegador. O auxiliar privado aguarda o próximo checkpoint; nenhum vínculo de gerente, corte global ou finalização legado foi executado. Não repetir automaticamente o envio aceito enquanto o titular abre o convite.
