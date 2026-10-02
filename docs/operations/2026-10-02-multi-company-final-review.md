@@ -151,3 +151,7 @@ Os limites remotos e físicos do relatório permanecem pendentes; este registro 
 ## Verificação adicional do CI
 
 Após os oito shards passarem, o gate de migração detectou que sua comparação histórica não aceitava os nove triggers aditivos. A regra foi atualizada para verificar dados e schema anteriores sem alterações e validar exatamente os nove triggers revisados. Regressões 2/2, gate D1 real clean/upgrade e suíte final 3429/3429 passaram. Decisão/custo registrados no documento de decisões; não foi disparada outra revisão independente.
+
+## Continuidade I1 complementada — 97fab10b
+
+O teste real App/SQLite agora cobre retorno após outra conta sair do formulário, retirada da permissão de criar e retorno com escopo de identidade. A tentativa permanece da autora e só pode ser reconciliada no destino original autorizado; sem as concessões necessárias, saída continua disponível sem apagar o recibo. Duas fases RED→GREEN; suíte final 3429/3429 e demais gates locais passaram. Nenhuma revisão adicional foi disparada.

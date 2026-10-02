@@ -2,7 +2,7 @@
 
 Branch: `feature/issue-87-multi-company-onboarding`. Base: `003a898bac19958089eabab6aedf876adb231763`, sobre a implementação da PR #85. Ambiente remoto previsto: `https://staging.mesiva.com.br`.
 
-Commit do código verificado: `8396b5f242a252d0836d024de3f8699bdc8ccd99`. A `master` remota atual (`aed142da`) está contida na branch.
+Commit final do código verificado: `97fab10b0d25a314b8a4aac9600e6d744b38fa71`. A `master` remota atual (`aed142da`) está contida na branch.
 
 ## Evidência local
 
@@ -36,4 +36,10 @@ Merge e publicação em produção não fazem parte desta entrega autorizada.
 
 No run `37062660924`, os oito shards passaram; o gate Spec B D1 comparava o schema de impressão completo contra a versão anterior e rejeitou os nove triggers aditivos previstos na 0039. A comparação agora mantém os quatro snapshots de dados e todos os objetos anteriores exatamente iguais, e exige os nove triggers nomeados com SQL correspondente à migração revisada. Testes provam rejeição de histórico/schema alterado e guards ausentes, enfraquecidas ou extras.
 
-Depois da correção: **3429/3429** na suíte completa, zero falhas/skips/cancelamentos, 184661.5527 ms; lint passou. O **gate Spec B no D1 local real** passou instalação limpa, upgrade, preservação de histórico/referências e os nove cenários de persistência. O gate de perfil da operação também passou clean install/upgrade. A mudança está restrita à validação de migrações; o código da aplicação continua o verificado em `8396b5f2`. A validação GitHub é repetida no novo HEAD, com resultados ligados na PR #88.
+Depois da correção: **3429/3429** na suíte completa, zero falhas/skips/cancelamentos, 184661.5527 ms; lint passou. O **gate Spec B no D1 local real** passou instalação limpa, upgrade, preservação de histórico/referências e os nove cenários de persistência. O gate de perfil da operação também passou clean install/upgrade. A mudança está restrita à validação de migrações; o código da aplicação recebeu depois o complemento de retorno da conta descrito abaixo. A validação GitHub é repetida no novo HEAD, com resultados ligados na PR #88.
+
+## Complemento de retorno da conta autora
+
+A regressão I1 foi estendida para outra conta sair do formulário, retirada da permissão de criar e retorno da autora com escopo de identidade. O recibo permanece na memória por conta; sem a permissão, a pessoa pode sair; quando elegível, retorna somente à tela original para selecionar o painel e verificar a mesma UUID/payload. A exceção de navegação exige a autoria, as concessões corretas e ausência de outros efeitos/drafts pendentes. Nenhuma criação é reenviada automaticamente.
+
+RED→GREEN nas duas fases, com uma única empresa persistida. Última suíte completa: **3429/3429**, zero falhas/skips/cancelamentos, 164838.4292 ms. Arquitetura, lint, build e ambos os bundles repetidos passaram. O run GitHub `37063598286` passou todos os shards e validação no commit anterior `6371def2`; a validação do HEAD final é ligada na PR #88. Os checkpoints remotos de staging permanecem pendentes.
