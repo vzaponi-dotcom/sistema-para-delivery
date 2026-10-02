@@ -5,6 +5,7 @@ import { hashHumanPassword, verifyHumanPassword } from './credentials.js'
 import { prepareAccessInvite } from './invitations.js'
 import { prepareUserSession, prepareUserSessionRevocation } from './sessions.js'
 import { prepareAuditEvent } from './audit.js'
+import { prepareEmailChallengeRevocation } from './emailChallenges.js'
 
 const notFound = () => apiError(404, 'USER_NOT_FOUND', 'Usuário não encontrado.')
 const roleNotFound = () => apiError(404, 'ROLE_NOT_FOUND', 'Perfil não encontrado.')
@@ -112,6 +113,7 @@ export async function updateUser(db,context,userId,input,now=new Date()) {
   const statements=[lastManagerGuard(db,businessId,userId,guard),db.prepare(`UPDATE users SET ${fields.join(',')} WHERE business_id=? AND id=?`).bind(...values)]
   if(Object.hasOwn(input,'roleId') || Object.hasOwn(input,'active')) statements.push(prepareUserSessionRevocation(db,businessId,userId,now),
     prepareAuditEvent(db,context,{action:'session.revoked',resourceType:'user',resourceId:userId,now,onlyIfChanged:true}))
+  if(input.active===false) statements.push(...prepareEmailChallengeRevocation(db,{businessId,userId,now}))
   if(Object.hasOwn(input,'roleId')) statements.push(event(db,context,'access.user.role-changed',now,userId))
   if(Object.hasOwn(input,'active')) statements.push(event(db,context,input.active?'access.user.activated':'access.user.deactivated',now,userId))
   if(Object.hasOwn(input,'displayName')) statements.push(event(db,context,'access.user.updated',now,userId))
@@ -140,9 +142,10 @@ export async function changeOwnPassword(db,context,input,now=new Date()) {
     await db.batch([
       db.prepare(`UPDATE user_credentials SET password_verifier=CASE WHEN active=1 AND password_verifier=? AND EXISTS
         (SELECT 1 FROM sessions WHERE business_id=? AND id=? AND user_id=? AND revoked_at IS NULL AND expires_at>?)
-        THEN ? ELSE NULL END,password_changed_at=?,updated_at=? WHERE business_id=? AND user_id=?`)
+        THEN ? ELSE NULL END,revision=revision+1,password_changed_at=?,updated_at=? WHERE business_id=? AND user_id=?`)
         .bind(credential.password_verifier,businessId,context.sessionId,userId,timestamp,verifier,timestamp,timestamp,businessId,userId),
       prepareUserSessionRevocation(db,businessId,userId,now),
+      ...prepareEmailChallengeRevocation(db,{businessId,userId,now}),
       prepareAuditEvent(db,context,{action:'session.revoked',resourceType:'user',resourceId:userId,now,onlyIfChanged:true}),session.statement,
       event(db,{...context,sessionId:session.sessionId},'access.password.changed',now,userId),
     ])
