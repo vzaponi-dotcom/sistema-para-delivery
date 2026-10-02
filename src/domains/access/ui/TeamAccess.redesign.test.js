@@ -7,16 +7,16 @@ test('explicit invite defaults to operator and closing its result never reveals 
   const { screen } = await setup(t, 'TeamAccess', { sessionContext: manager }, async (_url, options = {}) => {
     if (!options.method) return response({ users, roles })
     writes.push(JSON.parse(options.body))
-    return response({ user: { ...users[1], id: 'new', displayName: 'Ana', identifier: 'ana', credentialState: 'invited' }, invite: { token: 'DEMO-ONE-USE', expiresAt: '2026-10-02' } })
+    return response({ user: { ...users[1], id: 'new', displayName: 'Ana', email: 'ana@example.test', credentialState: 'invited' }, delivery:{status:'accepted',expiresAt:'2026-10-03'},invite: { token: 'DEMO-ONE-USE', expiresAt: '2026-10-02' } })
   })
   assert.equal(screen.root.findAllByType('form').length, 0)
   assert.ok(buttonNamed(screen.root, 'Convidar pessoa'))
   await act(async () => buttonNamed(screen.root, 'Convidar pessoa').props.onClick())
-  await fill(screen, 'displayName', 'Ana'); await fill(screen, 'identifier', 'ana'); await submit(screen)
-  assert.deepEqual(writes, [{ displayName: 'Ana', identifier: 'ana', roleId: 'operator' }])
-  assert.match(nodeText(screen.root), /DEMO-ONE-USE/)
+  await fill(screen, 'displayName', 'Ana'); await fill(screen, 'email', 'ana@example.test'); await submit(screen)
+  assert.deepEqual(writes, [{ displayName: 'Ana', email: 'ana@example.test', roleId: 'operator' }])
+  assert.doesNotMatch(nodeText(screen.root), /DEMO-ONE-USE/)
   assert.match(nodeText(screen.root), /ana/)
-  await act(async () => buttonNamed(screen.root, 'Fechar convite').props.onClick())
+  await act(async () => buttonNamed(screen.root, 'Fechar').props.onClick())
   await act(async () => buttonNamed(screen.root, 'Convidar pessoa').props.onClick())
   assert.doesNotMatch(nodeText(screen.root), /DEMO-ONE-USE/)
 })
@@ -25,7 +25,7 @@ test('team filters names locally and requires confirmation before a reset write'
   let writes = 0, reads = 0
   const { screen } = await setup(t, 'TeamAccess', { sessionContext: manager }, async (_url, options = {}) => {
     if (!options.method) { reads++; return response({ users, roles }) }
-    writes++; return response({ user: { ...users[1], credentialState: 'reset_pending' }, invite: { token: 'DEMO-RESET', expiresAt: '2026-10-02' } })
+    writes++; return response({ user: { ...users[1], credentialState: 'active',passwordRecoveryPending:true }, delivery:{status:'accepted',expiresAt:'2026-10-03'},invite: { token: 'DEMO-RESET', expiresAt: '2026-10-02' } })
   })
   assert.ok(screen.root.findAllByType('input').some(n => n.props.name === 'search'), 'local search available')
   await fill(screen, 'search', 'OTÁVIO')

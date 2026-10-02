@@ -1,8 +1,8 @@
 import { act } from 'react-test-renderer'
 import { workspaceHarness, nodeText, buttonNamed } from './renderWorkspace.js'
 export { act, nodeText, buttonNamed }
-export const manager = { user: { id: 'm', displayName: 'Maria' }, capabilities: ['access.users.view', 'access.users.manage', 'access.audit.view'] }
-export const users = [{ id: 'm', displayName: 'Maria', identifier: 'maria', roleId: 'manager', active: true, credentialState: 'active' }, { id: 'o', displayName: 'Otávio', identifier: 'otavio', roleId: 'operator', active: true, credentialState: 'active' }]
+export const manager = { user: { id: 'm', displayName: 'Maria',email:'maria@example.test',emailVerified:true }, capabilities: ['access.users.view', 'access.users.manage', 'access.audit.view'] }
+export const users = [{ id: 'm', displayName: 'Maria', email:'maria@example.test',emailVerified:true,roleId: 'manager', active: true, credentialState: 'active' }, { id: 'o', displayName: 'Otávio',email:'otavio@example.test',emailVerified:true,roleId: 'operator', active: true, credentialState: 'active' }]
 export const roles = [{ id: 'manager', name: 'Gerente', capabilities: ['access.users.manage'] }, { id: 'operator', name: 'Operador', capabilities: ['clients.create', 'clients.update'] }]
 export const response = (data, status = 200) => ({ ok: status < 400, status, json: async () => data })
 export async function setup(t, component, props, fetcher) {

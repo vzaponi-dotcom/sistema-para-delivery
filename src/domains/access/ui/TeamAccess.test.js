@@ -3,6 +3,31 @@ import assert from 'node:assert/strict'
 import React from 'react'
 import { setup, manager, users, roles, response, fill, submit, act, nodeText, buttonNamed } from '../../../test-support/accessUi.js'
 
+for(const status of ['accepted','rejected','uncertain'])test(`email invitation reports ${status} honestly and offers resend without exposing a token`,async t=>{
+  const requests=[],pending={...users[1],id:'pending',email:'ana@example.test',emailVerified:false,credentialState:'invited'}
+  const {screen}=await setup(t,'TeamAccess',{sessionContext:manager},async(url,options={})=>{
+    if(!options.method)return response({users,roles})
+    requests.push([url,options.body&&JSON.parse(options.body)])
+    return response({user:pending,delivery:{status,expiresAt:'2026-10-03'},invite:{token:'UNEXPECTED-SECRET'}})
+  })
+  await act(async()=>buttonNamed(screen.root,'Convidar pessoa').props.onClick())
+  await fill(screen,'displayName','Ana');await fill(screen,'email','ana@example.test');await submit(screen)
+  assert.deepEqual(requests[0][1],{displayName:'Ana',email:'ana@example.test',roleId:'operator'})
+  const expected={accepted:/serviço aceitou o envio/i,rejected:/serviço rejeitou o envio/i,uncertain:/Não foi possível confirmar o envio/i}
+  assert.match(nodeText(screen.root),expected[status]);assert.doesNotMatch(nodeText(screen.root),/UNEXPECTED-SECRET|Copiar código|Código de ativação/)
+  await act(async()=>buttonNamed(screen.root,'Fechar').props.onClick())
+  await act(async()=>buttonNamed(screen.root,'Reenviar convite para Otávio').props.onClick())
+  assert.equal(requests[1][0],'/api/access/users/pending/resend-invite')
+})
+test('email remains read-only and unverified or recovering managers are counted correctly',async t=>{
+  const list=[{...users[0],emailVerified:true,passwordRecoveryPending:true},{...users[0],id:'pending-manager',emailVerified:false}]
+  const {screen}=await setup(t,'TeamAccess',{sessionContext:manager},async()=>response({users:list,roles}))
+  assert.equal(buttonNamed(screen.root,'Desativar conta de Maria').props.disabled,true)
+  await act(async()=>buttonNamed(screen.root,'Editar Maria').props.onClick())
+  const email=screen.root.findAllByType('input').find(n=>n.props.name==='email')
+  assert.equal(email.props.readOnly,true)
+})
+
 test('role selection uses the shared control for invitation and editing and blocks writes', async t => {
   const writes = []
   const { screen, Component } = await setup(t, 'TeamAccess', { sessionContext: manager }, async (_url, options = {}) => {
@@ -17,7 +42,7 @@ test('role selection uses the shared control for invitation and editing and bloc
     await act(async () => screen.root.findAllByProps({ role: 'option' }).find(option => nodeText(option) === label).props.onClick())
   }
   await act(async () => buttonNamed(screen.root, 'Convidar pessoa').props.onClick())
-  await fill(screen, 'displayName', 'Nova'); await fill(screen, 'identifier', 'nova')
+  await fill(screen, 'displayName', 'Nova'); await fill(screen, 'email', 'nova@example.test')
   await choose('Operador'); await submit(screen)
   assert.equal(writes[0].roleId, 'operator')
   await act(async () => buttonNamed(screen.root, 'Editar Otávio').props.onClick())
@@ -39,28 +64,28 @@ test('team denies an operator before reading or rendering private users', async 
   assert.match(nodeText(screen.root), /Acesso negado/)
   assert.equal(screen.root.findAllByType('form').length, 0)
 })
-test('manager creates an invitation once and dismisses it without revealing stored tokens', async t => {
+test('manager creates an email invitation once and dismisses delivery feedback without exposing tokens', async t => {
   const calls = []
   const { screen } = await setup(t, 'TeamAccess', { sessionContext: manager }, async (url, options = {}) => {
     calls.push([url, options])
-    return response(options.method === 'POST' ? { user: { ...users[1], id: 'new', credentialState: 'invited' }, invite: { token: 'ONE-USE-SECRET', expiresAt: '2026-10-01' } } : { users, roles })
+    return response(options.method === 'POST' ? { user: { ...users[1], id: 'new', credentialState: 'invited' }, delivery:{status:'accepted',expiresAt:'2026-10-03'},invite: { token: 'ONE-USE-SECRET', expiresAt: '2026-10-01' } } : { users, roles })
   })
   await act(async () => buttonNamed(screen.root, 'Convidar pessoa').props.onClick())
-  await fill(screen, 'displayName', 'Nova pessoa'); await fill(screen, 'identifier', 'nova')
+  await fill(screen, 'displayName', 'Nova pessoa'); await fill(screen, 'email', 'nova@example.test')
   await submit(screen)
-  assert.match(nodeText(screen.root), /ONE-USE-SECRET/)
+  assert.doesNotMatch(nodeText(screen.root), /ONE-USE-SECRET/)
   const payload = JSON.parse(calls.find(([,o]) => o.method === 'POST')[1].body)
-  assert.deepEqual(payload, { displayName: 'Nova pessoa', identifier: 'nova', roleId: 'operator' })
-  await act(async () => buttonNamed(screen.root, 'Fechar convite').props.onClick())
+  assert.deepEqual(payload, { displayName: 'Nova pessoa', email: 'nova@example.test', roleId: 'operator' })
+  await act(async () => buttonNamed(screen.root, 'Fechar').props.onClick())
   assert.doesNotMatch(nodeText(screen.root), /ONE-USE-SECRET/)
   assert.equal(screen.root.findAllByType('input').some(n => n.props.name === 'capabilities'), false)
 })
-test('last manager conflict preserves authoritative users; other-user reset returns an ephemeral token', async t => {
+test('last manager conflict preserves users; other-user reset reports email delivery', async t => {
   const calls = []
   const { screen } = await setup(t, 'TeamAccess', { sessionContext: manager }, async (url, options = {}) => {
     calls.push([url, options])
     if (options.method === 'PATCH') return response({ error: { code: 'LAST_MANAGER', message: 'Mantenha pelo menos um gerente ativo.' } }, 409)
-    if (options.method === 'POST') return response({ user: { ...users[1], credentialState: 'reset_pending' }, invite: { token: 'RESET-ONCE', expiresAt: '2026-10-01' } })
+    if (options.method === 'POST') return response({ user: { ...users[1], credentialState: 'active',passwordRecoveryPending:true }, delivery:{status:'accepted',expiresAt:'2026-10-03'},invite: { token: 'RESET-ONCE', expiresAt: '2026-10-01' } })
     return response({ users: [...users, { ...users[0], id: 'second-manager', displayName: 'Segundo gerente' }], roles })
   })
   await act(async () => buttonNamed(screen.root, 'Desativar conta de Maria').props.onClick())
@@ -71,29 +96,29 @@ test('last manager conflict preserves authoritative users; other-user reset retu
   await act(async () => buttonNamed(screen.root, 'Cancelar').props.onClick())
   await act(async () => buttonNamed(screen.root, 'Redefinir senha de Otávio').props.onClick())
   await act(async () => buttonNamed(screen.root, 'Confirmar redefinição').props.onClick())
-  assert.match(nodeText(screen.root), /RESET-ONCE/)
+  assert.doesNotMatch(nodeText(screen.root), /RESET-ONCE/)
   assert.equal(calls.filter(([,o]) => o.method === 'POST').length, 1)
 })
 test('changed owner masks old users on first render and rejects a delayed invite result', async t => {
   let resolveCreate
   const { screen, Component } = await setup(t, 'TeamAccess', { sessionContext: manager }, async (_url, options = {}) => options.method === 'POST' ? new Promise(resolve => { resolveCreate = resolve }) : response({ users, roles }))
   await act(async () => buttonNamed(screen.root, 'Convidar pessoa').props.onClick())
-  await fill(screen, 'displayName', 'Pessoa'); await fill(screen, 'identifier', 'pessoa')
+  await fill(screen, 'displayName', 'Pessoa'); await fill(screen, 'email', 'pessoa@example.test')
   await act(async () => { screen.root.findByType('form').props.onSubmit({ preventDefault() {} }) })
   await act(async () => screen.update(React.createElement(Component, { sessionContext: { user: { id: 'o' }, capabilities: [] } })))
   assert.doesNotMatch(nodeText(screen.root), /Maria|Otávio/)
-  await act(async () => resolveCreate(response({ user: users[1], invite: { token: 'STALE-SECRET' } })))
+  await act(async () => resolveCreate(response({ user: users[1], delivery:{status:'accepted',expiresAt:'2026-10-03'},invite: { token: 'STALE-SECRET' } })))
   assert.doesNotMatch(nodeText(screen.root), /STALE-SECRET/)
 })
 test('refresh cannot replay a create or resurface its dismissed invitation', async t => {
   let creates = 0
   const { screen } = await setup(t, 'TeamAccess', { sessionContext: manager }, async (_url, options = {}) => {
-    if (options.method === 'POST') { creates++; return response({ user: { ...users[1], id: 'new' }, invite: { token: 'VISIBLE-ONCE', expiresAt: '2026-10-01' } }) }
+    if (options.method === 'POST') { creates++; return response({ user: { ...users[1], id: 'new' }, delivery:{status:'accepted',expiresAt:'2026-10-03'},invite: { token: 'VISIBLE-ONCE', expiresAt: '2026-10-01' } }) }
     return response({ users, roles })
   })
   await act(async () => buttonNamed(screen.root, 'Convidar pessoa').props.onClick())
-  await fill(screen, 'displayName', 'Nova'); await fill(screen, 'identifier', 'nova'); await submit(screen)
-  await act(async () => buttonNamed(screen.root, 'Fechar convite').props.onClick())
+  await fill(screen, 'displayName', 'Nova'); await fill(screen, 'email', 'nova@example.test'); await submit(screen)
+  await act(async () => buttonNamed(screen.root, 'Fechar').props.onClick())
   await act(async () => buttonNamed(screen.root, 'Atualizar equipe').props.onClick())
   assert.equal(creates, 1); assert.doesNotMatch(nodeText(screen.root), /VISIBLE-ONCE/)
 })

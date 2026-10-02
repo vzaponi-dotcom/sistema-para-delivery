@@ -9,11 +9,13 @@ test('individual form defaults shared, preserves password, and explicitly opts i
   const submissions = []
   const renderer = await h.render(LoginScreen, { authMode: 'user_only', onLogin: (value) => submissions.push(value) })
   await act(async () => {
-    renderer.root.findByProps({ autoComplete: 'username' }).props.onChange({ target: { value: 'ana' } })
+    renderer.root.findByProps({ autoComplete: 'username' }).props.onChange({ target: { value: ' ANA@EXAMPLE.TEST ' } })
     renderer.root.findAllByType('input').find(n => n.props.autoComplete === 'current-password').props.onChange({ target: { value: ' password with spaces ' } })
   })
   await act(async () => renderer.root.findByType('form').props.onSubmit({ preventDefault() {} }))
-  assert.deepEqual(submissions[0], { identifier: 'ana', password: ' password with spaces ', deviceMode: 'shared' })
+  assert.deepEqual(submissions[0], { email: 'ana@example.test', password: ' password with spaces ', deviceMode: 'shared' })
+  assert.equal(renderer.root.findByProps({autoComplete:'username'}).props.type,'email')
+  assert.equal(renderer.root.findByProps({href:'/recuperar-senha'}).children.join(''),'Esqueci minha senha')
   assert.equal(renderer.root.findAllByProps({ placeholder: 'Digite o PIN' }).length, 0)
   await act(async () => {
     renderer.root.findByProps({ type: 'checkbox' }).props.onChange({ target: { checked: true } })

@@ -4,6 +4,12 @@ import React from 'react'
 import { workspaceHarness } from '../../../test-support/renderWorkspace.js'
 import { setup, manager, response, fill, submit, nodeText, act } from '../../../test-support/accessUi.js'
 
+test('account displays the confirmed email without offering an email mutation',async t=>{
+  const {screen}=await setup(t,'MyAccount',{sessionContext:manager},()=>assert.fail('no read needed'))
+  assert.match(nodeText(screen.root),/E-mail.*maria@example.test/)
+  assert.equal(screen.root.findAllByType('input').some(n=>n.props.name==='email'),false)
+})
+
 async function account(t, { capabilities = [], passwordResponse, verificationFailure = false } = {}) {
   const h = await workspaceHarness(t)
   let runtime, reads = 0, broadcasts = 0, invalidate

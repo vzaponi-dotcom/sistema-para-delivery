@@ -8,11 +8,11 @@ test('individual login defaults to shared mode and sends personal only by explic
     if (path.endsWith('/login')) { bodies.push(JSON.parse(options.body)); return {} }
     return { authenticated: true, businessId: 'b', settingsContextId: 's', capabilities: [], user: { id: 'u' } }
   } })
-  await api.login({ identifier: 'ana', password: 'long password' })
-  await api.login({ identifier: 'ana', password: 'long password', deviceMode: 'personal' })
+  await api.login({ email: 'ana@example.test', password: 'long password' })
+  await api.login({ email: 'ana@example.test', password: 'long password', deviceMode: 'personal' })
   assert.deepEqual(bodies, [
-    { identifier: 'ana', password: 'long password', deviceMode: 'shared' },
-    { identifier: 'ana', password: 'long password', deviceMode: 'personal' },
+    { email: 'ana@example.test', password: 'long password', deviceMode: 'shared' },
+    { email: 'ana@example.test', password: 'long password', deviceMode: 'personal' },
   ])
 })
 

@@ -13,8 +13,16 @@ test('public activation renders before anonymous login without fetching session 
   const { default: App } = await h.load('/src/App.jsx')
   const { renderer } = await h.renderAdminApp(App, {}, { initialEntries: ['/ativar-conta?token=URL-SECRET'] })
   assert.match(nodeText(renderer.root), /Ativar conta/)
-  assert.equal(renderer.root.findAllByType('input').find(n => n.props.name === 'token').props.value, '')
+  assert.equal(renderer.root.findAllByType('input').some(n => n.props.name === 'token'),false)
+  assert.match(nodeText(renderer.root),/Abra novamente.*e-mail/)
   assert.doesNotMatch(nodeText(renderer.root), /URL-SECRET/)
+})
+for(const path of ['/recuperar-senha','/redefinir-senha'])test(`public ${path} precedes the authenticated runtime`,async t=>{
+  const h=await workspaceHarness(t)
+  globalThis.fetch=()=>assert.fail('public page must not discover or revoke a session')
+  const {default:App}=await h.load('/src/App.jsx')
+  const {renderer}=await h.renderAdminApp(App,{}, {initialEntries:[path]})
+  assert.match(nodeText(renderer.root),path==='/recuperar-senha'?/Recuperar senha/:/Criar nova senha/)
 })
 test('enrollment actual App composes the permitted team and account screens without bootstrap', async t => {
   const h = await workspaceHarness(t)

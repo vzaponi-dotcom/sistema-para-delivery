@@ -11,7 +11,7 @@ export const createSessionApi = ({ request = apiRequest, json = withJson } = {})
   }
   const login = async (credentials, { discover = true } = {}) => {
     const payload = typeof credentials === 'string' ? { pin: credentials }
-      : { identifier: credentials.identifier, password: credentials.password, deviceMode: credentials.deviceMode === 'personal' ? 'personal' : 'shared' }
+      : { email: credentials.email, password: credentials.password, deviceMode: credentials.deviceMode === 'personal' ? 'personal' : 'shared' }
     const response = await request('/api/auth/login', json('POST', payload))
     // The runtime owns invalidation and discovery when a UI operation can be superseded.
     if (!discover) return response

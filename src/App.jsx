@@ -11,7 +11,7 @@ import './central-data.css'
 import AppShell from './app/shell/AppShell.jsx'
 import AppRoot from './app/shell/AppRoot.jsx'
 import { useLocation, useNavigate } from 'react-router'
-import { AccessSurface, InvitationAccept } from './domains/access/index.js'
+import { AccessSurface, InvitationAccept, PasswordRecovery } from './domains/access/index.js'
 import Button from './shared/ui/Button'
 import Modal from './shared/ui/Modal'
 import RegisterRefundDialog from './app/workflows/refunds/RegisterRefundDialog.jsx'
@@ -778,6 +778,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
 export default function App(props) {
   const location = useLocation()
   const navigate = useNavigate()
-  if (location.pathname === '/ativar-conta') return <InvitationAccept onLogin={() => navigate('/', { replace: true })} />
+  if (location.pathname === '/recuperar-senha') return <PasswordRecovery onLogin={() => navigate('/', { replace: true })} />
+  if (['/ativar-conta','/redefinir-senha'].includes(location.pathname)) return <InvitationAccept key={location.key} location={location} expectedPurpose={location.pathname==='/redefinir-senha'?'password_reset':'activation'} onLogin={() => navigate('/', { replace: true })} />
   return <ApplicationRuntime {...props} />
 }
