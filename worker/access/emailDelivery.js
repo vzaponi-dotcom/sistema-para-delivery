@@ -33,7 +33,9 @@ export async function deliverEmailChallenge(env,challenge,{fetchImpl=fetch}={}) 
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(),5000)
     try {
-      const response = await fetchImpl('https://api.resend.com/emails',{method:'POST',redirect:'error',headers,body:payload,signal:controller.signal})
+      // Pinned workerd supports manual/follow, but rejects error before I/O.
+      // Manual keeps credentials at this origin; 3xx responses are rejected below.
+      const response = await fetchImpl('https://api.resend.com/emails',{method:'POST',redirect:'manual',headers,body:payload,signal:controller.signal})
       if (response.ok) {
         let body
         try { body=await response.json() } catch { return {status:'accepted'} }
