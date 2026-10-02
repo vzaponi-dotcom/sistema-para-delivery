@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
 import { randomUUID } from 'node:crypto'
 import { createProbeProcessManager } from './spec-b-processes.mjs'
+import { assertPreservedPrintContext } from './print-context-snapshot.mjs'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const version = '4.128.0'
@@ -132,9 +133,7 @@ try {
   const upgradedProbe = await startProbe(upgradePersist)
   const upgraded = await requestProbe(upgradedProbe.origin, '/print-context/verify-upgrade')
   await stopProbe(upgradedProbe)
-  if (JSON.stringify(upgraded.preservedSnapshot) !== JSON.stringify(legacy.snapshot)) {
-    throw new Error(`D1 print history changed during post-0024 migrations: ${JSON.stringify({ before: legacy.snapshot, after: upgraded.preservedSnapshot })}`)
-  }
+  assertPreservedPrintContext(legacy.snapshot, upgraded.preservedSnapshot, await readFile(join(fullMigrations, '0039_tenant_reference_guards.sql'), 'utf8'))
 
   const cleanPersist = join(temp, 'clean-state')
   await run(['d1', 'migrations', 'apply', 'DB', '--local', '--config', configPath, '--persist-to', cleanPersist])

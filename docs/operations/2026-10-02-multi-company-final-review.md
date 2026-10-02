@@ -147,3 +147,7 @@ Os seis achados Important foram corrigidos em uma única passagem após classifi
 Suite completa do código corrigido: **3427/3427**, zero falhas, skips ou cancelamentos, 178940.7327 ms. Arquitetura, lint, build, D1 local e bundles de staging/produção passaram. Lint contém avisos e build contém aviso de tamanho.
 
 Os limites remotos e físicos do relatório permanecem pendentes; este registro não certifica deploy/corte ou entrega de e-mail. O logo escuro foi classificado como ajuste visual menor e adiado. Tentativas ficam na memória desta aba com aviso antes de recarregar/fechar; forçar o encerramento perde esse estado e exige inspecionar o cadastro existente antes de criar novamente.
+
+## Verificação adicional do CI
+
+Após os oito shards passarem, o gate de migração detectou que sua comparação histórica não aceitava os nove triggers aditivos. A regra foi atualizada para verificar dados e schema anteriores sem alterações e validar exatamente os nove triggers revisados. Regressões 2/2, gate D1 real clean/upgrade e suíte final 3429/3429 passaram. Decisão/custo registrados no documento de decisões; não foi disparada outra revisão independente.

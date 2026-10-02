@@ -31,3 +31,9 @@ Merge e publicação em produção não fazem parte desta entrega autorizada.
 ## Entrega revisável
 
 [PR #88](https://github.com/vzaponi-dotcom/sistema-para-delivery/pull/88) aberta em rascunho e empilhada sobre a [PR #85](https://github.com/vzaponi-dotcom/sistema-para-delivery/pull/85). Issue #87 permanece aberta para o aceite remoto. O workspace desta execução é preservado porque o checkpoint remoto da Task 14 ainda está pendente.
+
+## Gate adicional detectado no GitHub
+
+No run `37062660924`, os oito shards passaram; o gate Spec B D1 comparava o schema de impressão completo contra a versão anterior e rejeitou os nove triggers aditivos previstos na 0039. A comparação agora mantém os quatro snapshots de dados e todos os objetos anteriores exatamente iguais, e exige os nove triggers nomeados com SQL correspondente à migração revisada. Testes provam rejeição de histórico/schema alterado e guards ausentes, enfraquecidas ou extras.
+
+Depois da correção: **3429/3429** na suíte completa, zero falhas/skips/cancelamentos, 184661.5527 ms; lint passou. O **gate Spec B no D1 local real** passou instalação limpa, upgrade, preservação de histórico/referências e os nove cenários de persistência. O gate de perfil da operação também passou clean install/upgrade. A mudança está restrita à validação de migrações; o código da aplicação continua o verificado em `8396b5f2`. A validação GitHub é repetida no novo HEAD, com resultados ligados na PR #88.
