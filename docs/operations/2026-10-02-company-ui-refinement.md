@@ -24,4 +24,15 @@ Data: 2026-10-02. Continuação da homologação em staging; desenhos do menu e 
 - A primeira execução completa com concorrência 4 foi interrompida somente no processo filho de `CatalogWorkspace.test.js`, que ficou parado no ambiente de teste. Resultado da execução interrompida: 3444 passaram e 1 falhou por encerramento desse filho. O mesmo arquivo passou isoladamente, 3/3. A suíte completa foi repetida pelo comando normal do projeto.
 - Repetição completa: `npm test`, 3445/3445, zero falhas, skips ou cancelamentos, 180159.1571 ms.
 
-O resultado final da repetição e a verificação no navegador remoto serão registrados após a publicação autorizada em staging. Não houve merge nem publicação em produção.
+## Publicação e verificação remota
+
+Código publicado: `e881a934`. Versão do Worker de staging: `4ad3baa3-e5eb-417d-81b8-45819e51d119`. Flags explícitos: multiempresa true, preparo false. Bundle observado: `/assets/index-_Oih6mnI.js`. Não houve migração, merge nem publicação em produção.
+
+- Menu → Trocar empresa a partir de Minha conta abriu `/empresas` e mostrou as duas empresas.
+- Seletor → Minha conta → Voltar retornou a `/empresas`; Voltar à operação abriu Pedidos. Administração → Minha conta → Voltar retornou à lista administrativa.
+- Tema escuro: entrada `rgb(7,24,39)` e cartões `rgb(11,32,54)`, ambos com texto `rgb(248,250,252)`. Tema claro: entrada `rgb(245,247,250)` e cartões brancos, ambos com texto `rgb(15,39,71)`.
+- Administração observada nos dois temas: logo legível, colunas alinhadas, busca/cadastro juntos e paginação discreta. A empresa existente mostra gerente vinculado e Sem convite pendente; a criada pelo painel mostra o convite efetivamente aceito.
+- Viewport móvel solicitado e efetivo: 375 × 900. Largura do conteúdo: administração 360, seletor 375 e conta 360 px, sem overflow horizontal. Cartões administrativos com campos identificados e formulário da conta empilhado foram inspecionados visualmente.
+- Capturas privadas: `company-admin-light-desktop.jpg`, `company-admin-dark-desktop.jpg`, `company-admin-dark-mobile.jpg`, `company-selector-{light,dark}-desktop.jpg`, `company-selector-dark-mobile.jpg` e `company-account-{light,dark}-desktop.jpg`, `company-account-dark-mobile.jpg`, no arquivo privado de evidências da homologação. Nenhuma captura com dados da conta foi enviada ao GitHub.
+
+O workflow automático valida PRs para master; esta PR está empilhada sobre uma branch de feature. `gh pr checks 88` não reportou checks novos. A CI anterior continua evidência do código anterior; não se declara CI nova aprovada. A suíte completa e os gates locais acima correspondem a este refinamento.
