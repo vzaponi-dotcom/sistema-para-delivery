@@ -4,6 +4,7 @@ import { isSupportedPasswordVerifier } from './credentials.js'
 import { prepareAccessInvite } from './invitations.js'
 import { prepareAuditEvent } from './audit.js'
 import { APPLICATION_CAPABILITIES } from '../../shared/settingsAccess.js'
+import { prepareEmailChallenge } from './emailChallenges.js'
 
 const failed = () => apiError(409,'ACCESS_TRANSITION_NOT_READY','Estado de acesso incompatível. Execute o preflight e confira a conta.')
 const event = (db,businessId,action,resourceId,now,onlyIfChanged=false) => prepareAuditEvent(db,{businessId,actorType:'system'},
@@ -103,15 +104,21 @@ export async function issueInitialManager(db,businessId,{identifier,displayName}
 }
 
 export async function issueEmergencyInvite(db,businessId,userId,now=new Date()) {
-  const snapshot=await credentialSnapshot(db,businessId)
-  const invite=await prepareAccessInvite(db,{businessId,userId,purpose:'reset',now})
+  const user=await db.prepare(`SELECT u.login_normalized,u.role_id,c.password_verifier,c.version,c.revision FROM users u
+    JOIN roles r ON r.business_id=u.business_id AND r.id=u.role_id AND r.active=1
+    JOIN user_credentials c ON c.business_id=u.business_id AND c.user_id=u.id AND c.active=1
+    WHERE u.business_id=? AND u.id=? AND u.active=1 AND u.email_verified_at IS NOT NULL`).bind(businessId,userId).first()
+  if(!user||user.version!==1||!isSupportedPasswordVerifier(user.password_verifier))throw failed()
+  const {statements,...challenge}=await prepareEmailChallenge(db,{businessId,userId,email:user.login_normalized,roleId:user.role_id,revision:user.revision,purpose:'password_reset',now})
   await commit(db,[
     guard(db,businessId,`EXISTS (SELECT 1 FROM business_auth_state WHERE business_id=? AND mode IN ('enrollment','user_only'))
       AND EXISTS (SELECT 1 FROM users u JOIN roles r ON r.business_id=u.business_id AND r.id=u.role_id
       JOIN role_capabilities rc ON rc.business_id=r.business_id AND rc.role_id=r.id AND rc.capability='access.users.manage'
       JOIN user_credentials c ON c.business_id=u.business_id AND c.user_id=u.id
-      WHERE u.business_id=? AND u.id=? AND u.active=1 AND r.active=1 AND ${approvedCredential})`,[businessId,businessId,userId,snapshot],now),
-    ...invite.statements,event(db,businessId,'access.invitation.emergency',userId,now),
+      WHERE u.business_id=? AND u.id=? AND u.active=1 AND u.email_verified_at IS NOT NULL AND r.active=1 AND c.active=1 AND c.version=1 AND c.password_verifier=? AND c.revision=?)`,[businessId,businessId,userId,user.password_verifier,user.revision],now),
+    ...statements,
+    db.prepare("UPDATE auth_email_challenges SET delivery_status='private' WHERE business_id=? AND id=?").bind(businessId,challenge.challengeId),
+    event(db,businessId,'access.invitation.emergency',userId,now),
   ])
-  return {userId,token:invite.token,expiresAt:invite.expiresAt}
+  return {userId,token:challenge.token,expiresAt:challenge.expiresAt}
 }

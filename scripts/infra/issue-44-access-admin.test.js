@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { createSettingsDb } from '../../worker/test-support/settingsDb.js'
 import { readFile, access } from 'node:fs/promises'
 import { runAdmin, makeProxyConfig, connectInfrastructure } from './issue-44-access-admin.mjs'
+import { emailAccessFixture } from '../../worker/test-support/emailAccess.js'
 
 test('remote transport requires infra token/account, fixed tenant, explicit environment and rejects arbitrary authority',()=>{
   assert.throws(()=>makeProxyConfig('production',{}))
@@ -47,6 +48,21 @@ test('CLI validates flags before connecting, logs nonsecrets and only consciousl
   assert.equal(JSON.stringify(logs).includes('password'),false)
   assert.equal(sqlite.prepare('SELECT business_id FROM users').get().business_id,'amor-e-sabor')
   assert.equal(disposed,1)
-  await assert.rejects(runAdmin(['issue-emergency-invite','--env','local','--user-id','missing','--show-invite-once'],deps))
+  await assert.rejects(runAdmin(['issue-emergency-invite','--env','local','--user-id','missing','--show-invite-once','--ownership-verified'],{...deps,env:{AUTH_PUBLIC_ORIGIN:'https://delivery.test'}}))
   assert.equal(disposed,2);assert.equal(delivered.length,1)
+})
+test('emergency CLI requires proof and a private terminal, emits one fragment link and logs no secret',async t=>{
+  const {db}=await emailAccessFixture(t),logs=[],delivered=[]
+  let connected=0
+  const args=['issue-emergency-invite','--env','staging','--user-id','u1','--show-invite-once']
+  const deps={connect:async()=>{connected++;return {db,dispose:async()=>{}}},env:{},log:line=>logs.push(line),deliver:data=>delivered.push(data),isTTY:true}
+  await assert.rejects(runAdmin(args,deps));assert.equal(connected,0)
+  await assert.rejects(runAdmin([...args,'--ownership-verified'],{...deps,isTTY:false}));assert.equal(connected,0)
+  await runAdmin([...args,'--ownership-verified'],deps)
+  assert.equal(delivered.length,1)
+  const link=new URL(delivered[0].link)
+  assert.equal(link.origin,'https://staging.mesiva.com.br');assert.equal(link.pathname,'/redefinir-senha');assert.equal(link.search,'')
+  const token=new URLSearchParams(link.hash.slice(1)).get('token')
+  assert.match(token,/^[A-Za-z0-9_-]{43}$/);assert.equal(JSON.stringify(logs).includes(token),false)
+  assert.equal('token' in delivered[0],false)
 })

@@ -59,14 +59,14 @@ export async function connectInfrastructure(environment,{getPlatformProxy,env=pr
   } catch(error) {await cleanup();throw error}
 }
 
-export async function runAdmin(args,{connect=connectInfrastructure,log=console.log,deliver=v=>console.log(JSON.stringify(v)),isTTY=process.stdout.isTTY}={}) {
+export async function runAdmin(args,{connect=connectInfrastructure,log=console.log,deliver=v=>console.log(JSON.stringify(v)),isTTY=process.stdout.isTTY,env=process.env}={}) {
   const [command,...flags]=args,options={}
   if(!commands.includes(command)) throw new Error(`Command required: ${commands.join(', ')}`)
-  const allowed=new Set(['--env',...(command==='issue-initial-manager'?['--identifier','--name','--show-invite-once']:command==='issue-emergency-invite'?['--user-id','--show-invite-once']:[])])
+  const allowed=new Set(['--env',...(command==='issue-initial-manager'?['--identifier','--name','--show-invite-once']:command==='issue-emergency-invite'?['--user-id','--show-invite-once','--ownership-verified']:[])])
   for(let index=0;index<flags.length;index++) {
     const key=flags[index]
     if(!allowed.has(key) || Object.hasOwn(options,key)) throw new Error('Unknown or duplicate option.')
-    if(key==='--show-invite-once') options[key]=true
+    if(key==='--show-invite-once'||key==='--ownership-verified') options[key]=true
     else {const value=flags[++index];if(!value || value.startsWith('--')) throw new Error('Option value required.');options[key]=value}
   }
   if(!environments.includes(options['--env'])) throw new Error('Explicit --env is required.')
@@ -74,6 +74,15 @@ export async function runAdmin(args,{connect=connectInfrastructure,log=console.l
   if(invitation && (!options['--show-invite-once'] || !isTTY)) throw new Error('Invitation delivery requires a private interactive terminal and --show-invite-once.')
   if(command==='issue-initial-manager' && (!options['--identifier'] || !options['--name'])) throw new Error('--identifier and --name required.')
   if(command==='issue-emergency-invite' && !options['--user-id']) throw new Error('--user-id required.')
+  if(command==='issue-initial-manager'&&options['--env']==='staging')throw new Error('Use email-access-staging-admin.mjs prepare-manager for staging email accounts.')
+  let emergencyOrigin
+  if(command==='issue-emergency-invite'){
+    if(!options['--ownership-verified'])throw new Error('Confirm ownership outside the application before issuing a private recovery link.')
+    const config=JSON.parse(readFileSync(join(root,'wrangler.jsonc'),'utf8'))
+    emergencyOrigin=options['--env']==='staging'?config.env.staging.vars.AUTH_PUBLIC_ORIGIN:env.AUTH_PUBLIC_ORIGIN
+    const url=new URL(emergencyOrigin)
+    if(url.protocol!=='https:'||url.origin!==emergencyOrigin||url.username||url.password)throw new Error('A trusted HTTPS AUTH_PUBLIC_ORIGIN is required.')
+  }
   const connection=await connect(options['--env'])
   try {
     let result
@@ -85,7 +94,11 @@ export async function runAdmin(args,{connect=connectInfrastructure,log=console.l
       ...(command==='preflight'?result:{ok:true}),...(result?.userId?{userId:result.userId}:{})}))
     // The one deliberate output channel. Never emit before commit, in errors,
     // audit/log metadata, URL query strings, files, or noninteractive pipelines.
-    if(invitation) deliver({userId:result.userId,token:result.token,expiresAt:result.expiresAt})
+    if(command==='issue-emergency-invite'){
+      const link=new URL('/redefinir-senha',emergencyOrigin)
+      link.hash=new URLSearchParams({token:result.token}).toString()
+      deliver({userId:result.userId,link:link.href,expiresAt:result.expiresAt})
+    }else if(invitation) deliver({userId:result.userId,token:result.token,expiresAt:result.expiresAt})
     return command==='preflight'?result.ready:true
   } catch(error) {
     log(JSON.stringify({action:command,environment:options['--env'],businessId:BUSINESS_ID,ok:false}))

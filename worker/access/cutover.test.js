@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createSettingsDb } from '../test-support/settingsDb.js'
 import { consumeAccessInvite } from './invitations.js'
+import { completeEmailChallenge } from './emailChallenges.js'
 import { createSession } from '../auth.js'
 import { handleRequest } from '../index.js'
 import { preflightCutover, cutoverBusinessAuth, issueInitialManager, issueEmergencyInvite } from './cutover.js'
@@ -75,14 +76,14 @@ test('guard rechecks credentials and grants inside batch, and audit failure roll
   assert.equal(sqlite.prepare('SELECT mode FROM business_auth_state').get().mode,'enrollment')
   assert.equal(sqlite.prepare('SELECT revoked_at FROM sessions').get().revoked_at,null)
 })
-test('emergency recovery for last manager is audited, revokes credential, allows reissue and one acceptance without PIN rollback',async t=>{
+test('emergency recovery for last manager is audited, preserves access until completion and allows one acceptance without PIN rollback',async t=>{
   const {db,sqlite,invite}=await setup(t);await cutoverBusinessAuth(db,businessId,now)
   const first=await issueEmergencyInvite(db,businessId,invite.userId,now)
-  assert.equal(sqlite.prepare('SELECT active FROM user_credentials').get().active,0)
+  assert.equal(sqlite.prepare('SELECT active FROM user_credentials').get().active,1)
   const second=await issueEmergencyInvite(db,businessId,invite.userId,now)
-  await assert.rejects(consumeAccessInvite(db,{token:first.token,password,businessId,now}))
-  await consumeAccessInvite(db,{token:second.token,password,businessId,now})
-  await assert.rejects(consumeAccessInvite(db,{token:second.token,password,businessId,now}))
+  await assert.rejects(completeEmailChallenge(db,{token:first.token,password,businessId,now}))
+  await completeEmailChallenge(db,{token:second.token,password,businessId,now})
+  await assert.rejects(completeEmailChallenge(db,{token:second.token,password,businessId,now}))
   assert.equal(sqlite.prepare('SELECT mode FROM business_auth_state').get().mode,'user_only')
   const event=sqlite.prepare("SELECT * FROM audit_events WHERE action='access.invitation.emergency'").get()
   assert.equal(event.actor_type,'system');assert.equal(event.resource_id,invite.userId)
