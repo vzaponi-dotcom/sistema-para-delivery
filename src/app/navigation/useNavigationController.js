@@ -19,6 +19,7 @@ export function useNavigationController({
   navigationPending = false,
   getNavigationPending,
   getPendingReconciliationPath,
+  contextPaths = [],
   dirtyOrder,
   onDiscardOrder,
   getNavigationDraft,
@@ -109,6 +110,14 @@ export function useNavigationController({
     if (!path) return reject('unknown')
     return navigateApprovedPath(path, options)
   }, [navigateApprovedPath, reject])
+
+  // Account surfaces have their own authorized routes, outside the operational registry.
+  // Callers still settle session-exit guards before completing a context transition.
+  const completeContextNavigation = useCallback((path, options) => {
+    if (!contextPaths.includes(path)) return reject('unknown')
+    if (pendingNavigationRef.current || (getNavigationPending ? getNavigationPending() : navigationPending)) return reject('blocked')
+    return navigateApprovedPath(path, options)
+  }, [contextPaths, getNavigationPending, navigationPending, navigateApprovedPath, reject])
 
   useEffect(() => {
     if (blocker.state !== 'blocked') {
@@ -331,6 +340,7 @@ export function useNavigationController({
     cancelDiscard,
     resetNavigation,
     completeNavigation,
+    completeContextNavigation,
     requestSessionExit,
   }
 }

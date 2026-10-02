@@ -100,7 +100,7 @@ test('direct new-order route owns its dirty draft before switch-user and cancel 
   assertConfirmedModality(renderer)
   await selectClient(renderer)
   assert.equal(buttonNamed(renderer.root, 'Escolher produtos →').props.disabled, false)
-  await act(async () => buttonNamed(renderer.root, 'Loja, operação atual').props.onClick())
+  await act(async () => buttonNamed(renderer.root, 'Loja, empresa atual').props.onClick())
   await act(async () => buttonNamed(renderer.root, 'Trocar usuário').props.onClick())
   assert.match(nodeText(renderer.root), /Descartar venda em andamento/)
   await act(async () => buttonNamed(renderer.root, 'Continuar na venda').props.onClick())

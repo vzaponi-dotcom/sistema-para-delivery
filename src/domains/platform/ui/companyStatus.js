@@ -1,5 +1,5 @@
 export function companyStatus(company) {
-  if (company?.accessStatus === 'active' || company?.invitation?.status === 'accepted') return { access: 'Acesso ativado', invitation: 'Convite aceito', activated: true }
+  if (company?.accessStatus === 'active' || company?.invitation?.status === 'accepted') return { access: 'Acesso ativado', invitation: company?.invitation?.status === 'accepted' ? 'Convite aceito' : company?.invitation ? 'Ativação concluída' : 'Sem convite pendente', activated: true }
   if (company?.accessStatus === 'legacy') return { access: 'Acesso anterior', invitation: 'Preparação pendente', activated: false }
   const invitation = company?.invitation
   const state = invitation?.status

@@ -5,6 +5,20 @@ import { createBusiness } from './businessProvisioning.js'
 import { listPlatformBusinesses, getPlatformBusiness } from './businessesRepository.js'
 
 const env = f => ({ DB: f.db, AUTH_MULTI_COMPANY_ENABLED: true, RESEND_API_KEY: 'synthetic', AUTH_EMAIL_FROM: 'Mesiva <access@example.test>', AUTH_PUBLIC_ORIGIN: 'https://example.test' })
+
+test('existing company metadata identifies its verified linked manager without inventing an invitation', async t => {
+  const f = await createTenancyFixture(t)
+  const result = await listPlatformBusinesses(f.db)
+  const companyA = result.items.find(company => company.id === f.businesses.A)
+  assert.equal(companyA.firstManager?.id, f.members.aliceA)
+  assert.equal(companyA.firstManager?.email, 'alice@example.test')
+  assert.equal(companyA.firstManager?.source, 'membership')
+  assert.equal(companyA.invitation, null)
+  const companyB = await getPlatformBusiness(f.db, f.businesses.B)
+  assert.equal(companyB.firstManager?.id, f.members.carolB)
+  assert.equal(companyB.firstManager?.email, 'carol@example.test')
+  assert.equal(companyB.invitation, null)
+})
 test('registration projection paginates with validated cursor and never includes credentials, tokens or operational data', async t => {
   const f = await createTenancyFixture(t), work = []
   const created = await createBusiness(env(f), f.contexts.admin, { name: 'Test 100% New', managerName: 'First', managerEmail: 'carol@example.test' }, { idempotencyKey: crypto.randomUUID(), now: f.now, waitUntil: p => work.push(p), deliver: async () => ({ status: 'uncertain', payload: 'private-upstream' }) })

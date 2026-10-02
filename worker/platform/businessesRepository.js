@@ -1,15 +1,21 @@
 import { apiError } from '../http.js'
 
 const select = `SELECT b.id,b.name,b.created_at,b.access_status,h.id AS invitation_id,h.expires_at,h.delivery_status,h.revoked_at,h.consumed_at,
-  u.id AS member_id,u.display_name,u.login_normalized,u.membership_state,u.active AS member_active
+  u.id AS member_id,u.display_name,COALESCE(a.email_normalized,u.login_normalized) AS login_normalized,u.membership_state,u.active AS member_active
   FROM businesses b LEFT JOIN company_invitations h ON h.id = (SELECT id FROM company_invitations
     WHERE business_id = b.id AND purpose = 'first_manager' ORDER BY created_at DESC,id DESC LIMIT 1)
-  LEFT JOIN users u ON u.id = h.user_id AND u.business_id = b.id`
+  LEFT JOIN users u ON u.id = COALESCE(h.user_id, (SELECT m.id FROM users m
+    JOIN roles r ON r.id=m.role_id AND r.business_id=m.business_id
+    JOIN accounts linked ON linked.id=m.account_id
+    WHERE m.business_id=b.id AND m.membership_state='active' AND m.active=1
+      AND r.code='manager' AND r.active=1 AND linked.active=1 AND linked.email_verified_at IS NOT NULL
+    ORDER BY m.created_at,m.id LIMIT 1)) AND u.business_id = b.id
+  LEFT JOIN accounts a ON a.id=u.account_id`
 const invalidPage = () => apiError(400, 'INVALID_BUSINESS_PAGE', 'Busca ou página inválida.')
 function project(row, now) {
   const accepted = row.consumed_at || ['active', 'inactive'].includes(row.membership_state)
   return { id: row.id, name: row.name, createdAt: row.created_at, accessStatus: row.access_status,
-    firstManager: row.member_id ? { id: row.member_id, name: row.display_name, email: row.login_normalized, membershipState: row.membership_state, active: row.member_active === 1 } : null,
+    firstManager: row.member_id ? { id: row.member_id, name: row.display_name, email: row.login_normalized, membershipState: row.membership_state, active: row.member_active === 1, source: row.invitation_id ? 'invitation' : 'membership' } : null,
     invitation: row.invitation_id ? { id: row.invitation_id, expiresAt: row.expires_at, deliveryStatus: row.delivery_status,
       status: accepted ? 'accepted' : row.revoked_at ? 'revoked' : Date.parse(row.expires_at) <= now.getTime() ? 'expired' : 'pending',
       canResend: row.access_status === 'pending' && row.membership_state === 'invited' && row.member_active === 1 } : null }

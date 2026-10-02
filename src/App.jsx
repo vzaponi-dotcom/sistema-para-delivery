@@ -254,6 +254,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     cancelDiscard,
     resetNavigation,
     completeNavigation,
+    completeContextNavigation,
     requestSessionExit,
   } = useNavigationController({
     granted,
@@ -262,6 +263,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     navigationPending: platformPending,
     getNavigationPending: isPlatformPending,
     getPendingReconciliationPath: () => sessionRuntimeTargetsRef.current.getProvisioningResumePath?.(),
+    contextPaths: globalSession ? [ACCOUNT_CONTEXT_PATHS.companies, '/minha-conta', ...(sessionContext.platformCapabilities?.includes('platform.businesses.view') ? [ACCOUNT_CONTEXT_PATHS.platform] : [])] : [],
     checkoutPending: newOrderDraft.checkoutPending,
     dirtyOrder: newOrderDraft.dirty,
     onDiscardOrder: newOrderDraft.discard,
@@ -612,7 +614,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
   }
   const handleLogout = () => requestSessionExit(handleSessionLogout, getPendingSessionEffects)
   const handleSwitchUser = () => requestSessionExit(handleSessionLogout, getPendingSessionEffects)
-  const handleSwitchCompany = () => requestSessionExit(() => { setCompanySelectionOpen(true); return true }, getPendingSessionEffects)
+  const handleSwitchCompany = () => requestSessionExit(() => { setCompanySelectionOpen(true); return completeContextNavigation(ACCOUNT_CONTEXT_PATHS.companies) }, getPendingSessionEffects)
   const handlePlatform = () => requestSessionExit(async () => { if (await selectPlatform()) navigateContext(ACCOUNT_CONTEXT_PATHS.platform); return true }, getPendingSessionEffects)
 
   const handleKitchenSoundEnabledChange = (enabled) => {
@@ -726,9 +728,9 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
   const listedCompanies = companyList.owner === sessionContext?.contextId ? companyList : { items: [], loading: true, error: '' }
   const inPlatform = globalSession && sessionContext.scope === 'platform'
   const contextSurface = (choosingCompany || inPlatform) && routeLocation.pathname === '/minha-conta'
-    ? <main className="company-entry"><Button variant="secondary" onClick={() => navigateContext(inPlatform ? ACCOUNT_CONTEXT_PATHS.platform : ACCOUNT_CONTEXT_PATHS.companies, { replace: true })}>Voltar</Button>{renderAccessSurface({ ...accessProps, section: 'my-account' })}</main>
+    ? <main className="company-entry company-account-entry"><Button variant="secondary" disabled={writesBlocked || contextChangePending} onClick={() => completeContextNavigation(inPlatform ? ACCOUNT_CONTEXT_PATHS.platform : ACCOUNT_CONTEXT_PATHS.companies, { replace: true })}>Voltar</Button>{renderAccessSurface({ ...accessProps, section: 'my-account' })}</main>
     : choosingCompany
-      ? <CompanySelection account={sessionContext.account} items={listedCompanies.items} currentBusinessId={sessionContext.businessId} loading={listedCompanies.loading} pending={contextChangePending} error={listedCompanies.error || loginError} onRetry={loadCompanies} onLogout={handleLogout} onAccount={() => navigateContext('/minha-conta')} onSelect={async id => { if (await selectBusiness(id)) { setCompanySelectionOpen(false); if (routeLocation.pathname === ACCOUNT_CONTEXT_PATHS.companies) navigateContext('/', { replace: true }) } }} onCancel={sessionContext.scope === 'business' ? () => setCompanySelectionOpen(false) : undefined} onPlatform={sessionContext.platformCapabilities?.includes('platform.businesses.view') ? handlePlatform : undefined} />
+      ? <CompanySelection account={sessionContext.account} items={listedCompanies.items} currentBusinessId={sessionContext.businessId} loading={listedCompanies.loading} pending={contextChangePending} error={listedCompanies.error || loginError} onRetry={loadCompanies} onLogout={handleLogout} onAccount={() => { setCompanySelectionOpen(true); completeContextNavigation('/minha-conta') }} onSelect={async id => { if (await selectBusiness(id)) { setCompanySelectionOpen(false); if (routeLocation.pathname === ACCOUNT_CONTEXT_PATHS.companies) navigateContext('/', { replace: true }) } }} onCancel={sessionContext.scope === 'business' ? () => { setCompanySelectionOpen(false); navigateContext('/', { replace: true }) } : undefined} onPlatform={sessionContext.platformCapabilities?.includes('platform.businesses.view') ? handlePlatform : undefined} />
       : inPlatform
         ? <PlatformRoutes attempts={provisioningAttempts} session={sessionContext} path={routeLocation.pathname} pending={platformPending || contextChangePending} onPendingChange={changePlatformPending} onNavigate={path => { if (!isPlatformPending()) navigateContext(path) }} onLogout={handleLogout} onAccount={() => { if (!isPlatformPending()) navigateContext('/minha-conta') }} onSelectBusiness={() => { if (!isPlatformPending()) { setCompanySelectionOpen(true); navigateContext(ACCOUNT_CONTEXT_PATHS.companies) } }} />
         : platformEntry ? <main className="company-entry"><p role="alert">{globalSession && sessionContext.platformCapabilities?.includes('platform.businesses.view') ? loginError || 'Confirmando acesso ao painel Mesiva…' : 'Você não tem acesso ao painel Mesiva.'}</p></main> : null
