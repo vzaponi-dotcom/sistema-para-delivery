@@ -19,14 +19,20 @@ const changedInvitation = () => apiError(409, 'INVITATION_CHANGED', 'O convite m
 
 export async function prepareMembershipInvitation(db, {
   businessId, accountEmail, displayName, roleId, issuer, purpose = 'team', userId = null, now = new Date(),
-  dailyLimit = 80, issuerCapability = null, expectedInvitationId = null,
+  dailyLimit = 80, issuerCapability = null, expectedInvitationId = null, creatingBusiness = false,
 }) {
   if (!['first_manager', 'team'].includes(purpose)) throw invalidCompanyInvitation()
   accountEmail = normalizeAccessEmail(accountEmail)
   if (typeof displayName !== 'string' || !displayName.trim() || Array.from(displayName.trim()).length > 200) throw apiError(400, 'INVALID_USER_INPUT', 'Informe um nome com até 200 caracteres.')
   const issuing = await prepareCompanyIssuer(db, issuer, { businessId, purpose, capability: issuerCapability }, now)
-  const role = await db.prepare(`SELECT r.id,r.version,r.code,r.is_builtin,b.access_status FROM roles r JOIN businesses b ON b.id = r.business_id
+  let role = await db.prepare(`SELECT r.id,r.version,r.code,r.is_builtin,b.access_status FROM roles r JOIN businesses b ON b.id = r.business_id
     WHERE r.business_id = ? AND r.id = ? AND r.active = 1`).bind(businessId, roleId).first()
+  // Only the private provisioner can prepare the built-in first manager before defaults are committed.
+  // The role/business assertion below still requires the real rows in the same atomic batch.
+  if (!role && creatingBusiness && purpose === 'first_manager' && roleId === `${businessId}:manager`
+    && !await db.prepare('SELECT id FROM businesses WHERE id = ?').bind(businessId).first()) {
+    role = { id: roleId, version: 1, code: 'manager', is_builtin: 1, access_status: 'pending' }
+  }
   if (!role) throw apiError(404, 'ROLE_NOT_FOUND', 'Perfil não encontrado.')
   if ((purpose === 'team' && role.access_status !== 'active') || (purpose === 'first_manager' && (role.access_status !== 'pending' || role.code !== 'manager' || role.is_builtin !== 1))) throw invalidCompanyInvitation()
   const account = await findAccountByEmail(db, accountEmail)
