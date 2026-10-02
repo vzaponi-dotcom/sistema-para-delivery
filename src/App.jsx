@@ -181,8 +181,9 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
   })
 
   const provisioningAttempt = useSyncExternalStore(provisioningAttempts.subscribe, () => provisioningAttempts.getSnapshot(sessionContext?.account?.id))
-  const platformPending = platformActionPending || ['pending', 'uncertain'].includes(provisioningAttempt?.status)
-  const isPlatformPending = () => platformPendingRef.current || provisioningAttempts.isBlocking(sessionContext?.account?.id)
+  const canReconcileProvisioning = ['platform.businesses.view', 'platform.businesses.create'].every(capability => sessionContext?.platformCapabilities?.includes(capability))
+  const platformPending = platformActionPending || (canReconcileProvisioning && ['pending', 'uncertain'].includes(provisioningAttempt?.status))
+  const isPlatformPending = () => platformPendingRef.current || (canReconcileProvisioning && provisioningAttempts.isBlocking(sessionContext?.account?.id))
   const operationalAccess = sessionOperationalAccess && !platformEntry
   const contextOwnerRef = useRef(null)
   contextOwnerRef.current = sessionContext?.contextId
@@ -260,6 +261,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     implemented: IMPLEMENTED_DESTINATIONS,
     navigationPending: platformPending,
     getNavigationPending: isPlatformPending,
+    getPendingReconciliationPath: () => sessionRuntimeTargetsRef.current.getProvisioningResumePath?.(),
     checkoutPending: newOrderDraft.checkoutPending,
     dirtyOrder: newOrderDraft.dirty,
     onDiscardOrder: newOrderDraft.discard,
@@ -593,6 +595,16 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     printPending: Boolean(printing.busyJobId || printing.jobs.some((job) => ['unknown', 'awaiting_confirmation', 'waiting_confirmation', 'printing'].includes(job.status) || job.physicalOutcome === 'unknown')),
   }
   const getPendingSessionEffects = () => ({ ...pendingSessionEffectsRef.current, contextChangePending: contextChangePending || isPlatformPending(), checkoutPending: newOrderDraft.checkoutPending, credentialChangePending: isCredentialChangePending() })
+  sessionRuntimeTargetsRef.current.getProvisioningResumePath = () => {
+    const effects = getPendingSessionEffects()
+    return canReconcileProvisioning && provisioningAttempts.getSnapshot(sessionContext?.account?.id)?.status === 'uncertain'
+      && !platformPendingRef.current && !effects.credentialChangePending && !effects.checkoutPending && !effects.paymentPending && !effects.printPending && !newOrderDraft.dirty && !policyNavigationBridge.getNavigationDraft()?.dirty
+      ? '/mesiva/empresas/nova' : null
+  }
+  useEffect(() => {
+    const path = sessionRuntimeTargetsRef.current.getProvisioningResumePath?.()
+    if (authState === 'authenticated' && path && routeLocation.pathname !== path) navigateContext(path, { replace: true })
+  }, [authState, sessionContext, provisioningAttempt?.status, routeLocation.pathname, navigateContext])
   sessionRuntimeTargetsRef.current.canChangeContext = target => {
     const effects = getPendingSessionEffects()
     const resumeAuthor = target?.scope === 'platform' && platformEntryRef.current && !platformPendingRef.current && provisioningAttempts.getSnapshot(sessionContext?.account?.id)?.status === 'uncertain'

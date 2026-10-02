@@ -18,6 +18,7 @@ export function useNavigationController({
   checkoutPending,
   navigationPending = false,
   getNavigationPending,
+  getPendingReconciliationPath,
   dirtyOrder,
   onDiscardOrder,
   getNavigationDraft,
@@ -64,6 +65,7 @@ export function useNavigationController({
 
   const shouldBlockRouterNavigation = useCallback(({ currentLocation, nextLocation }) => {
     if (currentLocation.pathname === nextLocation.pathname) return false
+    if (getPendingReconciliationPath?.() === nextLocation.pathname) return false
     if (getNavigationPending ? getNavigationPending() : navigationPending) return true
     if (approvedPathRef.current === nextLocation.pathname) return false
     if (pendingNavigationRef.current) return true
@@ -83,7 +85,7 @@ export function useNavigationController({
 
     const draft = resolveNavigationDraft?.(currentDestination)
     return shouldConfirmDraftExit(draft, currentDestination, nextDestination)
-  }, [authenticated, checkoutPending, navigationPending, getNavigationPending, dirtyOrder, granted, implemented, resolveNavigationDraft])
+  }, [authenticated, checkoutPending, navigationPending, getNavigationPending, getPendingReconciliationPath, dirtyOrder, granted, implemented, resolveNavigationDraft])
 
   const blocker = useBlocker(shouldBlockRouterNavigation)
 

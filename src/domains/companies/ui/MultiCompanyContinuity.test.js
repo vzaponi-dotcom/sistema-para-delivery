@@ -15,6 +15,8 @@ test('external session discovery preserves the author receipt before and after a
     const env = { DB: f.db, AUTH_MULTI_COMPANY_ENABLED: 'true', AUTH_EMAIL_FROM: 'Mesiva <access@example.test>', AUTH_PUBLIC_ORIGIN: 'https://staging.example.test', RESEND_API_KEY: 'synthetic-test-key' }
     globalThis.fetch = async (path, options = {}) => {
       if (path === '/api/auth/session') { if (discoveryGate) await discoveryGate; return { ok: true, json: async () => current } }
+      if (path === '/api/auth/select-platform') { current = { ...current, scope: 'platform', contextId: 'author-platform-return' }; return { ok: true, json: async () => current } }
+      if (path === '/api/platform/businesses' && !options.method) return { ok: true, json: async () => ({ items: [], nextCursor: null }) }
       if (path === '/api/platform/businesses' && options.method === 'POST') {
         const input = JSON.parse(options.body), key = new Headers(options.headers).get('Idempotency-Key'); attempts.push([key, input])
         const result = await createBusiness(env, f.contexts.admin, input, { now: f.now, idempotencyKey: key, waitUntil: task => tasks.push(task), deliver: async () => ({ status: 'uncertain' }) })
@@ -24,7 +26,7 @@ test('external session discovery preserves the author receipt before and after a
       if (path.startsWith('/api/platform/businesses/')) return { ok: true, json: async () => ({ id: path.split('/').at(-1), name: 'Private A', accessStatus: 'pending', history: [] }) }
       assert.fail(`Unexpected request: ${path}`)
     }
-    const { default: App } = await h.load('/src/App.jsx'), { renderer } = await h.renderAdminApp(App, {}, { initialEntries: ['/mesiva/empresas/nova'] })
+    const { default: App } = await h.load('/src/App.jsx'), { renderer, router } = await h.renderAdminApp(App, {}, { initialEntries: ['/mesiva/empresas/nova'] })
     for (const [name, value] of Object.entries({ name: 'Private A', managerName: 'Ana', managerEmail: 'ana@example.test' })) await act(async () => renderer.root.findAllByType('input').find(node => node.props.name === name).props.onChange({ target: { value } }))
     await act(async () => renderer.root.findByType('form').props.onSubmit({ preventDefault() {} }))
     await act(async () => { operation = buttonNamed(renderer.root, 'Criar empresa e enviar convite').props.onClick() })
@@ -42,8 +44,14 @@ test('external session discovery preserves the author receipt before and after a
     await act(async () => invalidate('external-2'))
     assert.doesNotMatch(nodeText(renderer.root), /Private A|ana@example.test/)
     assert.equal(buttonNamed(renderer.root, 'Sair').props.disabled, false)
-    current = { ...session, contextId: 'fresh-author-context' }
+    await act(async () => { void router.navigate('/mesiva/empresas') })
+    assert.equal(router.state.location.pathname, '/mesiva/empresas')
+    current = { ...session, contextId: 'author-with-revoked-create', platformCapabilities: ['platform.businesses.view'] }
     await act(async () => invalidate('external-3'))
+    assert.equal(buttonNamed(renderer.root, 'Sair')?.props.disabled, false, 'revoked creation permission must allow leaving while retaining the receipt')
+    current = { ...session, scope: 'identity', contextId: 'fresh-author-context' }
+    await act(async () => invalidate('external-4'))
+    assert.equal(router.state.location.pathname, '/mesiva/empresas/nova')
     assert.ok(buttonNamed(renderer.root, 'Verificar cadastro'), `${phase}: ${nodeText(renderer.root)}`)
     await act(async () => buttonNamed(renderer.root, 'Verificar cadastro').props.onClick())
     await Promise.all(tasks)
