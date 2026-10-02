@@ -1,6 +1,6 @@
 # Conteúdo editorial da próxima release — acesso e empresas
 
-Estado: preparado para publicação após corte e aceite remoto. Ainda não inserido no catálogo ativo de notificações, porque os flags permanecem desligados.
+Estado: conteúdo preparado; corte e homologação concluídos em staging em 2026-10-02. Ainda não inserido no catálogo compartilhado de notificações: produção permanece com os flags desligados. Promover na publicação controlada da funcionalidade em produção, registrando a data efetiva.
 
 **Ícone:** security
 
