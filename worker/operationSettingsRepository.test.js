@@ -63,7 +63,7 @@ test('fresh no-op creates a receipt without updating revision, timestamp or chil
 
 test('valid schema absence reads revision zero and initialization races atomically', async (t) => {
   const { db, sqlite } = setup(t)
-  sqlite.exec("INSERT INTO businesses VALUES ('new', 'new', 'New', '2026-09-12', '2026-09-12')")
+  sqlite.exec("INSERT INTO businesses (id,slug,name,created_at,updated_at) VALUES ('new', 'new', 'New', '2026-09-12', '2026-09-12')")
   const absent = await loadOperations(db, 'new')
   assert.equal(absent?.revision, 0)
   assert.deepEqual(absent.data, DEFAULT_OPERATIONS)
@@ -133,7 +133,7 @@ test('absent aggregate still rejects missing typed schema columns', async (t) =>
   ]) {
     const { db, sqlite, close } = createSettingsDb()
     t.after(close)
-    sqlite.exec("INSERT INTO businesses VALUES ('new', 'new', 'New', '2026-09-12', '2026-09-12')")
+    sqlite.exec("INSERT INTO businesses (id,slug,name,created_at,updated_at) VALUES ('new', 'new', 'New', '2026-09-12', '2026-09-12')")
     sqlite.exec(sql)
     await assert.rejects(loadOperations(db, 'new'), { code: 'SETTINGS_UNAVAILABLE', status: 503 })
   }

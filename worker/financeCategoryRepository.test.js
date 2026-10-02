@@ -159,7 +159,7 @@ test('stages transient name collisions across multiple edits in one save', async
 
 test('initializes a legitimately absent aggregate and reconciles a receipt before later usage restrictions', async (t) => {
   const { db, sqlite } = setup(t)
-  sqlite.exec("INSERT INTO businesses VALUES ('new-business', 'new-business', 'New', '2026-09-12', '2026-09-12')")
+  sqlite.exec("INSERT INTO businesses (id,slug,name,created_at,updated_at) VALUES ('new-business', 'new-business', 'New', '2026-09-12', '2026-09-12')")
   const absent = await loadFinanceCategories(db, 'new-business')
   assert.equal(absent.revision, 0)
   assert.equal(absent.data.items.length, 13)

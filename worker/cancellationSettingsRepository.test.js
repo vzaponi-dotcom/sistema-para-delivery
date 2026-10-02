@@ -272,7 +272,7 @@ test('rollback, competing revisions, no-op and receipt replay preserve the T03 p
 
 test('valid absent aggregate initializes natives while corrupt state fails closed', async (t) => {
   const { db, sqlite } = setup(t)
-  sqlite.exec("INSERT INTO businesses VALUES ('new', 'new', 'New', '2026-09-12', '2026-09-12')")
+  sqlite.exec("INSERT INTO businesses (id,slug,name,created_at,updated_at) VALUES ('new', 'new', 'New', '2026-09-12', '2026-09-12')")
   const absent = await loadCancellationReasons(db, 'new')
   assert.equal(absent.revision, 0)
   assert.deepEqual(absent.data, editableNatives())

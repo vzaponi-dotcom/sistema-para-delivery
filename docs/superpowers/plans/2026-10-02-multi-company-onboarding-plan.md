@@ -11,7 +11,7 @@
 **Spec:** [2026-10-02-multi-company-onboarding-design.md](../specs/2026-10-02-multi-company-onboarding-design.md), aprovada em 2026-10-02.
 
 **Issue:** [#87](https://github.com/vzaponi-dotcom/sistema-para-delivery/issues/87).
-**Estado:** plano escrito para revisão; nenhum checkbox de implementação está concluído.
+**Estado:** aprovado em 2026-10-02; execução nesta sessão, com revisão independente final, em andamento.
 **Base documental:** `9fc69509`, derivada de `550a073f` da PR #85. Ao executar, conferir a base integrada atual e trazer a fundação de acesso/e-mail antes de iniciar. A validação real do e-mail em staging ainda está pendente; este plano não a certifica nem autoriza merge/produção.
 
 ## Global Constraints

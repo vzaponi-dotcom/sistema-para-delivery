@@ -72,7 +72,7 @@ test('inactive and cross-business reasons are rejected without changing the orde
   const saved = await saveCancellationReasons(db, BUSINESS, {
     expectedRevision: 2, mutationId: 'disable', data: disabled,
   }, new Date(+NOW + 1000))
-  sqlite.exec("INSERT INTO businesses VALUES ('other-business', 'other', 'Other', '2026-09-12', '2026-09-12')")
+  sqlite.exec("INSERT INTO businesses (id,slug,name,created_at,updated_at) VALUES ('other-business', 'other', 'Other', '2026-09-12', '2026-09-12')")
   sqlite.prepare(`INSERT INTO business_cancellation_settings (business_id, revision, created_at, updated_at)
     VALUES ('other-business', 1, ?, ?)`).run(NOW.toISOString(), NOW.toISOString())
   sqlite.prepare(`INSERT INTO business_cancel_reasons

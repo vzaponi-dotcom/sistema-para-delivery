@@ -42,7 +42,7 @@ test('station configuration no-op, replay, mutation reuse and station/business i
   const { db, sqlite } = setup(t)
   addStation(sqlite, 'a')
   addStation(sqlite, 'b')
-  sqlite.exec("INSERT INTO businesses VALUES ('other-business', 'other-business', 'Other', '2026-09-12', '2026-09-12')")
+  sqlite.exec("INSERT INTO businesses (id,slug,name,created_at,updated_at) VALUES ('other-business', 'other-business', 'Other', '2026-09-12', '2026-09-12')")
   const original = (await loadStationConfiguration(db, BUSINESS, 'a')).data
   const noOp = await saveStationConfiguration(db, BUSINESS, 'a', configInput('same-id', 1, original), NOW)
   assert.equal(noOp.resource.revision, 1)
