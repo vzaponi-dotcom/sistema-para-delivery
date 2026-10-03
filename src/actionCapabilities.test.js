@@ -132,7 +132,8 @@ test('2. orders.view sem orders.finalize bloqueia UI e handler de finalizaÃ§Ã
     orders: [preparingOrder], now: new Date('2026-09-11T12:00:00.000Z'), search: '', onSearchChange() {}, currency,
     canFinalizeOrders: false, onFinalizeOrder: async () => { finalizations += 1 }, granted: new Set(['orders.view']), implemented: new Set(['orders']),
   })
-  await act(async () => renderer.root.findByType(KitchenTicket).props.onFinalize(preparingOrder))
+  const ticket = renderer.root.findByType(KitchenTicket)
+  assert.equal(ticket.props.onFinalize, undefined)
   assert.equal(finalizations, 0)
   assert.equal(renderer.root.findAllByType(ConfirmationDialog).length, 0)
 })
