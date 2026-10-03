@@ -16,10 +16,10 @@ const fields = {
   'prepare-admin': ['--name', '--email', '--ownership-verified'],
   'prepare-business-manager': ['--business-id', '--name', '--email', '--ownership-verified'],
   'check-ready': ['--admin-account-id', '--business-id', '--manager-account-id'],
-  'finalize-legacy': ['--admin-account-id', '--business-id', '--manager-account-id', '--login-verified'],
+  'finalize-legacy': ['--admin-account-id', '--business-id', '--manager-account-id', '--login-verified', '--inventory-reviewed'],
   'issue-account-recovery': ['--account-id', '--ownership-verified', '--show-link-once'],
 }
-const booleans = new Set(['--ownership-verified', '--show-link-once', '--login-verified'])
+const booleans = new Set(['--ownership-verified', '--show-link-once', '--login-verified', '--inventory-reviewed'])
 const environment = 'production'
 
 const productionDeliveryEnv = (env) => {
@@ -118,7 +118,7 @@ export async function runMultiCompanyProductionAdmin(args, {
           connection.db,
           JSON.parse(record?.legacy_inventory_json || 'null'),
           { ...readiness, loginVerified: true },
-          { environment },
+          { environment, inventoryReviewed: options['--inventory-reviewed'] === true },
         )
       }
     }
