@@ -6,6 +6,7 @@ import { completeIdentityChallenge } from '../identity/challenges.js'
 import { acceptCompanyInvitation } from '../tenancy/companyInvitations.js'
 import { handleRequest } from '../index.js'
 import { sha256Hex } from '../auth.js'
+import { prepareBuiltinRoles } from '../access/roles.js'
 
 test('private verified-manager activation revalidates recipient account eligibility in its batch', async t => {
   for (const mutation of ['active=0', 'email_verified_at=NULL']) {
@@ -73,8 +74,19 @@ test('production bootstrap uses its own environment record', async t => {
 
 test('production manager preparation never rewrites a conflicting inventoried legacy login', async t => {
   const f = await createTenancyFixture(t)
-  const legacy = f.sqlite.prepare("SELECT id FROM users WHERE business_id='amor-e-sabor' AND account_id IS NULL ORDER BY id LIMIT 1").get()
-  f.sqlite.prepare("UPDATE users SET login_normalized='collision@example.test' WHERE business_id=? AND id=?").run('amor-e-sabor', legacy.id)
+  await f.db.batch(prepareBuiltinRoles(f.db, 'amor-e-sabor', f.now))
+  f.sqlite.prepare(`INSERT INTO users(
+    id,business_id,display_name,login_normalized,role_id,active,created_at,updated_at,membership_state
+  ) VALUES(?,?,?,?,?,1,?,?, 'historical')`).run(
+    'production-legacy-collision',
+    'amor-e-sabor',
+    'Legacy person',
+    'collision@example.test',
+    'amor-e-sabor:manager',
+    f.now.toISOString(),
+    f.now.toISOString(),
+  )
+  const legacy = { id: 'production-legacy-collision' }
   const admin = await preparePlatformAdministrator(f.db, {
     name: 'Prod Owner',
     email: 'prod-owner-2@example.test',
