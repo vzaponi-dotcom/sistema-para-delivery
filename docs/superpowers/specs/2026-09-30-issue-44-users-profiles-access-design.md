@@ -35,7 +35,7 @@ O sucesso exige autorização no Worker para consultas, mutações e projeções
 | Futuro editor | A estrutura de perfis e grants suporta editar perfis existentes e criar outros depois. O editor não é exposto nesta entrega. |
 | Credencial humana | Identificador individual e senha para ambos. PIN curto isolado foi descartado; troca rápida por PIN vinculado ao dispositivo fica para outra frente. |
 | Alcance do operador | Consulta todos os pedidos, histórico operacional e comandas do negócio, incluindo valores e situação necessários para atender e receber. Não consulta movimentações, saldo, relatórios nem indicadores gerenciais. |
-| Ações sensíveis | Cancelar, estornar, conceder desconto e transferir comanda são exclusivos do gerente. |
+| Ações sensíveis | Cancelar, estornar e transferir comanda são exclusivos do gerente. Operador pode aplicar desconto ou acréscimo durante a criação/edição permitida de pedidos. |
 | Clientes | Operador pode consultar, criar e corrigir dados; exclusão é exclusiva do gerente. |
 | Impressão | Operador executa, reimprime e resolve tentativas rotineiras. Descarte de jobs, execução forçada, prioridade excepcional e configuração de estação/política são gerenciais. |
 | Recuperação | Gerente inicia redefinição de outro usuário por convite de uso único. Recuperação do último gerente usa procedimento administrativo controlado, sem restaurar o PIN compartilhado. |
@@ -80,11 +80,11 @@ Gerentes criam usuários por convite de uso único; o destinatário define a pr�
 
 O perfil gerente recebe as capacidades administrativas e operacionais explícitas do catálogo. O perfil operador recebe inicialmente:
 
-`orders.view`, `orders.history`, `orders.create`, `orders.finalize`, `comandas.view`, `payments.receive`, `clients.view`, `clients.create`, `clients.update`, `products.view`, `tables.view`, `printing.queue`, `printing.execute`, `printing.station.view` e `preferences.local`.
+`orders.view`, `orders.history`, `orders.create`, `orders.finalize`, `orders.discount`, `comandas.view`, `payments.receive`, `clients.view`, `clients.create`, `clients.update`, `products.view`, `tables.view`, `printing.queue`, `printing.execute`, `printing.station.view` e `preferences.local`.
 
 `clients.manage` deixa de ser uma concessão única e é substituída por `clients.create`, `clients.update` e `clients.delete`; os consumidores de interface e as rotas devem migrar juntos. `printing.execute` cobre impressão e recuperação rotineiras. Introduzir `printing.force` para forçar job e prioridade excepcional; `printing.discard` continua separado. Introduzir `access.users.view`, `access.users.manage` e `access.audit.view` para equipe e atividades. `orders.backdate` fica com gerente para criação retroativa; `orders.discount` permanece distinto de `orders.create`.
 
-O operador **não** recebe `orders.analysis`, `orders.cancel`, `orders.discount`, `orders.backdate`, `payments.refund`, `comandas.transfer`, `clients.delete`, `products.manage`, `tables.manage`, `finance.overview`, `finance.receivables`, `finance.movements`, `finance.movements.manage`, `finance.promises.manage`, `reports.view`, `reports.export`, capabilities de gestão de configurações, `printing.force`, `printing.discard`, `printing.station.configure` ou capabilities de gestão de acesso. A ausência de grant é negação. Consultar um pedido com valor e pagamento não concede consulta à carteira financeira ou seus agregados.
+O operador **não** recebe `orders.analysis`, `orders.cancel`, `orders.backdate`, `payments.refund`, `comandas.transfer`, `clients.delete`, `products.manage`, `tables.manage`, `finance.overview`, `finance.receivables`, `finance.movements`, `finance.movements.manage`, `finance.promises.manage`, `reports.view`, `reports.export`, capabilities de gestão de configurações, `printing.force`, `printing.discard`, `printing.station.configure` ou capabilities de gestão de acesso. A ausência de grant é negação. Consultar um pedido com valor e pagamento não concede consulta à carteira financeira ou seus agregados.
 
 Condições compostas são avaliadas no Worker: criar pedido exige `orders.create`; se a requisição inclui recebimento, também `payments.receive`; se inclui ajuste de preço/desconto, também `orders.discount`; se é retroativa, também `orders.backdate`. A tela pode esconder esses campos, mas payload direto não contorna a regra. `payments.receive` não implica estorno, cancelamento ou acesso a movimentos.
 
