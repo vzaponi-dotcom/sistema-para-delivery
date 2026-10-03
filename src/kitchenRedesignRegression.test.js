@@ -103,8 +103,10 @@ test('kitchen ticket exposes the approved derived state, attendance icons and ex
   assert.match(ticket, /Entrega:\s*'delivery'/)
   assert.match(ticket, /Retirada:\s*'pickup'/)
   assert.match(ticket, /Local:\s*'local'/)
-  assert.match(ticket, />Cancelar<\/Button>/)
-  assert.doesNotMatch(ticket, />Cancelar pedido<\/Button>/)
+  assert.match(ticket, /kitchen-ticket-cancel-action/)
+  assert.match(ticket, /Cancelar pedido/)
+  assert.match(ticket, /Cancelar reserva/)
+  assert.doesNotMatch(ticket, />Cancelar<\/Button>/)
   for (const label of ['Exibir detalhes', 'Saiu para entrega', 'Finalizar']) {
     const sources = `${ticket}\n${read('./domains/orders/domain/orderWorkflow.js')}`
     assert.match(sources, new RegExp(label))
