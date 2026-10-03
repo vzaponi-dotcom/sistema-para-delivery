@@ -14,11 +14,13 @@ test('production multi-company CLI is production-only and environment-aware', as
   assert.doesNotMatch(text, /environment='staging'/)
 })
 
-test('production multi-company CLI requires explicit ownership and login verification flags', async () => {
+test('production multi-company CLI requires explicit ownership, inventory review and login verification flags', async () => {
   const text = await source()
   assert.match(text, /'prepare-admin': \['--name', '--email', '--ownership-verified'\]/)
   assert.match(text, /'prepare-business-manager': \['--business-id', '--name', '--email', '--ownership-verified'\]/)
-  assert.match(text, /'inspect-inventory': \['--admin-account-id'\]/)\n  assert.match(text, /'finalize-legacy': \['--admin-account-id', '--business-id', '--manager-account-id', '--login-verified', '--inventory-reviewed'\]/)
+  assert.match(text, /'inspect-inventory': \['--admin-account-id'\]/)
+  assert.match(text, /'finalize-legacy': \['--admin-account-id', '--business-id', '--manager-account-id', '--login-verified', '--inventory-reviewed'\]/)
+  assert.match(text, /inventoryReviewed: options\['--inventory-reviewed'\] === true/)
   assert.match(text, /issue-account-recovery.*ownership-verified.*show-link-once/s)
-  assert.match(text, /inventoryReviewed: options\['--inventory-reviewed'\] === true/)\n  assert.match(text, /!isTTY/)
+  assert.match(text, /!isTTY/)
 })
