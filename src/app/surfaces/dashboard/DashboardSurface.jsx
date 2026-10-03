@@ -75,22 +75,24 @@ function DashboardSurface({ orders, movements, currency, queryState, onQueryChan
   return (
     <>
       <AreaNavigation area="finance" />
-      <PageHeader
-        eyebrow="Resumo do dia"
-        title="Visão geral financeira"
-        description="Acompanhe os resultados de hoje e a evolução recente do negócio."
-        actions={(
-          <button
-            type="button"
-            className="icon-button icon-button-neutral dashboard-privacy-toggle"
-            aria-label={privacyLabel}
-            title={privacyLabel}
-            onClick={() => onQueryChange({ valuesVisible: !valuesVisible })}
-          >
-            <Icon name={valuesVisible ? 'eye' : 'eye-off'} size={20} />
-          </button>
-        )}
-      />
+      <div className="dashboard-overview-header">
+        <PageHeader
+          eyebrow="Resumo do dia"
+          title="Visão geral financeira"
+          description="Acompanhe os resultados de hoje e a evolução recente do negócio."
+          actions={(
+            <button
+              type="button"
+              className="icon-button icon-button-neutral dashboard-privacy-toggle"
+              aria-label={privacyLabel}
+              title={privacyLabel}
+              onClick={() => onQueryChange({ valuesVisible: !valuesVisible })}
+            >
+              <Icon name={valuesVisible ? 'eye' : 'eye-off'} size={17} />
+            </button>
+          )}
+        />
+      </div>
       <section className="stats-grid stats-grid-three" aria-label="Indicadores principais">
         <StatCard label="Vendas hoje" value={displayMoney(totals.salesToday)} helper="Pedidos da data de hoje" icon="receipt" tone="success" className="dashboard-stat-sales" />
         <StatCard label="Recebido hoje" value={displayMoney(totals.receivedToday)} helper="Pagamentos confirmados" icon="arrow-up" tone="success" />

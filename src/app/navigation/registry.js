@@ -2,7 +2,7 @@ export const NAVIGATION_DESTINATIONS = Object.freeze([
   Object.freeze({ id: 'my-account', path: '/minha-conta', area: 'account', label: 'Minha conta', mobileEntry: 'more', authenticatedOnly: true }),
   Object.freeze({ id: 'access-team', path: '/configuracoes/equipe', area: 'access', label: 'Equipe e acessos', mobileEntry: 'more', capability: 'access.users.view' }),
   Object.freeze({ id: 'access-activity', path: '/configuracoes/atividades', area: 'access', label: 'Atividades', mobileEntry: 'more', capability: 'access.audit.view' }),
-  Object.freeze({ id: 'settings-home', path: '/configuracoes', area: 'settings', label: 'Configurações', mobileEntry: 'more', anyCapability: Object.freeze(['business.profile.view', 'operations.settings.view', 'payments.settings.view', 'orders.settings.view', 'finance.categories.view', 'printing.settings.view', 'printing.settings', 'printing.station.view', 'preferences.local', 'access.users.view', 'access.audit.view']) }),
+  Object.freeze({ id: 'settings-home', path: '/configuracoes', area: 'settings', label: 'Configurações', mobileEntry: 'more', anyCapability: Object.freeze(['business.profile.view', 'operations.settings.view', 'payments.settings.view', 'orders.settings.view', 'finance.categories.view', 'printing.settings.view', 'printing.settings', 'printing.station.configure', 'preferences.local', 'access.users.view', 'access.audit.view']) }),
   Object.freeze({ id: 'settings-business-profile', path: '/configuracoes/identidade', area: 'settings', label: 'Identidade da operação', mobileEntry: 'more', capability: 'business.profile.view' }),
   Object.freeze({ id: 'settings-operations', path: '/configuracoes/operacao', area: 'settings', label: 'Operação', mobileEntry: 'more', capability: 'operations.settings.view' }),
   Object.freeze({ id: 'settings-modalities', path: '/configuracoes/modalidades', area: 'settings', label: 'Modalidades de pedido', mobileEntry: 'more', capability: 'operations.settings.view' }),
@@ -23,7 +23,7 @@ export const NAVIGATION_DESTINATIONS = Object.freeze([
   Object.freeze({ id: 'clients', path: '/clientes', area: 'clients', label: 'Clientes', mobileEntry: 'more', capability: 'clients.view' }),
   Object.freeze({ id: 'products', path: '/produtos', area: 'products', label: 'Produtos e preços', mobileEntry: 'more', capability: 'products.view' }),
   Object.freeze({ id: 'tables', path: '/mesas', area: 'tables', label: 'Mesas', mobileEntry: 'more', capability: 'tables.view' }),
-  Object.freeze({ id: 'settings-printing', path: '/configuracoes/impressao', area: 'settings', label: 'Impressão', mobileEntry: 'more', anyCapability: Object.freeze(['printing.settings.view', 'printing.settings', 'printing.station.view', 'printing.station.configure']) }),
+  Object.freeze({ id: 'settings-printing', path: '/configuracoes/impressao', area: 'settings', label: 'Impressão', mobileEntry: 'more', anyCapability: Object.freeze(['printing.settings.view', 'printing.settings', 'printing.station.configure']) }),
   Object.freeze({ id: 'settings-device', path: '/configuracoes/dispositivo', area: 'settings', label: 'Preferências deste dispositivo', mobileEntry: 'more', capability: 'preferences.local' }),
 ])
 

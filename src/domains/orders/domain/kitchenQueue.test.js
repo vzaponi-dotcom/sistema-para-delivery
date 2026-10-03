@@ -306,5 +306,6 @@ test('orders page lists Próximos dias with full schedule and reservation-only e
   assert.deepEqual(calls, ['edit:future-local'])
 
   assert.ok(buttonNamed(future, 'Exibir detalhes'))
-  assert.ok(buttonNamed(future, 'Cancelar'))
+  assert.ok(buttonNamed(future, 'Cancelar pedido'))
+  assert.ok(buttonNamed(future, 'Cancelar reserva'))
 })

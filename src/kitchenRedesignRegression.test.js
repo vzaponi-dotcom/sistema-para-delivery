@@ -103,8 +103,10 @@ test('kitchen ticket exposes the approved derived state, attendance icons and ex
   assert.match(ticket, /Entrega:\s*'delivery'/)
   assert.match(ticket, /Retirada:\s*'pickup'/)
   assert.match(ticket, /Local:\s*'local'/)
-  assert.match(ticket, />Cancelar<\/Button>/)
-  assert.doesNotMatch(ticket, />Cancelar pedido<\/Button>/)
+  assert.match(ticket, /kitchen-ticket-cancel-action/)
+  assert.match(ticket, /Cancelar pedido/)
+  assert.match(ticket, /Cancelar reserva/)
+  assert.doesNotMatch(ticket, />Cancelar<\/Button>/)
   for (const label of ['Exibir detalhes', 'Saiu para entrega', 'Finalizar']) {
     const sources = `${ticket}\n${read('./domains/orders/domain/orderWorkflow.js')}`
     assert.match(sources, new RegExp(label))
@@ -203,7 +205,7 @@ test('desktop kitchen uses four counters, a warm board, and receipt tickets with
   assert.match(css, /\.kitchen-stats\s*\{[^}]*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/s)
   assert.match(css, /\.kitchen-page\s*\{[^}]*background:\s*var\(--kitchen-bg\)/s)
   assert.match(css, /\.kitchen-board\s*\{[^}]*background:\s*var\(--kitchen-panel\)/s)
-  assert.match(css, /\.kitchen-ticket\s*\{[^}]*grid-template-areas:\s*["']identity\s+summary\s+timing\s+actions["'][^}]*background:\s*var\(--kitchen-ticket\)[^}]*color:\s*var\(--kitchen-ticket-text\)/s)
+  assert.match(css, /\.kitchen-ticket\s*\{[^}]*grid-template-areas:\s*["']identity\s+summary\s+timing\s+actions["'][^}]*border-radius:\s*14px[^}]*background:\s*color-mix\([^}]*var\(--kitchen-ticket\)[^}]*color:\s*var\(--kitchen-ticket-text\)/s)
   assert.match(css, /\.kitchen-ticket-items\s*\{[^}]*color:\s*var\(--kitchen-ticket-text\)/s)
   assert.match(css, /\.kitchen-ticket-note\s*\{[^}]*color:\s*var\(--kitchen-ticket-muted\)[^}]*-webkit-line-clamp:\s*2[^}]*overflow:\s*hidden/s)
   assert.match(css, /\.kitchen-ticket-actions\s*\{[^}]*display:\s*flex[^}]*justify-content:\s*flex-end/s)
@@ -271,7 +273,7 @@ test('narrow kitchen keeps two counter columns and stacks ticket content without
     .filter((width) => width > 320)
 
   assert.match(narrow, /\.kitchen-stats\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/s)
-  assert.match(narrow, /\.kitchen-ticket\s*\{[^}]*grid-template-areas:\s*["']identity["']\s*["']customer["']\s*["']summary["']\s*["']notes["']\s*["']timing["']\s*["']actions["']/s)
+  assert.match(narrow, /\.kitchen-ticket\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\) auto[^}]*grid-template-areas:\s*["']identity\s+identity["']\s*["']customer\s+timing["']\s*["']summary\s+summary["']\s*["']notes\s+notes["']\s*["']actions\s+actions["']/s)
   assert.match(narrow, /\.kitchen-ticket\s*\{[^}]*min-width:\s*0/s)
   assert.deepEqual(forcingWidths, [])
 })

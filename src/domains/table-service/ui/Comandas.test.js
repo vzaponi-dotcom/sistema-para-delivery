@@ -79,6 +79,15 @@ for (const kind of ['closed', 'foreign', 'transferred', 'replaced']) test(`unava
   assert.doesNotMatch(nodeText(detail(r)), /Sem cebola|Mesa externa/)
 })
 
+test('room tables are the first Comandas content without a redundant page heading', async (t) => {
+  const harness = await workspaceHarness(t)
+  const { default: Comandas } = await harness.load('/src/domains/table-service/ui/Comandas.jsx')
+  const renderer = await harness.render(Comandas, { tables: workspaceTables, currency })
+  assert.match(nodeText(renderer.root), /Mesas do salão/)
+  assert.doesNotMatch(nodeText(renderer.root), /O salão em um só lugar/)
+  assert.equal(renderer.root.findAllByType('h1').length, 0)
+})
+
 test('active tables retain official ordering, textual occupancy and stable comanda summaries', async (t) => {
   const harness = await workspaceHarness(t)
   const { default: Comandas } = await harness.load('/src/domains/table-service/ui/Comandas.jsx')
@@ -418,7 +427,8 @@ test('a free table keeps its current occupancy separate from its reservation and
     canCancelOrders: true,
   })
 
-  assert.match(nodeText(renderer.root), /Mesas, consumo e reservas/)
+  assert.match(nodeText(renderer.root), /Mesas do salão/)
+  assert.doesNotMatch(nodeText(renderer.root), /Mesas, consumo e reservas/)
   const reservedCard = list(renderer).findAllByType('button').find((button) => nodeText(button).includes('Varanda'))
   assert.match(nodeText(reservedCard), /Varanda.*Livre agora/)
   assert.match(nodeText(list(renderer).findByProps({ className: 'comanda-reservation-button' })), /Reservada.*João.*20:00/)

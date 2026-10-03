@@ -37,7 +37,7 @@ test('enrollment actual App composes the permitted team and account screens with
   const { renderer, router } = await h.renderAdminApp(App, {}, { initialEntries: ['/configuracoes/equipe'] })
   assert.match(nodeText(renderer.root), /Contas da equipe/)
   await act(async () => router.navigate('/minha-conta'))
-  assert.match(nodeText(renderer.root), /Alterar minha senha/)
+  assert.match(nodeText(renderer.root), /Senha e segurança.*Alterar senha/s)
   assert.equal(requests.includes('/api/bootstrap'), false)
 })
 test('enrollment with operational grants still exposes only account and access pages', async t => {

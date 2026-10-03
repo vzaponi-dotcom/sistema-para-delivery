@@ -3,14 +3,18 @@ import assert from 'node:assert/strict'
 import { workspaceHarness, nodeText, buttonNamed } from '../../../test-support/renderWorkspace.js'
 import { act } from 'react-test-renderer'
 
-test('company selection displays only eligible items with role, current company and explicit choice', async t => {
+test('company selection displays approved account context, company identity, role and explicit choice', async t => {
   const h = await workspaceHarness(t)
   const { default: Screen } = await h.load('/src/domains/companies/ui/CompanySelection.jsx')
   const selected = []
-  const renderer = await h.render(Screen, { account: { displayName: 'Ana', email: 'ana@example.test' }, items: [{ businessId: 'A', name: 'Cozinha A', roleName: 'Gerente' }, { businessId: 'B', name: 'Cozinha B', roleName: 'Operador' }], currentBusinessId: 'A', onSelect: id => selected.push(id) })
-  assert.match(nodeText(renderer.root), /Cozinha A.*Gerente.*Cozinha B.*Operador/s)
+  const renderer = await h.render(Screen, { account: { displayName: 'Ana Silva', email: 'ana@example.test' }, items: [{ businessId: 'A', name: 'Amor & Sabor', roleName: 'Gerente', hasLogo: true, logoVersion: 'logo-v2' }, { businessId: 'B', name: 'Dominos', roleName: 'Operador', hasLogo: false, logoVersion: null }], currentBusinessId: 'A', onSelect: id => selected.push(id) })
+  assert.match(nodeText(renderer.root), /ana@example.test.*Ana Silva.*Suas empresas.*Amor & Sabor.*Gerente.*Dominos.*Operador/s)
+  assert.equal(renderer.root.findByProps({ className: 'company-account-avatar' }).children.join(''), 'AS')
+  const logo = renderer.root.findAllByType('img').find(node => node.props.src?.startsWith('/api/auth/business-logo'))
+  assert.ok(logo)
+  assert.equal(logo.props.src, '/api/auth/business-logo?businessId=A&v=logo-v2')
   assert.deepEqual(selected, [])
-  await act(async () => buttonNamed(renderer.root, 'Abrir Cozinha B').props.onClick())
+  await act(async () => buttonNamed(renderer.root, 'Abrir Dominos').props.onClick())
   assert.deepEqual(selected, ['B'])
 })
 test('zero memberships offers clear empty state and logout without operational bootstrap', async t => {

@@ -34,7 +34,7 @@ test('generic Validate keeps both dry-runs and the 0030 operation-profile migrat
 })
 
 test('staging workflow provisions only the staging R2 bucket idempotently on the current release branch', () => {
-  assert.match(stagingWorkflow, /branches:\s*\n(?:\s*- .*\n)*\s*- feature\/issue-87-multi-company-onboarding/m)
+  assert.match(stagingWorkflow, /branches:\s*\n(?:\s*- .*\n)*\s*- feature\/account-menu-company-context/m)
   assert.match(stagingWorkflow, /STAGING_R2_BUCKET:\s*mesiva-business-assets-staging/)
   assert.match(stagingWorkflow, /wrangler@4\.128\.0 r2 bucket info "\$STAGING_R2_BUCKET" --json --env staging/)
   assert.match(stagingWorkflow, /wrangler@4\.128\.0 r2 bucket create "\$STAGING_R2_BUCKET" --env staging/)

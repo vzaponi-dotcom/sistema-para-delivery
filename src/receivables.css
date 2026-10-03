@@ -266,19 +266,40 @@
 .receivable-client-order-select {
   min-height: 48px;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  border-top: 1px solid var(--border);
+  color: var(--text);
+}
+
+.receivable-client-order-selection-hitbox {
+  min-width: 0;
+  min-height: 48px;
+  display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  border-top: 1px solid var(--border);
-  color: var(--text);
+  color: inherit;
   cursor: pointer;
+}
+
+.receivable-client-order-selection-hitbox:hover {
+  background: color-mix(in srgb, var(--primary-soft) 44%, transparent);
+}
+
+.receivable-client-order-selection-hitbox:has(input:focus-visible) {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
 }
 
 .receivable-client-order-select input {
   width: 18px;
   height: 18px;
   accent-color: var(--primary);
+  cursor: pointer;
 }
 
 .receivable-client-order-main {
@@ -296,8 +317,9 @@
 .receivable-client-order-main { cursor: pointer; }
 
 .receivable-client-promise-action {
-  grid-column: 2 / -1;
+  grid-column: 1;
   justify-self: start;
+  margin-left: 40px;
   min-width: 0;
   min-height: 34px;
   display: inline-flex;
@@ -700,9 +722,10 @@
   .receivable-client-inline-orders { display: grid; }
   .receivables-client-list.has-selection { padding-bottom: 84px; }
   .receivable-client-order-select { min-height: 52px; }
+  .receivable-client-order-selection-hitbox { min-height: 52px; }
   .receivable-client-promise-action {
     min-height: 44px;
-    margin: -2px 0 -4px;
+    margin: -2px 12px 6px 40px;
   }
   .receivables-payment-desktop-action { display: none; }
   .receivables-header-actions { display: none; }

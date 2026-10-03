@@ -34,11 +34,12 @@ const send = (f, path, body, options = {}) => handleGlobalAuthApi(req(path, body
 
 test('global login resolves one, many, zero and administrative destinations without tenant input', async (t) => {
   const f = await createTenancyFixture(t)
-  for (const [email, scope, businessId] of [['bob@example.test', 'business', f.businesses.A], ['alice@example.test', 'identity', undefined], ['admin@example.test', 'platform', undefined]]) {
+  for (const [email, scope, businessId, eligibleBusinessCount] of [['bob@example.test', 'business', f.businesses.A, 1], ['alice@example.test', 'identity', undefined, 2], ['admin@example.test', 'platform', undefined, 0]]) {
     const response = await send(f, '/api/auth/login', { email, password: 'Fixture password 2026!', deviceMode: 'shared' })
     assert.equal(response.status, 200)
     const payload = await response.json()
     assert.equal(payload.scope, scope); assert.equal(payload.businessId, businessId)
+    assert.equal(payload.eligibleBusinessCount, eligibleBusinessCount)
     assert.match(response.headers.get('set-cookie'), /^mesiva_session=/)
     assert.equal(response.headers.get('cache-control'), 'no-store')
     if (scope !== 'business') assert.deepEqual(payload.capabilities, [])
@@ -105,6 +106,43 @@ test('session discovery, company listing, selection and bodyless logout enforce 
   const logout = new Request('https://staging.example.test/api/auth/logout', { method: 'POST', headers: { origin: 'https://staging.example.test', cookie: currentCookie, 'X-Mesiva-Context': current.contextId } })
   assert.equal((await handleGlobalAuthApi(logout, { DB: f.db, ...config }, { now: f.now })).status, 200)
   assert.equal((await (await send(f, '/api/auth/session', undefined, { headers: { cookie: currentCookie } })).json()).authenticated, false)
+})
+
+
+test('company chooser metadata and logo endpoint expose only eligible company identity', async (t) => {
+  const f = await createTenancyFixture(t)
+  const key = `businesses/${encodeURIComponent(f.businesses.A)}/logo/selection.webp`
+  f.sqlite.prepare(`INSERT INTO business_profiles(business_id,logo_object_key,logo_content_type,logo_updated_at,created_at,updated_at)
+    VALUES(?,?,'image/webp',?,?,?)`)
+    .run(f.businesses.A, key, '2026-10-03T18:30:00.000Z', f.now.toISOString(), f.now.toISOString())
+
+  const login = await send(f, '/api/auth/login', { email: 'alice@example.test', password: 'Fixture password 2026!' })
+  const session = await login.json()
+  const cookie = login.headers.get('set-cookie').split(';')[0]
+  const listed = await send(f, '/api/auth/businesses', undefined, { headers: { cookie, 'X-Mesiva-Context': session.contextId } })
+  const businesses = (await listed.json()).businesses
+  assert.deepEqual(businesses.find(item => item.businessId === f.businesses.A), {
+    businessId: f.businesses.A,
+    name: 'Company A',
+    roleName: 'Gerente',
+    hasLogo: true,
+    logoVersion: '2026-10-03T18:30:00.000Z',
+  })
+
+  const reads = []
+  const env = { DB: f.db, ...config, BUSINESS_ASSETS: { get: async objectKey => {
+    reads.push(objectKey)
+    return { body: new Uint8Array([1, 2, 3]), httpMetadata: { contentType: 'image/webp' }, etag: 'chooser-logo' }
+  } } }
+  const logo = await handleGlobalAuthApi(req(`/api/auth/business-logo?businessId=${encodeURIComponent(f.businesses.A)}&v=ignored`, undefined, { cookie }), env, { now: f.now })
+  assert.equal(logo.status, 200)
+  assert.equal(logo.headers.get('content-type'), 'image/webp')
+  assert.equal(logo.headers.get('cache-control'), 'private')
+  assert.deepEqual(reads, [key])
+
+  const denied = await handleGlobalAuthApi(req('/api/auth/business-logo?businessId=not-eligible', undefined, { cookie }), env, { now: f.now })
+  assert.equal(denied.status, 404)
+  assert.deepEqual(reads, [key])
 })
 
 test('recovery without Worker lifetime fails uniformly and never sends', async (t) => {

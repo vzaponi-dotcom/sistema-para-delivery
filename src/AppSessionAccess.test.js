@@ -8,7 +8,7 @@ import { fill } from './test-support/accessUi.js'
 test('company chooser opens from My Account and Back returns from account to the company list', async t => {
   for (const initialPath of ['/minha-conta', '/pedidos', '/empresas']) await t.test(initialPath, async t => {
   const h = await workspaceHarness(t)
-  const session = { ...operationalSession, authMode: 'multi_company', scope: 'business', contextId: 'business-context', account: { id: 'account', displayName: 'Ana', email: 'ana@example.test' } }
+  const session = { ...operationalSession, authMode: 'multi_company', scope: 'business', contextId: 'business-context', account: { id: 'account', displayName: 'Ana', email: 'ana@example.test' }, eligibleBusinessCount: 2 }
   globalThis.fetch = async path => {
     const payload = path === '/api/auth/session' ? session
       : path === '/api/auth/businesses' ? { businesses: [{ businessId: 'b', name: 'Loja', roleName: 'Gerente' }, { businessId: 'other', name: 'Outra empresa', roleName: 'Operador' }] }
@@ -36,6 +36,27 @@ test('company chooser opens from My Account and Back returns from account to the
   await act(async () => buttonNamed(renderer.root, 'Voltar à operação').props.onClick())
   assert.equal(router.state.location.pathname, '/pedidos')
   assert.ok(buttonNamed(renderer.root, 'Loja, empresa atual'))
+  })
+})
+
+test('account menu offers company switching only with more than one eligible company', async t => {
+  for (const [eligibleBusinessCount, shouldShowSwitch] of [[1, false], [2, true]]) await t.test(`${eligibleBusinessCount} eligible businesses`, async t => {
+    const h = await workspaceHarness(t)
+    const session = { ...operationalSession, authMode: 'multi_company', scope: 'business', contextId: 'business-context', account: { id: 'account', displayName: 'Ana', email: 'ana@example.test' }, eligibleBusinessCount }
+    globalThis.fetch = async path => {
+      const payload = path === '/api/auth/session' ? session
+        : path === '/api/bootstrap' ? bootstrap
+        : path === '/api/orders' ? { orders: [] }
+        : path === '/api/printing/stations' ? { stations: [] }
+        : String(path).startsWith('/api/printing/jobs?') ? { jobs: [] }
+        : path === '/api/printing/jobs/summary' ? { summary: {} } : null
+      assert.ok(payload, `Unexpected ${path}`)
+      return { ok: true, json: async () => payload }
+    }
+    const { default: App } = await h.load('/src/App.jsx')
+    const { renderer } = await h.renderAdminApp(App)
+    await act(async () => buttonNamed(renderer.root, 'Loja, empresa atual').props.onClick())
+    assert.equal(Boolean(buttonNamed(renderer.root, 'Trocar empresa')), shouldShowSwitch)
   })
 })
 

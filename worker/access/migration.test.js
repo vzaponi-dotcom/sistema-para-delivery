@@ -44,6 +44,34 @@ test('0035 installs access tables and upgrades existing businesses and sessions 
   assert.deepEqual(sqlite.prepare('PRAGMA foreign_key_check').all(), [])
 })
 
+test('0040 grants order adjustments to existing built-in operators only', (t) => {
+  const files = readdirSync(migrations).filter((name) => name.endsWith('.sql')).sort()
+  const index = files.indexOf('0040_operator_order_adjustments.sql')
+  assert.ok(index > 0, 'operator adjustment migration exists')
+  assert.equal(files[index - 1], '0039_tenant_reference_guards.sql')
+  const sqlite = new DatabaseSync(':memory:')
+  t.after(() => sqlite.close())
+  for (const file of files.slice(0, index)) sqlite.exec(readFileSync(new URL(file, migrations), 'utf8'))
+
+  sqlite.prepare('INSERT INTO businesses (id, slug, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)').run('operator-migration', 'operator-migration', 'Operator Migration', NOW, NOW)
+  sqlite.prepare('INSERT INTO roles (id, business_id, code, name, is_builtin, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run('operator-builtin', 'operator-migration', 'operator', 'Operador', 1, NOW, NOW)
+  sqlite.prepare('INSERT INTO roles (id, business_id, code, name, is_builtin, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run('manager-builtin', 'operator-migration', 'manager', 'Gerente', 1, NOW, NOW)
+
+  sqlite.prepare('INSERT INTO businesses (id, slug, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)').run('custom-role-business', 'custom-role-business', 'Custom Role', NOW, NOW)
+  sqlite.prepare('INSERT INTO roles (id, business_id, code, name, is_builtin, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run('operator-custom', 'custom-role-business', 'operator', 'Operador customizado', 0, NOW, NOW)
+
+  const migration = readFileSync(new URL(files[index], migrations), 'utf8')
+  sqlite.exec(migration)
+  sqlite.exec(migration)
+
+  assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM role_capabilities WHERE business_id = ? AND role_id = ? AND capability = 'orders.discount'").get('operator-migration', 'operator-builtin').n, 1)
+  assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM role_capabilities WHERE business_id = ? AND role_id = ? AND capability = 'orders.discount'").get('operator-migration', 'manager-builtin').n, 0)
+  assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM role_capabilities WHERE business_id = ? AND role_id = ? AND capability = 'orders.discount'").get('custom-role-business', 'operator-custom').n, 0)
+})
+
 test('access schema enforces unique normalized login within each business and tenant-bound role assignment', (t) => {
   const { sqlite } = setup(t)
   seedTenants(sqlite)

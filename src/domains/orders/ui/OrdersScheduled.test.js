@@ -46,16 +46,16 @@ test('orders page composes the approved kitchen heading, actions, counters, and 
   assert.match(source, /queueModel\.scheduled/)
 })
 
-test('orders page wires ticket actions by phase and keeps global counts independent from search results', async () => {
+test('orders page wires primary and cancellation actions by capability while keeping global counts independent from search results', async () => {
   const source = await read('./Orders.jsx')
   const preparingBlock = source.slice(source.indexOf('preparing.map'), source.indexOf('kitchen-scheduled-heading'))
   const scheduledBlock = source.slice(source.indexOf('queueModel.scheduled.map'), source.indexOf('!queueModel.scheduled.length'))
   assert.match(source, /onDetails=\{\(order\) => setDetailOrderId\(order\.id\)\}/)
-  assert.match(preparingBlock, /disabled=\{actionsDisabled \|\| !canFinalizeOrders\}/)
-  assert.match(preparingBlock, /onFinalize=\{\(order\) => \{ if \(!canFinalizeOrders\) return false; setFinalizeCandidate\(order\); return true \}\}/)
-  assert.doesNotMatch(preparingBlock, /onCancel=/)
-  assert.match(scheduledBlock, /disabled=\{actionsDisabled \|\| !canCancelOrders\}/)
-  assert.match(scheduledBlock, /onCancel=\{\(order\) => \{ if \(!canCancelOrders\) return false; setCancelOrder\(order\); return true \}\}/)
+  assert.match(preparingBlock, /disabled=\{actionsDisabled\}/)
+  assert.match(preparingBlock, /onFinalize=\{canFinalizeOrders \? \(order\) => \{ setFinalizeCandidate\(order\); return true \} : undefined\}/)
+  assert.match(preparingBlock, /onCancel=\{canCancelOrders \? \(order\) => \{ setCancelOrder\(order\); return true \} : undefined\}/)
+  assert.match(scheduledBlock, /disabled=\{actionsDisabled\}/)
+  assert.match(scheduledBlock, /onCancel=\{canCancelOrders \? \(order\) => \{ setCancelOrder\(order\); return true \} : undefined\}/)
   assert.doesNotMatch(scheduledBlock, /onFinalize=/)
   assert.doesNotMatch(source, /(?:preparing|scheduled)\.length[^\n]*StatCard/)
 })

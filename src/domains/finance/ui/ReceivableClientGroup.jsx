@@ -86,20 +86,22 @@ export default function ReceivableClientGroup({
               const checkboxId = `receivable-group-order-${order.id}`
               return (
                 <div className="receivable-client-order-select" key={order.id}>
-                  <input
-                    id={checkboxId}
-                    type="checkbox"
-                    checked={checked}
-                    disabled={disabled}
-                    onChange={() => onToggleOrder?.(order.id)}
-                    aria-label={`Selecionar ${formatOrderDisplayNumber(order)} no valor de ${currency(entry.total)}`}
-                  />
-                  <label className="receivable-client-order-main" htmlFor={checkboxId}>
-                    <strong>{formatOrderDisplayNumber(order)}</strong>
-                    <span>{getOrderItemsSummary(order)}</span>
-                    <small>{groupTimingLabel(entry, formatOrderDate)}</small>
+                  <label className="receivable-client-order-selection-hitbox" htmlFor={checkboxId}>
+                    <input
+                      id={checkboxId}
+                      type="checkbox"
+                      checked={checked}
+                      disabled={disabled}
+                      onChange={() => onToggleOrder?.(order.id)}
+                      aria-label={`Selecionar ${formatOrderDisplayNumber(order)} no valor de ${currency(entry.total)}`}
+                    />
+                    <span className="receivable-client-order-main">
+                      <strong>{formatOrderDisplayNumber(order)}</strong>
+                      <span>{getOrderItemsSummary(order)}</span>
+                      <small>{groupTimingLabel(entry, formatOrderDate)}</small>
+                    </span>
+                    <strong className="receivable-client-order-amount">{currency(entry.total)}</strong>
                   </label>
-                  <strong className="receivable-client-order-amount">{currency(entry.total)}</strong>
                   {onEditPaymentPromise && (
                     <button
                       type="button"

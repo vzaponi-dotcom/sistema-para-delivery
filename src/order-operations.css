@@ -189,7 +189,7 @@
 }
 
 .kitchen-ticket-list {
-  gap: 9px;
+  gap: 12px;
 }
 
 .kitchen-queue-heading {
@@ -234,7 +234,8 @@
 }
 
 .kitchen-ticket-shell {
-  display: contents;
+  display: block;
+  min-width: 0;
 }
 
 .kitchen-ticket {
@@ -247,25 +248,18 @@
   column-gap: 16px;
   row-gap: 7px;
   padding: 12px 14px 10px;
-  border: 1px solid color-mix(in srgb, var(--kitchen-ticket-text) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--kitchen-ticket-text) 18%, transparent);
   border-left: 5px solid var(--kitchen-preparing);
-  border-radius: 9px;
-  background: var(--kitchen-ticket);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--kitchen-ticket) 94%, var(--kitchen-panel));
   color: var(--kitchen-ticket-text);
-  box-shadow: 0 3px 0 color-mix(in srgb, var(--kitchen-ticket-text) 12%, transparent);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--kitchen-bg) 44%, transparent);
   overflow: hidden;
 }
 
 .kitchen-ticket::before,
 .kitchen-ticket::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--kitchen-panel);
-  transform: translateY(-50%);
+  display: none;
 }
 
 .kitchen-ticket::before {

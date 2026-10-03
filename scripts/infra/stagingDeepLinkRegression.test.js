@@ -42,7 +42,7 @@ test('staging smoke requests SPA deep links/assets from the canonical staging re
   assert.ok(requested.every((value) => new URL(value).origin === baseUrl), 'SPA and assets must use the configured staging domain')
   assert.equal(new Set(paths.filter((path) => !path.startsWith('/assets/'))).size, 20)
   for (const path of ['/aceitar-convite', '/empresas', '/mesiva', '/mesiva/empresas']) assert.ok(paths.includes(path))
-  assert.match(workflow.split('workflow_dispatch:')[0], /feature\/issue-87-multi-company-onboarding/)
+  assert.match(workflow.split('workflow_dispatch:')[0], /feature\/account-menu-company-context/)
   assert.ok(paths.includes('/relatorios'))
   assert.ok(paths.includes('/pedidos/controle-da-tv'))
   for (const path of ['/minha-conta', '/configuracoes/equipe', '/configuracoes/atividades', '/ativar-conta', '/recuperar-senha', '/redefinir-senha']) {

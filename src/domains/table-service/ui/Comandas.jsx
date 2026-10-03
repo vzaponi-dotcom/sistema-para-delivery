@@ -5,7 +5,6 @@ import '../../../comandas-table-list-polish.css'
 import '../../../comandas-refined.css'
 import Button from '../../../shared/ui/Button'
 import Icon from '../../../shared/ui/Icon'
-import PageHeader from '../../../shared/ui/PageHeader'
 import { useMediaQuery } from '../../../shared/hooks/useMediaQuery.js'
 import ComandaDetail from './ComandaDetail.jsx'
 import TableReservationDetail from './TableReservationDetail.jsx'
@@ -288,7 +287,6 @@ function Comandas({
     <div className={`comandas-page${showMobileDetail ? ' has-mobile-detail' : ''}`} onFocusCapture={(event) => { lastFocusedRef.current = event.target }} onBlurCapture={(event) => {
       if (event.relatedTarget) lastFocusedRef.current = null
     }}>
-      <PageHeader title="Comandas" description="O salão em um só lugar. Mesas, consumo e reservas." />
       {paymentSync && <div role={paymentSync.status === 'error' ? 'alert' : 'status'}>
         <p>Pagamento registrado. {paymentSync.status === 'error' ? 'Não foi possível confirmar a sincronização das mesas. Tente sincronizar novamente.' : 'Aguardando sincronização das mesas…'}</p>
         {paymentSync.status === 'error' && <Button type="button" onClick={onRetryPaymentSync}>Tentar sincronizar</Button>}

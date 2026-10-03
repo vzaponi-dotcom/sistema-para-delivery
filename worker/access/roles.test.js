@@ -7,7 +7,7 @@ import { normalizeLogin, seedBuiltinRoles, loadRoleGrants } from './roles.js'
 const BUSINESS = 'amor-e-sabor'
 const NOW = new Date('2026-09-30T12:00:00.000Z')
 const OPERATOR_GRANTS = [
-  'orders.view', 'orders.history', 'orders.create', 'orders.finalize', 'comandas.view',
+  'orders.view', 'orders.history', 'orders.create', 'orders.finalize', 'orders.discount', 'comandas.view',
   'payments.receive', 'clients.view', 'clients.create', 'clients.update', 'products.view',
   'tables.view', 'printing.queue', 'printing.execute', 'printing.station.view', 'preferences.local',
 ]
@@ -43,6 +43,7 @@ test('built-in seeding persists explicit manager grants and the exact operator g
   const operatorGrants = await loadRoleGrants(db, BUSINESS, roleId(sqlite, BUSINESS, 'operator'))
   assert.deepEqual([...operatorGrants].sort(), [...OPERATOR_GRANTS].sort())
   assert.ok(operatorGrants.has('payments.receive'))
+  assert.ok(operatorGrants.has('orders.discount'))
   for (const capability of ['payments.refund', 'finance.movements', 'clients.manage', 'clients.delete', 'printing.force', 'access.users.manage']) assert.ok(!operatorGrants.has(capability))
 })
 

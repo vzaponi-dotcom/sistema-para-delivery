@@ -5,7 +5,6 @@ import Button from '../../../shared/ui/Button'
 import CancelOrderDialog from './components/CancelOrderDialog'
 import Icon from '../../../shared/ui/Icon'
 import OrderDetail from './components/OrderDetail'
-import OperationalHistoryAnalysis from './components/OperationalHistoryAnalysis'
 import AreaNavigation from '../../../app/navigation/AreaNavigation.jsx'
 import PageHeader from '../../../shared/ui/PageHeader'
 import PaymentBadge from './PaymentBadge.jsx'
@@ -19,7 +18,7 @@ import { formatOrderDisplayNumber } from '../../../../shared/orderDisplayNumber.
 const timestamp = (order) => order.cancelledAt || order.finishedAt || order.createdAt
 const defaultCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0))
 
-function OrderHistory({ orders = [], currentTiming, currency = defaultCurrency, onCancelOrder, onRegisterPayment, paymentDisabled = false, paymentOptions, cancellationOptions = [], cancellationRevision = null, actionKey = null, printing, onToast, queryState, onQueryChange, granted, canViewAnalysis = false, canCancelOrders = true, canRefundPayments = true, canForcePrinting = false, canExecutePrinting = true, now = new Date() }) {
+function OrderHistory({ orders = [], currency = defaultCurrency, onCancelOrder, onRegisterPayment, paymentDisabled = false, paymentOptions, cancellationOptions = [], cancellationRevision = null, actionKey = null, printing, onToast, queryState, onQueryChange, granted, canCancelOrders = true, canRefundPayments = true, canForcePrinting = false, canExecutePrinting = true }) {
   const filter = queryState.filter
   const [detailOrderId, setDetailOrderId] = useState(null)
   const [cancelOrder, setCancelOrder] = useState(null)
@@ -46,15 +45,6 @@ function OrderHistory({ orders = [], currentTiming, currency = defaultCurrency, 
     <>
       <AreaNavigation area="orders" />
       <PageHeader eyebrow="Pedidos" title="Histórico" description="Consulte pedidos finalizados e cancelados sem apagar o registro original da operação." />
-      {canViewAnalysis && (
-        <OperationalHistoryAnalysis
-          orders={orders}
-          period={queryState.analysisPeriod}
-          onPeriodChange={(analysisPeriod) => onQueryChange({ analysisPeriod })}
-          now={now}
-          currentTiming={currentTiming}
-        />
-      )}
       <section className="surface-card order-history-surface">
         <div className="history-toolbar">
           <div className="history-filter" role="group" aria-label="Filtrar histórico">

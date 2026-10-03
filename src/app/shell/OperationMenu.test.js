@@ -43,6 +43,39 @@ test('individual user menu exposes account and switch independently of role name
   assert.equal(switches, 1)
 })
 
+test('approved compact menu unifies session identity and company without descriptive subtitles', async (t) => {
+  const { renderer } = await renderMenu(t, {
+    authenticated: true,
+    user: { id: 'u', displayName: 'Victor', roleName: 'Gerente' },
+    onSwitchUser() {},
+    onSwitchCompany() {},
+    onPlatform() {},
+  })
+  await act(async () => buttonNamed(renderer.root, 'Pizzaria Bella, empresa atual').props.onClick())
+
+  const session = renderer.root.findByProps({ className: 'operation-menu-session-card' })
+  assert.match(nodeText(session), /Victor.*Gerente.*Conectado.*Pizzaria Bella/s)
+  assert.equal(renderer.root.findAllByProps({ className: 'operation-menu-person' }).length, 1)
+  assert.equal(renderer.root.findAllByProps({ className: 'operation-menu-company-card' }).length, 0)
+
+  const text = nodeText(renderer.root)
+  for (const removed of [
+    'Seus dados, acesso e segurança.',
+    'Seus dados e sua senha',
+    'Encerrar a sessão e abrir o login',
+    'Gerencie a empresa onde você está trabalhando.',
+    'Escolher onde você vai trabalhar',
+    'Ajustes de Pizzaria Bella',
+    'Configurações e administração da plataforma.',
+    'Gerencie empresas e acessos da plataforma',
+    'Tema e som de novos pedidos',
+  ]) assert.equal(text.includes(removed), false, removed)
+
+  for (const label of ['Sessão atual', 'Conta', 'Empresa', 'Mesiva', 'Minha conta', 'Trocar usuário', 'Trocar empresa', 'Configurações da empresa', 'Administração Mesiva']) {
+    assert.match(text, new RegExp(label))
+  }
+})
+
 test('restricted operation has no settings shortcuts', async (t) => {
   const { renderer } = await renderMenu(t, { granted: new Set(['orders.view']) })
   await act(async () => buttonNamed(renderer.root, 'Pizzaria Bella, empresa atual').props.onClick())

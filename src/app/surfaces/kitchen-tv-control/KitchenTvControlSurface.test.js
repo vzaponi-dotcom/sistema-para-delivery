@@ -459,11 +459,11 @@ test('print snapshot failure keeps the order actions usable and exposes a compac
   assert.ok(buttonNamed(sheet, 'Retirar da TV'))
 })
 
-test('mobile TV control becomes an immersive app surface above top and bottom navigation', async () => {
+test('mobile TV control stays inside the normal app layout', async () => {
   const css = await readFile(new URL('./kitchenTvControl.css', import.meta.url), 'utf8')
-  assert.match(css, /@media \(max-width: 820px\)[\s\S]*\.kitchen-tv-control-page\s*\{[^}]*position:\s*fixed[^}]*inset:\s*0[^}]*z-index:\s*calc\(var\(--layer-mobile-nav\)\s*\+\s*20\)[^}]*height:\s*100dvh[^}]*overflow-y:\s*auto/s)
-  assert.match(css, /@media \(max-width: 820px\)[\s\S]*\.kitchen-tv-control-page\s*\{[^}]*padding-top:\s*max\([^;]*safe-area-inset-top/s)
-  assert.match(css, /@media \(max-width: 820px\)[\s\S]*\.kitchen-tv-control-page\s*\{[^}]*padding-bottom:\s*max\([^;]*safe-area-inset-bottom/s)
+  const mobile = css.slice(css.indexOf('@media (max-width: 820px)'), css.indexOf('@media (max-width: 420px)'))
+  assert.match(mobile, /\.kitchen-tv-control-page\s*\{[^}]*width:\s*100%[^}]*max-width:\s*none/s)
+  assert.doesNotMatch(mobile, /position:\s*fixed|inset:\s*0|height:\s*100dvh|layer-mobile-nav|safe-area-inset/)
 })
 
 test('TV control reads the canonical print document without widening the Printing public entry', async () => {

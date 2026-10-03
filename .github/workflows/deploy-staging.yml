@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - master
-      - feature/issue-87-multi-company-onboarding
+      - feature/account-menu-company-context
   workflow_dispatch:
 
 permissions:
@@ -18,7 +18,7 @@ concurrency:
 jobs:
   deploy:
     name: Deploy staging Worker
-    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/feature/issue-87-multi-company-onboarding'
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/feature/account-menu-company-context'
     runs-on: ubuntu-latest
     environment: staging
     env:

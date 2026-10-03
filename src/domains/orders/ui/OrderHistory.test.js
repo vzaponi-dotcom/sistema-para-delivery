@@ -12,6 +12,13 @@ test('history owns terminal orders and exposes all finalized cancelled filters',
   assert.match(source, /Cancelados/)
 })
 
+test('history is record-focused and does not render operational analysis cards or charts', () => {
+  assert.doesNotMatch(source, /OperationalHistoryAnalysis/)
+  assert.doesNotMatch(source, /analysisPeriod/)
+  assert.match(source, /order-history-list/)
+  assert.match(source, /toolbar-count/)
+})
+
 test('cancelled history shows reason and refund state', () => {
   assert.match(source, /cancelReason/)
   assert.match(source, /getOrderRefundState/)
