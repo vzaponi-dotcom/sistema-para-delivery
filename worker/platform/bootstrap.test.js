@@ -73,7 +73,8 @@ test('production bootstrap uses its own environment record', async t => {
 
 test('production manager preparation never rewrites a conflicting inventoried legacy login', async t => {
   const f = await createTenancyFixture(t)
-  f.sqlite.prepare("UPDATE users SET login_normalized='collision@example.test' WHERE business_id='amor-e-sabor' AND account_id IS NULL LIMIT 1").run()
+  const legacy = f.sqlite.prepare("SELECT id FROM users WHERE business_id='amor-e-sabor' AND account_id IS NULL ORDER BY id LIMIT 1").get()
+  f.sqlite.prepare("UPDATE users SET login_normalized='collision@example.test' WHERE business_id=? AND id=?").run('amor-e-sabor', legacy.id)
   const admin = await preparePlatformAdministrator(f.db, {
     name: 'Prod Owner',
     email: 'prod-owner-2@example.test',
