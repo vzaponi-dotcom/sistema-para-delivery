@@ -6,7 +6,7 @@ Revisão de 02/10/2026 aprovada na conversa. O usuário solicitou curvas mais su
 
 - `public/brand/mesiva-logo.svg` e `mesiva-logo-dark.svg`: mesma geometria, cores de lettering e slogan adaptadas ao fundo. Contornos Bézier; sem imagem raster, texto SVG ou fonte carregada externamente.
 - Sol reconstruído com controles espelhados no eixo x=113. Lateral direita do símbolo é um segmento vertical em x=221 entre y=76 e y=165, com curvas tangentes nas extremidades.
-- Lettering redesenhado por letra com curvas contínuas, hastes retas e terminais arredondados, após a revisão visual do usuário. Ponto do i regularizado e TM vetorizado a partir de Segoe UI bold.
+- Lettering redesenhado por letra com curvas contínuas, hastes retas e terminais arredondados, após a revisão visual do usuário. M equilibrado com eixo em x=326.5 e duas hastes de 26 unidades, após nova correção do usuário. Ponto do i regularizado e TM vetorizado a partir de Segoe UI bold.
 - Removido o pequeno contorno sem área do traçado anterior. O desenho do garfo e da colher continua integrado ao símbolo.
 - Slogan vetorizado em português, com acentos e pontuação. Contornos gerados a partir de Segoe UI regular, 19 unidades, tracking calculado para a assinatura sob o lettering. O SVG publicado contém os contornos; não distribui o arquivo da fonte nem depende dele para renderizar.
 
