@@ -26,9 +26,11 @@ const methods = new Map([
 
 export async function accountSessionView(db, context) {
   if (!context) return { authenticated: false, authMode: 'multi_company' }
+  const eligibleBusinesses = await listEligibleBusinesses(db, context.accountId)
   const { results } = await db.prepare('SELECT capability FROM platform_grants WHERE account_id = ? ORDER BY capability').bind(context.accountId).all()
   const view = { authenticated: true, authMode: 'multi_company', account: { id: context.accountId, displayName: context.accountDisplayName, email: context.email, emailVerified: true },
     scope: context.scope, contextId: context.contextId, expiresAt: context.expiresAt, deviceMode: context.deviceMode, capabilities: [],
+    eligibleBusinessCount: eligibleBusinesses.length,
     platformCapabilities: results.map((row) => row.capability).filter((capability) => PLATFORM_CAPABILITIES.includes(capability)) }
   if (context.scope === 'business') {
     const resolved = await resolveSettingsAccess(context, context.granted)
