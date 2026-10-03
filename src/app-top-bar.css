@@ -187,3 +187,110 @@
   .app-topbar-brand img { width: 142px; }
   .app-topbar-actions { gap: 4px; }
 }
+
+
+/* Conta e empresa — hierarquia aprovada sem textos auxiliares */
+.operation-menu-session-section {
+  padding-top: 4px;
+}
+.operation-menu-section-heading {
+  display: block;
+  margin: 0 6px 8px;
+}
+.operation-menu-section-heading > h2 {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: .66rem;
+  font-weight: 750;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.operation-menu-session-card {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-soft);
+}
+.operation-menu-session-card .operation-menu-person {
+  margin: 0;
+  padding: 14px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.operation-menu-session-company {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 62px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+}
+.operation-menu-session-company .operation-menu-logo,
+.operation-menu-session-company .operation-menu-initials {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+.operation-menu-session-company .operation-menu-heading-copy {
+  display: block;
+}
+.operation-menu-session-company .operation-menu-heading-copy strong {
+  font-size: .9rem;
+  font-weight: 650;
+}
+.operation-menu-account-section,
+.operation-menu-company-section,
+.operation-menu-platform-section,
+.operation-menu-utility-section {
+  padding-top: 16px;
+}
+.operation-menu-company-section .operation-menu-action {
+  min-height: 50px;
+  padding-block: 10px;
+  gap: 10px;
+}
+.operation-menu-content .operation-menu-action {
+  min-height: 50px;
+}
+.operation-menu-content .operation-menu-action-copy {
+  gap: 0;
+}
+.operation-menu-utility-section {
+  margin-top: 0;
+  border-top: 0;
+}
+.operation-menu-platform-section {
+  margin-top: 0;
+}
+.operation-menu-footer {
+  margin-top: 16px;
+}
+@media (max-width: 820px) {
+  .operation-menu-content {
+    padding-bottom: 2px;
+  }
+  .operation-menu-session-section {
+    padding-top: 0;
+  }
+  .operation-menu-session-card,
+  .operation-menu-group-card {
+    border-radius: 14px;
+  }
+  .operation-menu-session-card .operation-menu-person {
+    min-height: 74px;
+    padding: 14px;
+  }
+  .operation-menu-session-company {
+    min-height: 62px;
+    padding: 12px 14px;
+  }
+  .operation-menu-content .operation-menu-action {
+    min-height: 58px;
+    padding: 12px 14px;
+  }
+}
