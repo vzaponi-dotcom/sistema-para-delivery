@@ -17,7 +17,7 @@ const surfaces = [
 ]
 
 const hashes = {
-  'dashboard.css': '1160d7aba98c8234f999de193475be7ebf0ae09393377763cb5ddf51af3da2cd',
+  'dashboard.css': '075e7c3373f6512eb0e5a77af5178de68f78993046fbfb5395551b29c221af23',
   'new-order.css': '62eddc47cc3ba273d2162e97294cf44d2c326aed91d0e8a7477ab77e7202017e',
   'client-duplicate.css': '28fca2cef6d7d3efd625ac1ee714fe9d15b2334a4e0a6cbde8b7cd71cc9a7985',
   'product-form.css': '3d0fb8ccd0180cda2b53a103dc3649f2faf71ffd999b989820844e9c2fddb2b1',
