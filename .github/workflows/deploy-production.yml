@@ -145,6 +145,12 @@ jobs:
             exit 1
           fi
 
+      - name: Show pending D1 migrations
+        run: npx --yes wrangler@4.128.0 d1 migrations list amor-e-sabor-delivery --remote
+
+      - name: Apply D1 migrations
+        run: npm run d1:migrate:production
+
       - name: Guard requested phase against current production auth state
         shell: bash
         run: |
@@ -170,12 +176,6 @@ jobs:
             echo "Production is already user_only; legacy/prepare deployment is blocked."
             exit 1
           fi
-
-      - name: Show pending D1 migrations
-        run: npx --yes wrangler@4.128.0 d1 migrations list amor-e-sabor-delivery --remote
-
-      - name: Apply D1 migrations
-        run: npm run d1:migrate:production
 
       - name: Configure production PIN only in legacy phase
         if: inputs.auth_phase == 'legacy'
