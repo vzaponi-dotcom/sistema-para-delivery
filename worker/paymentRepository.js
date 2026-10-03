@@ -149,6 +149,13 @@ const clientReceivablesConflict = () => repositoryError(
   'Os pedidos selecionados foram alterados. Atualize os dados e tente novamente.',
 )
 
+const CLIENT_RECEIVABLES_QUERY_CHUNK_SIZE = 20
+const chunkReceivableOrders = (items, size = CLIENT_RECEIVABLES_QUERY_CHUNK_SIZE) => {
+  const chunks = []
+  for (let index = 0; index < items.length; index += size) chunks.push(items.slice(index, index + size))
+  return chunks
+}
+
 export async function registerClientOrdersPayment(
   db,
   businessId,
@@ -165,14 +172,17 @@ export async function registerClientOrdersPayment(
     .bind(normalizedClientId, businessId).first()
   if (!clientRow) throw repositoryError(404, 'CLIENT_NOT_FOUND', 'Cliente não encontrado.')
 
-  const placeholders = orderIds.map(() => '?').join(', ')
-  const selectedResult = await db.prepare(`SELECT o.id, o.client_id, o.customer_identity_type, o.table_tab_id,
-      o.status, o.total_cents, o.created_at, p.id AS payment_id
-    FROM orders o
-    LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id
-    WHERE o.business_id = ? AND o.id IN (${placeholders})`)
-    .bind(businessId, ...orderIds).all()
-  const selectedById = new Map(resultRows(selectedResult).map((row) => [row.id, row]))
+  const selectedById = new Map()
+  for (const idChunk of chunkReceivableOrders(orderIds)) {
+    const placeholders = idChunk.map(() => '?').join(', ')
+    const selectedResult = await db.prepare(`SELECT o.id, o.client_id, o.customer_identity_type, o.table_tab_id,
+        o.status, o.total_cents, o.created_at, p.id AS payment_id
+      FROM orders o
+      LEFT JOIN payments p ON p.order_id = o.id AND p.business_id = o.business_id
+      WHERE o.business_id = ? AND o.id IN (${placeholders})`)
+      .bind(businessId, ...idChunk).all()
+    for (const row of resultRows(selectedResult)) selectedById.set(row.id, row)
+  }
   if (selectedById.size !== orderIds.length) throw clientReceivablesConflict()
 
   const selected = orderIds.map((id) => selectedById.get(id))
@@ -247,36 +257,38 @@ export async function registerClientOrdersPayment(
     payment_allocation_id: allocation.id,
   }))
 
-  const statePredicates = []
-  const stateBindings = [normalizedClientId, businessId]
-  for (const order of selected) {
-    statePredicates.push(`EXISTS (
-      SELECT 1 FROM orders current_order
-      LEFT JOIN payments current_payment
-        ON current_payment.order_id = current_order.id
-       AND current_payment.business_id = current_order.business_id
-      WHERE current_order.id = ?
-        AND current_order.business_id = ?
-        AND current_order.client_id = ?
-        AND current_order.customer_identity_type = 'registered_client'
-        AND current_order.table_tab_id IS NULL
-        AND current_order.status <> 'Cancelado'
-        AND current_order.total_cents = ?
-        AND current_payment.id IS NULL
-    )`)
-    stateBindings.push(order.id, businessId, normalizedClientId, Number(order.total_cents))
-  }
-  const stateGuard = prepareSettingsAssertion(
-    db,
-    policyTxId,
-    'client-receivables-state',
-    `EXISTS (SELECT 1 FROM clients WHERE id = ? AND business_id = ?) AND ${statePredicates.join(' AND ')}`,
-    stateBindings,
-  )
+  const stateGuards = chunkReceivableOrders(selected).map((orderChunk, chunkIndex) => {
+    const statePredicates = []
+    const stateBindings = [normalizedClientId, businessId]
+    for (const order of orderChunk) {
+      statePredicates.push(`EXISTS (
+        SELECT 1 FROM orders current_order
+        LEFT JOIN payments current_payment
+          ON current_payment.order_id = current_order.id
+         AND current_payment.business_id = current_order.business_id
+        WHERE current_order.id = ?
+          AND current_order.business_id = ?
+          AND current_order.client_id = ?
+          AND current_order.customer_identity_type = 'registered_client'
+          AND current_order.table_tab_id IS NULL
+          AND current_order.status <> 'Cancelado'
+          AND current_order.total_cents = ?
+          AND current_payment.id IS NULL
+      )`)
+      stateBindings.push(order.id, businessId, normalizedClientId, Number(order.total_cents))
+    }
+    return prepareSettingsAssertion(
+      db,
+      policyTxId,
+      `client-receivables-state-${chunkIndex + 1}`,
+      `EXISTS (SELECT 1 FROM clients WHERE id = ? AND business_id = ?) AND ${statePredicates.join(' AND ')}`,
+      stateBindings,
+    )
+  })
 
   const statements = [
     ...preparePolicyGuards(db, businessId, { paymentMethods: paymentExpectation }, policyTxId),
-    stateGuard,
+    ...stateGuards,
     db.prepare(`INSERT INTO payment_receipts
       (id, business_id, table_tab_id, total_cents, paid_at, created_at)
       VALUES (?, ?, NULL, ?, ?, ?)`).bind(
