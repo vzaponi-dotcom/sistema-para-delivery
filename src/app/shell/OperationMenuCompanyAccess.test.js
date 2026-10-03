@@ -50,7 +50,7 @@ for (const [name, businesses] of [['one eligible company', one], ['zero eligible
   test(`company menu hides switching for ${name} without hiding company identity or settings`, async t => {
     const { renderer, toggle } = await setup(t, { businesses })
     await toggle()
-    assert.equal(buttonNamed(renderer.root, 'Trocar empresa'), undefined)
+    assert.equal(Boolean(buttonNamed(renderer.root, 'Trocar empresa')), false)
     assert.match(nodeText(renderer.root.findByProps({ className: 'operation-menu-heading-copy' })), /Amor & Sabor/)
     assert.ok(buttonNamed(renderer.root, 'Configurações da empresa'))
   })
@@ -72,7 +72,7 @@ test('company access is not assumed while the official list is still loading', a
   const pending = deferred()
   const { renderer, toggle } = await setup(t, { transport: () => pending.promise })
   await toggle()
-  assert.equal(buttonNamed(renderer.root, 'Trocar empresa'), undefined)
+  assert.equal(Boolean(buttonNamed(renderer.root, 'Trocar empresa')), false)
   assert.match(nodeText(renderer.root), /Verificando suas empresas/)
   await act(async () => pending.resolve(response(two)))
   assert.ok(buttonNamed(renderer.root, 'Trocar empresa'))
@@ -86,7 +86,7 @@ test('a failed company check does not expose switching and can be retried', asyn
     return response(two)
   } })
   await toggle()
-  assert.equal(buttonNamed(renderer.root, 'Trocar empresa'), undefined)
+  assert.equal(Boolean(buttonNamed(renderer.root, 'Trocar empresa')), false)
   assert.match(nodeText(renderer.root), /Não foi possível verificar suas empresas/)
   await act(async () => buttonNamed(renderer.root, 'Verificar empresas novamente').props.onClick())
   assert.ok(buttonNamed(renderer.root, 'Trocar empresa'))
@@ -101,7 +101,7 @@ test('closing and reopening the menu refreshes eligibility after a membership ch
   await toggle()
   current = one
   await toggle()
-  assert.equal(buttonNamed(renderer.root, 'Trocar empresa'), undefined)
+  assert.equal(Boolean(buttonNamed(renderer.root, 'Trocar empresa')), false)
 })
 
 test('late company responses cannot reveal switching in another context', async t => {
@@ -113,7 +113,7 @@ test('late company responses cannot reveal switching in another context', async 
   if (!renderer.root.findAllByProps({ role: 'dialog' }).length) await toggle()
   await act(async () => current.resolve(response(one)))
   await act(async () => old.resolve(response(two)))
-  assert.equal(buttonNamed(renderer.root, 'Trocar empresa'), undefined)
+  assert.equal(Boolean(buttonNamed(renderer.root, 'Trocar empresa')), false)
 })
 
 test('a verified company switch remains disabled while operational writes block context changes', async t => {
@@ -126,13 +126,13 @@ test('legacy sessions do not request company membership information', async t =>
   const { renderer, toggle, requests } = await setup(t, { legacy: true })
   await toggle()
   assert.equal(requests.length, 0)
-  assert.equal(buttonNamed(renderer.root, 'Trocar empresa'), undefined)
+  assert.equal(Boolean(buttonNamed(renderer.root, 'Trocar empresa')), false)
 })
 
 test('restaurant manager without platform grant has no Mesiva administration section', async t => {
   const { renderer, toggle } = await setup(t)
   await toggle()
-  assert.equal(buttonNamed(renderer.root, 'Administração Mesiva'), undefined)
+  assert.equal(Boolean(buttonNamed(renderer.root, 'Administração Mesiva')), false)
   assert.equal(renderer.root.findAllByType('section').some(node => node.props['aria-label'] === 'Administração Mesiva'), false)
 })
 
