@@ -24,3 +24,318 @@
 .company-invitation-summary { display: grid; gap: 8px; padding: 20px; border: 1px solid var(--border, #dbe5ef); border-radius: 16px; margin: 24px 0; }
 .company-invite-login-note { padding: 24px; text-align: center; background: var(--surface); color: var(--text); }
 @media (max-width: 640px) { .company-entry { padding: 20px 16px; } .company-entry-header img { width: 124px; height: auto; } .company-selection { margin: 40px auto; } .company-selection-card { padding: 20px; min-height: 104px; } .company-entry-actions > * { width: 100%; } }
+
+
+/* Seletor multiempresa — hierarquia aprovada */
+.company-entry {
+  padding-top: 24px;
+  background:
+    radial-gradient(circle at 50% -10%, color-mix(in srgb, var(--primary) 8%, transparent), transparent 36%),
+    var(--bg);
+}
+.company-entry-header {
+  max-width: 900px;
+}
+.company-entry-header .button {
+  min-height: 44px;
+}
+.company-selection {
+  width: min(760px, 100%);
+  max-width: 760px;
+  margin: 46px auto 32px;
+}
+.company-account-summary {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 92px;
+  padding: 18px 20px;
+  margin-bottom: 34px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  box-shadow: var(--shadow-sm);
+}
+.company-account-avatar {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  flex: 0 0 58px;
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border));
+  border-radius: 50%;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: .95rem;
+  font-weight: 750;
+  letter-spacing: .03em;
+}
+.company-account-copy {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+.company-account-copy strong,
+.company-account-copy small {
+  overflow-wrap: anywhere;
+}
+.company-account-copy strong {
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 650;
+}
+.company-account-copy small {
+  color: var(--muted);
+  font-size: .82rem;
+}
+.company-selection-heading {
+  margin-bottom: 24px;
+}
+.company-selection-heading .section-kicker {
+  display: inline-block;
+  margin-bottom: 8px;
+  font-size: .72rem;
+  font-weight: 750;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+.company-selection h1 {
+  max-width: 620px;
+  margin: 0;
+  font-size: clamp(30px, 5vw, 46px);
+  line-height: 1.08;
+  letter-spacing: -.025em;
+}
+.company-selection-heading p {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 1rem;
+}
+.company-selection-grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  margin: 0;
+}
+.company-selection-card {
+  position: relative;
+  min-height: 126px;
+  gap: 18px;
+  padding: 20px 22px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  box-shadow: var(--shadow-sm);
+  transition: border-color .16s ease, background-color .16s ease, transform .16s ease;
+}
+.company-selection-card:hover {
+  border-color: color-mix(in srgb, var(--primary) 52%, var(--border));
+  background: color-mix(in srgb, var(--primary-soft) 34%, var(--surface));
+  outline: 0;
+  transform: translateY(-1px);
+}
+.company-selection-card:focus-visible {
+  border-color: var(--primary);
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+.company-selection-mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  flex: 0 0 72px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--border));
+  border-radius: 18px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: .03em;
+}
+.company-selection-mark img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  padding: 7px;
+  background: var(--surface);
+}
+.company-selection-card-copy {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  justify-items: start;
+  gap: 8px;
+}
+.company-selection-card strong {
+  margin: 0;
+  color: var(--text);
+  font-size: 1.18rem;
+  line-height: 1.2;
+  font-weight: 700;
+}
+.company-selection-card small {
+  color: var(--muted);
+  font-size: .82rem;
+}
+.company-role {
+  display: inline-flex !important;
+  align-items: center;
+  width: auto;
+  min-height: 28px;
+  padding: 4px 10px;
+  border: 1px solid color-mix(in srgb, var(--primary) 32%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary-soft) 68%, transparent);
+  color: var(--primary) !important;
+  font-weight: 700;
+}
+.company-current {
+  margin-top: 0;
+  color: var(--success) !important;
+  font-size: .72rem !important;
+  font-weight: 700;
+}
+.company-selection-open {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--text-soft);
+  background: var(--surface-soft);
+}
+.company-selection-card:hover .company-selection-open {
+  border-color: color-mix(in srgb, var(--primary) 36%, var(--border));
+  color: var(--primary);
+}
+.company-entry-actions {
+  display: grid;
+  gap: 0;
+  margin-top: 28px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+.company-entry-link {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 58px;
+  padding: 10px 8px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-soft);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.company-entry-link:last-child {
+  border-bottom: 0;
+}
+.company-entry-link > span {
+  font-weight: 600;
+}
+.company-entry-link > svg {
+  color: var(--muted);
+}
+.company-entry-link:hover {
+  color: var(--text);
+  background: var(--surface-soft);
+}
+.company-entry-link:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+.company-feedback {
+  margin-bottom: 18px;
+  border: 1px solid var(--border);
+}
+@media (max-width: 640px) {
+  .company-entry {
+    padding: 18px 16px 28px;
+  }
+  .company-entry-header {
+    gap: 10px;
+  }
+  .company-entry-header img {
+    width: 138px;
+  }
+  .company-entry-header .button {
+    min-width: 0;
+    padding-inline: 13px;
+    font-size: .78rem;
+  }
+  .company-selection {
+    margin: 34px auto 20px;
+  }
+  .company-account-summary {
+    min-height: 82px;
+    margin-bottom: 28px;
+    padding: 14px;
+    border-radius: 16px;
+  }
+  .company-account-avatar {
+    width: 52px;
+    height: 52px;
+    flex-basis: 52px;
+  }
+  .company-account-copy strong {
+    font-size: .9rem;
+  }
+  .company-selection-heading {
+    margin-bottom: 20px;
+  }
+  .company-selection h1 {
+    font-size: clamp(30px, 9vw, 40px);
+  }
+  .company-selection-heading p {
+    font-size: .9rem;
+  }
+  .company-selection-card {
+    min-height: 112px;
+    padding: 16px;
+    gap: 14px;
+    border-radius: 16px;
+  }
+  .company-selection-mark {
+    width: 62px;
+    height: 62px;
+    flex-basis: 62px;
+    border-radius: 16px;
+  }
+  .company-selection-card strong {
+    font-size: 1.05rem;
+  }
+  .company-selection-open {
+    width: 38px;
+    height: 38px;
+    flex-basis: 38px;
+  }
+  .company-entry-actions > * {
+    width: 100%;
+  }
+}
+@media (max-width: 390px) {
+  .company-selection-card {
+    grid-template-columns: 56px minmax(0, 1fr) 34px;
+    gap: 12px;
+    padding: 14px;
+  }
+  .company-selection-mark {
+    width: 56px;
+    height: 56px;
+    flex-basis: 56px;
+  }
+  .company-selection-open {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+  }
+}
