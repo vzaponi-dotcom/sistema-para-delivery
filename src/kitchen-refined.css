@@ -46,17 +46,21 @@
 .kitchen-queue-filters button[aria-pressed='true'] { background: var(--surface); color: var(--text); box-shadow: 0 1px 4px #0f274718; font-weight: 600; }
 .kitchen-queue-filters button span { margin-left: 4px; color: var(--danger); }
 .kitchen-queue-filters button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-.kitchen-page .kitchen-ticket-list { gap: 0; }
+.kitchen-page .kitchen-ticket-list { gap: 12px; padding: 0 14px 14px; }
 .kitchen-page .kitchen-ticket {
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas: 'identity identity' 'customer customer' 'summary timing' 'notes notes' 'actions actions';
-  padding: 18px 20px; row-gap: 7px; column-gap: 14px;
-  border: 0; border-top: 1px solid var(--border); border-radius: 0; box-shadow: none;
+  padding: 16px; row-gap: 8px; column-gap: 14px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--warning);
+  border-radius: 14px;
+  background: var(--surface-soft);
+  box-shadow: var(--shadow-sm);
 }
-.kitchen-page .kitchen-ticket::before { content: ''; top: 16px; bottom: 16px; left: 0; width: 3px; height: auto; border-radius: 0 3px 3px 0; transform: none; background: transparent; }
+.kitchen-page .kitchen-ticket::before,
 .kitchen-page .kitchen-ticket::after { display: none; }
-.kitchen-page .kitchen-ticket:has(.status-agendado)::before { background: var(--kitchen-scheduled); }
-.kitchen-page .kitchen-ticket-late .kitchen-ticket::before { background: var(--kitchen-late); }
+.kitchen-page .kitchen-ticket:has(.status-agendado) { border-left-color: var(--kitchen-scheduled); }
+.kitchen-page .kitchen-ticket-late .kitchen-ticket { border-left-color: var(--kitchen-late); }
 .kitchen-page .kitchen-ticket-header { justify-content: space-between; gap: 10px; flex-wrap: nowrap; }
 .kitchen-page .kitchen-ticket-customer-name { font-size: .94rem; line-height: 1.4; font-weight: 600; }
 .kitchen-page .kitchen-ticket .status-badge { flex: 0 0 auto; font-size: .65rem; padding: 4px 7px; border-radius: 6px; font-weight: 500; }
@@ -70,12 +74,38 @@
 .kitchen-page .kitchen-ticket-timing { border: 0; padding: 0; color: var(--muted); gap: 4px; justify-content: flex-start; }
 .kitchen-page .kitchen-ticket-timing strong { font-size: .69rem; font-weight: 500; }
 .kitchen-page .kitchen-ticket-late .kitchen-ticket-timing { color: var(--danger); }
-.kitchen-page .kitchen-ticket-actions { padding: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
-.kitchen-page .kitchen-ticket-actions .button { min-height: 38px; padding: 7px 10px; font-size: .69rem; white-space: normal; }
-.kitchen-page .kitchen-ticket-actions .button-secondary { border-color: transparent; background: transparent; color: var(--text-soft); }
-.kitchen-page .kitchen-ticket:has(.status-agendado) .kitchen-ticket-actions .button-secondary:last-child { border-color: transparent; background: transparent; color: var(--text-soft); }
-.kitchen-page .kitchen-ticket-actions .button-primary { border: 1px solid color-mix(in srgb, var(--success) 22%, var(--border)); background: var(--success-soft); color: var(--success); }
-.kitchen-page .kitchen-ticket-actions .button:hover { background: var(--surface-soft); transform: none; }
+.kitchen-page .kitchen-ticket-actions {
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.kitchen-page .kitchen-ticket-actions .button {
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: .7rem;
+  white-space: normal;
+}
+.kitchen-page .kitchen-ticket-actions .button-secondary {
+  border-color: var(--border-strong);
+  background: var(--surface);
+  color: var(--text-soft);
+}
+.kitchen-page .kitchen-ticket:has(.status-agendado) .kitchen-ticket-actions .button-secondary:last-child {
+  border-color: var(--border-strong);
+  background: var(--surface);
+  color: var(--text-soft);
+}
+.kitchen-page .kitchen-ticket-actions .button-primary {
+  border: 1px solid color-mix(in srgb, var(--success) 28%, var(--border));
+  background: var(--success-soft);
+  color: var(--success);
+}
+.kitchen-page .kitchen-ticket-actions .button:hover { transform: none; }
 .kitchen-page .kitchen-queue-empty { min-height: 132px; margin: 0; padding: 24px 18px; border: 0; border-top: 1px solid var(--border); border-radius: 0; background: transparent; }
 .kitchen-page .kitchen-queue-empty strong { font-size: .8rem; font-weight: 500; }
 .kitchen-page .kitchen-queue-empty span { font-size: .72rem; }
@@ -119,9 +149,30 @@
   .kitchen-page .kitchen-toolbar { flex-wrap: wrap; padding: 0 14px 14px; }
   .kitchen-page .kitchen-search { flex-basis: 100%; min-height: 44px; }
   .kitchen-queue-filters button { min-height: 44px; }
-  .kitchen-page .kitchen-ticket { padding: 16px 14px; grid-template-columns: minmax(0, 1fr); grid-template-areas: 'identity' 'customer' 'summary' 'notes' 'timing' 'actions'; }
+  .kitchen-page .kitchen-ticket-list { gap: 12px; padding: 0 12px 12px; }
+  .kitchen-page .kitchen-ticket {
+    padding: 14px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'identity' 'customer' 'summary' 'notes' 'timing' 'actions';
+    border-radius: 14px;
+  }
   .kitchen-page .kitchen-ticket-timing { align-items: flex-start; text-align: left; }
-  .kitchen-page .kitchen-ticket-actions .button { min-height: 44px; width: auto; flex: 0 1 auto; }
+  .kitchen-page .kitchen-ticket-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 3px;
+    padding-top: 12px;
+  }
+  .kitchen-page .kitchen-ticket-actions .button {
+    width: 100%;
+    min-width: 0;
+    min-height: 46px;
+    padding-inline: 8px;
+    border-radius: 10px;
+    font-size: .72rem;
+    flex: none;
+  }
   .kitchen-page .kitchen-queue-help { font-size: .59rem; }
   .kitchen-page .kitchen-schedule-rail { grid-template-columns: minmax(0, 1fr); }
 }
