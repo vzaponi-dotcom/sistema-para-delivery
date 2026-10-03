@@ -336,7 +336,7 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
         eyebrow="Operação"
         title="Fila de impressão"
         description="Acompanhe e gerencie as impressões da cozinha"
-        actions={(
+        actions={onOpenPrintingSettings ? (
           <Button
             type="button"
             variant="secondary"
@@ -348,7 +348,7 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
           >
             Configurações &gt; Impressão
           </Button>
-        )}
+        ) : null}
       />
       <section
         className={`print-queue-operational-card is-${operationalView.tone}`}
