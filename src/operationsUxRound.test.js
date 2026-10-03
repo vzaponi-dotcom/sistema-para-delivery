@@ -35,11 +35,16 @@ test('active kitchen ticket actions give the primary mobile button more room and
 test('active kitchen orders use separated card surfaces and a distinct mobile action footer', async () => {
   const base = await read('./order-operations.css')
   const compact = await read('./order-operations-compact.css')
+  const refined = await read('./kitchen-refined.css')
   assert.match(base, /\.kitchen-ticket-list\s*\{[^}]*gap:\s*12px/s)
   assert.match(base, /\.kitchen-ticket-shell\s*\{[^}]*display:\s*block/s)
   assert.match(base, /\.kitchen-ticket\s*\{[^}]*border-radius:\s*14px[^}]*box-shadow:/s)
   assert.match(compact, /@media \(max-width: 640px\)[\s\S]*\.kitchen-ticket\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto[^}]*"customer timing"/s)
   assert.match(compact, /\.kitchen-ticket-actions\s*\{[^}]*border-top:\s*1px solid/s)
+  assert.match(refined, /\.kitchen-page \.kitchen-ticket-list\s*\{[^}]*gap:\s*12px[^}]*padding:/s)
+  assert.match(refined, /\.kitchen-page \.kitchen-ticket\s*\{[^}]*border:\s*1px solid var\(--border\)[^}]*border-radius:\s*14px[^}]*background:\s*var\(--surface-soft\)[^}]*box-shadow:\s*var\(--shadow-sm\)/s)
+  assert.match(refined, /@media \(max-width: 820px\)[\s\S]*\.kitchen-page \.kitchen-ticket-actions\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)[^}]*gap:\s*10px/s)
+  assert.match(refined, /\.kitchen-page \.kitchen-ticket-actions \.button-secondary\s*\{[^}]*border-color:\s*var\(--border-strong\)[^}]*background:\s*var\(--surface\)/s)
 })
 
 test('theme is absent from Sidebar and remains available in Settings device preferences', async () => {
