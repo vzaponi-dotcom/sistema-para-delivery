@@ -101,6 +101,21 @@ test('production deploy is manual, master-only, and validates locally before rem
   assert.doesNotMatch(productionWorkflow, /npm run deploy\s*$/m)
 })
 
+test('production auth cutover is explicit, phased, and never recreates PIN outside legacy mode', () => {
+  assert.match(productionWorkflow, /auth_phase:/)
+  assert.match(productionWorkflow, /- legacy[\s\S]*- prepare[\s\S]*- multi_company/)
+  assert.match(productionWorkflow, /AUTH_MULTI_COMPANY_PREPARE_ENABLED = phase === 'prepare' \? 'true' : 'false'/)
+  assert.match(productionWorkflow, /AUTH_MULTI_COMPANY_ENABLED = phase === 'multi_company' \? 'true' : 'false'/)
+  assert.match(productionWorkflow, /Configure production PIN only in legacy phase[\s\S]*if: inputs\.auth_phase == 'legacy'/)
+  assert.match(productionWorkflow, /Configure production e-mail secret for account phases[\s\S]*if: inputs\.auth_phase != 'legacy'/)
+  assert.match(productionWorkflow, /production-auth-smoke\.mjs/)
+  assert.match(productionWorkflow, /Do not finalize legacy access until real administrator and manager logins are manually verified/)
+  const config = JSON.parse(wrangler)
+  assert.equal(config.vars.AUTH_MULTI_COMPANY_ENABLED, 'false')
+  assert.equal(config.vars.AUTH_MULTI_COMPANY_PREPARE_ENABLED, 'false')
+  assert.equal(config.vars.AUTH_EMAIL_ENABLED, 'false')
+})
+
 test('PR template requires migration and rollback review', () => {
   assert.match(prTemplate, /Migration impact/)
   assert.match(prTemplate, /Rollback/)
