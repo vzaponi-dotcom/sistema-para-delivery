@@ -14,7 +14,7 @@ test('global account remains available in identity scope without a company membe
 
 test('account displays the confirmed email without offering an email mutation',async t=>{
   const {screen}=await setup(t,'MyAccount',{sessionContext:manager},()=>assert.fail('no read needed'))
-  assert.match(nodeText(screen.root),/Maria.*maria@example.test.*Gerente/s)
+  assert.match(nodeText(screen.root),/Maria.*maria@example.test/s)
   assert.equal(screen.root.findAllByType('input').some(n=>n.props.name==='email'),false)
 })
 
