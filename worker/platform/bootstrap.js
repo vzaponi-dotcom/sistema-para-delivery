@@ -24,14 +24,18 @@ async function commit(db, statements) {
     throw error
   }
 }
+const bootstrapEnvironment = (environment = 'staging') => {
+  if (!['staging', 'production'].includes(environment)) throw unavailable()
+  return environment
+}
 const adminPredicate = `SELECT EXISTS(SELECT 1 FROM platform_bootstraps p JOIN accounts a ON a.id=p.account_id
-  JOIN account_credentials c ON c.account_id=a.id WHERE p.environment='staging' AND a.id=? AND a.active=1
+  JOIN account_credentials c ON c.account_id=a.id WHERE p.environment=? AND a.id=? AND a.active=1
   AND a.email_verified_at IS NOT NULL AND c.version=1 AND c.password_verifier=? AND c.revision=?
   AND (SELECT count(*) FROM platform_grants g WHERE g.account_id=a.id AND g.capability IN ('platform.businesses.view','platform.businesses.create','platform.invitations.resend'))=3)`
 
 export async function preparePlatformAdministrator(db, { name, email, ownershipVerified, now = new Date(), environment = 'staging', dailyLimit = 80 }) {
   ownership(ownershipVerified)
-  if (!['staging', 'production'].includes(environment)) throw unavailable()
+  environment = bootstrapEnvironment(environment)
   email = normalizeAccessEmail(email)
   const creation = prepareAccountCreation(db, { email, displayName: name, now }), timestamp = now.toISOString()
   await commit(db, [...creation.statements,
@@ -52,16 +56,17 @@ export async function preparePlatformAdministrator(db, { name, email, ownershipV
   return { accountId: account.id, activated: false, challenge: { ...challenge.value, displayName: name.trim() } }
 }
 
-export async function prepareExistingBusinessManager(db, { businessId, name, email, ownershipVerified, now = new Date(), dailyLimit = 80 }) {
+export async function prepareExistingBusinessManager(db, { businessId, name, email, ownershipVerified, now = new Date(), environment = 'staging', dailyLimit = 80 }) {
   ownership(ownershipVerified)
+  environment = bootstrapEnvironment(environment)
   email = normalizeAccessEmail(email)
-  const bootstrap = await db.prepare("SELECT * FROM platform_bootstraps WHERE environment='staging'").first()
+  const bootstrap = await db.prepare('SELECT * FROM platform_bootstraps WHERE environment=?').bind(environment).first()
   const admin = bootstrap && await db.prepare(accountSql).bind(bootstrap.account_id).first()
   if (!usable(admin)) throw unavailable()
   const creation = prepareAccountCreation(db, { email, displayName: name, now })
   // This procedure operates on inventoried fictitious staging identities only.
   // Preserve the old display name/history; retire a conflicting legacy login.
-  await commit(db, [guard(db, adminPredicate, [admin.id, admin.password_verifier, admin.revision]), ...creation.statements,
+  await commit(db, [guard(db, adminPredicate, [environment, admin.id, admin.password_verifier, admin.revision]), ...creation.statements,
     db.prepare(`UPDATE users SET login_normalized=login_normalized || ':legacy:' || id WHERE business_id=? AND login_normalized=? AND account_id IS NULL
       AND EXISTS(SELECT 1 FROM json_each(?) j WHERE json_extract(j.value,'$.businessId')=users.business_id AND json_extract(j.value,'$.userId')=users.id)`).bind(businessId, email, bootstrap.legacy_inventory_json),
   ])
@@ -76,7 +81,7 @@ export async function prepareExistingBusinessManager(db, { businessId, name, ema
   const expiresAt = new Date(now.getTime() + 24 * 3600_000).toISOString(), roleId = `${businessId}:manager`
   const alreadyVerified = usable(credential)
   if ((credential.email_verified_at || credential.password_verifier) && !alreadyVerified) throw unavailable()
-  const statements = [guard(db, adminPredicate, [admin.id, admin.password_verifier, admin.revision]),
+  const statements = [guard(db, adminPredicate, [environment, admin.id, admin.password_verifier, admin.revision]),
     guard(db, "SELECT EXISTS(SELECT 1 FROM businesses WHERE id=? AND access_status IN ('legacy','pending'))", [businessId]),
     db.prepare("UPDATE businesses SET access_status='pending',updated_at=? WHERE id=?").bind(timestamp, businessId),
     ...prepareBuiltinRoles(db, businessId, now),
@@ -115,16 +120,17 @@ export async function readMultiCompanyReadiness(db, { adminAccountId, businessId
   return { ready: Boolean(adminReady && managerReady), adminAccountId, businessId, managerAccountId }
 }
 
-export async function finalizeMultiCompanyStaging(db, inventory, readiness, { now = new Date() } = {}) {
+export async function finalizeMultiCompanyEnvironment(db, inventory, readiness, { now = new Date(), environment = 'staging' } = {}) {
+  environment = bootstrapEnvironment(environment)
   if (readiness?.loginVerified !== true) throw unavailable()
   const current = await readMultiCompanyReadiness(db, readiness)
   if (!current.ready) throw unavailable()
-  const record = await db.prepare("SELECT * FROM platform_bootstraps WHERE environment='staging' AND account_id=?").bind(current.adminAccountId).first()
-  if (!Array.isArray(inventory) || JSON.stringify(inventory) !== record.legacy_inventory_json) throw unavailable()
+  const record = await db.prepare('SELECT * FROM platform_bootstraps WHERE environment=? AND account_id=?').bind(environment, current.adminAccountId).first()
+  if (!record || !Array.isArray(inventory) || JSON.stringify(inventory) !== record.legacy_inventory_json) throw unavailable()
   const admin = await db.prepare(accountSql).bind(current.adminAccountId).first(), manager = await db.prepare(accountSql).bind(current.managerAccountId).first()
-  const timestamp = now.toISOString(), statements = [guard(db, adminPredicate, [admin.id, admin.password_verifier, admin.revision]),
+  const timestamp = now.toISOString(), statements = [guard(db, adminPredicate, [environment, admin.id, admin.password_verifier, admin.revision]),
     guard(db, managerPredicate, [current.businessId, manager.id, manager.password_verifier, manager.revision]),
-    guard(db, "SELECT EXISTS(SELECT 1 FROM platform_bootstraps WHERE environment='staging' AND account_id=? AND legacy_inventory_json=?)", [admin.id, JSON.stringify(inventory)])]
+    guard(db, 'SELECT EXISTS(SELECT 1 FROM platform_bootstraps WHERE environment=? AND account_id=? AND legacy_inventory_json=?)', [environment, admin.id, JSON.stringify(inventory)])]
   if (!record.finalized_at) {
     for (const item of inventory) {
       const target = 'business_id=? AND id=? AND account_id IS NULL'
@@ -137,12 +143,15 @@ export async function finalizeMultiCompanyStaging(db, inventory, readiness, { no
     statements.push(db.prepare('UPDATE sessions SET revoked_at=COALESCE(revoked_at,?) WHERE business_id=? AND user_id IS NULL').bind(timestamp, current.businessId),
       db.prepare("UPDATE business_auth_state SET mode='user_only',updated_at=? WHERE business_id=?").bind(timestamp, current.businessId),
       db.prepare('DELETE FROM auth_credentials WHERE business_id=?').bind(current.businessId),
-      db.prepare("UPDATE platform_bootstraps SET finalized_at=? WHERE environment='staging' AND account_id=?").bind(timestamp, admin.id),
+      db.prepare('UPDATE platform_bootstraps SET finalized_at=? WHERE environment=? AND account_id=?').bind(timestamp, environment, admin.id),
       preparePlatformAudit(db, adminScope(admin.id), { action: 'legacy.finalized', businessId: current.businessId, now }))
   }
   await commit(db, statements)
   return { finalized: true, changed: !record.finalized_at }
 }
+
+export const finalizeMultiCompanyStaging = (db, inventory, readiness, options = {}) =>
+  finalizeMultiCompanyEnvironment(db, inventory, readiness, { ...options, environment: 'staging' })
 
 export async function issueVerifiedAccountRecovery(db, { accountId, ownershipVerified, now = new Date() }) {
   ownership(ownershipVerified)
