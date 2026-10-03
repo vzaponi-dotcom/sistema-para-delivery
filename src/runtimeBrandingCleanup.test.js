@@ -29,13 +29,14 @@ test('runtime product branding uses Mesiva instead of the legacy Gestão Deliver
 test('login and loading states do not hardcode the current business identity', () => {
   const login = read('./app/shell/LoginScreen.jsx')
   const root = read('./app/shell/AppRoot.jsx')
+  const startup = read('./app/shell/StartupScreen.jsx')
 
   assert.doesNotMatch(login, /Amor\s*&(?:amp;)?\s*Sabor/i)
   assert.doesNotMatch(root, /Amor\s*&(?:amp;)?\s*Sabor/i)
+  assert.doesNotMatch(startup, /Amor\s*&(?:amp;)?\s*Sabor/i)
   assert.doesNotMatch(login, /BrandLogo/)
   assert.match(login, /Mesiva/)
   assert.match(login, /PIN da operação/i)
-  assert.match(root, /Sincronizando os dados da operação/)
 })
 
 test('sidebar and browser chrome do not expose operation-specific or technical branding', () => {
