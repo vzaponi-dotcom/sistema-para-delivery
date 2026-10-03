@@ -45,6 +45,25 @@ test('print queue page provides the initial structural heading', async () => {
   assert.match(page, /onOpenPrintingSettings/)
 })
 
+test('print queue omits the printing settings shortcut when no administrative callback is provided', async (t) => {
+  const harness = await workspaceHarness(t)
+  const { default: PrintQueue } = await harness.load('/src/domains/printing/ui/PrintQueue.jsx')
+  globalThis.fetch = async (path) => {
+    const url = String(path)
+    if (url.startsWith('/api/printing/jobs?')) return { ok: true, json: async () => ({ jobs: [], pageInfo: { page: 1, pageSize: 10, totalItems: 0, totalPages: 1 } }) }
+    if (url === '/api/printing/jobs/summary') return { ok: true, json: async () => ({ summary: {} }) }
+    throw new Error(`Unexpected request: ${url}`)
+  }
+  const renderer = await harness.render(PrintQueue, {
+    orders: [],
+    printing: { localStation: null, stations: [] },
+    queryState: { ...DEFAULT_PRINT_QUEUE_QUERY },
+    onQueryChange() {},
+  })
+  await act(async () => { await Promise.resolve(); await Promise.resolve() })
+  assert.equal(renderer.root.findAllByProps({ 'aria-label': 'Configurações, Impressão' }).length, 0)
+})
+
 test('desktop navigation opens the queue and its settings shortcut opens the printing section', async () => {
   const [app, sidebar, orders] = await Promise.all([
     readSource('../../../App.jsx'),
@@ -54,7 +73,7 @@ test('desktop navigation opens the queue and its settings shortcut opens the pri
 
   assert.match(app, /PrintQueue[\s\S]*from '\.\/domains\/printing\/index\.js'/)
   assert.match(app, /activeTab === 'print-queue' && <PrintQueue/)
-  assert.match(app, /onOpenPrintingSettings=\{\(\) => requestNavigation\('settings-printing'\)\}/)
+  assert.match(app, /onOpenPrintingSettings=\{canOpenPrintingSettings \? \(\) => requestNavigation\('settings-printing'\) : undefined\}/)
   assert.match(sidebar, /\{ id: 'print-queue', label: 'Fila de impressão', icon: 'printer' \}/)
   assert.match(orders, /onNavigatePrintQueue/)
   assert.match(orders, /className="kitchen-print-queue-button"/)
