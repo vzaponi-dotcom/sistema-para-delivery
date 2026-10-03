@@ -107,6 +107,28 @@ class ClientReceivablesDb extends OperationalDb {
   }
 }
 
+class D1BindingLimitDb extends ClientReceivablesDb {
+  constructor() {
+    super()
+    const prepare = this.prepare
+    this.maxBoundParameters = 0
+    this.prepare = (sql) => {
+      const statement = prepare(sql)
+      return new Proxy(statement, {
+        get: (target, property) => {
+          if (property === 'bind') return (...values) => {
+            this.maxBoundParameters = Math.max(this.maxBoundParameters, values.length)
+            if (values.length > 100) throw new Error(`D1_TOO_MANY_BOUND_PARAMETERS:${values.length}`)
+            return target.bind(...values)
+          }
+          const value = Reflect.get(target, property, target)
+          return typeof value === 'function' ? value.bind(target) : value
+        },
+      })
+    }
+  }
+}
+
 const pix69 = [{ methodCode: 'pix', amountCents: 6900 }]
 const split69 = [
   { methodCode: 'cash', amountCents: 3000 },
@@ -351,6 +373,37 @@ test('refund of one order from a mixed shared receipt stays integral to that ord
   assert.equal(db.sqlite.prepare('SELECT count(*) AS n FROM payments WHERE receipt_id = ?').get(payment.receipt.id).n, 2)
 })
 
+
+test('client receivables batching stays below the D1 100-bound-parameter ceiling at 24, 25, 30 and 100 orders', async (t) => {
+  for (const count of [24, 25, 30, 100]) await t.test(String(count), async () => {
+    const db = new D1BindingLimitDb()
+    const ids = []
+    for (let index = 1; index <= count; index += 1) {
+      const id = `d1-${count}-${String(index).padStart(3, '0')}`
+      ids.push(id)
+      db.insertOrder(id, {
+        clientId: 'c1',
+        client: 'Fernanda Albuquerque',
+        totalCents: 100,
+        orderNumber: 1000 + count * 100 + index,
+      })
+    }
+
+    const result = await registerClientOrdersPayment(
+      db,
+      BUSINESS,
+      'c1',
+      ids,
+      [{ methodCode: 'pix', amountCents: count * 100 }],
+      NOW,
+    )
+
+    assert.equal(result.payments.length, count)
+    assert.equal(result.orders.length, count)
+    assert.equal(result.receipt.totalCents, count * 100)
+    assert.ok(db.maxBoundParameters <= 100, `largest statement used ${db.maxBoundParameters} bound parameters`)
+  })
+})
 
 test('client receivables payment accepts exactly 100 selected orders and creates one integral receipt', async () => {
   const db = new ClientReceivablesDb()
