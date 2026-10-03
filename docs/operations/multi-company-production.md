@@ -43,9 +43,9 @@ O workflow:
 
 1. roda testes, arquitetura, lint, build e Worker dry-run;
 2. confirma que o SHA ainda é o último `master`;
-3. lê o estado atual de `business_auth_state`;
-4. bloqueia qualquer tentativa de voltar a `legacy/prepare` se produção já estiver `user_only`;
-5. aplica migrations;
+3. aplica as migrations de produção, garantindo que `business_auth_state` exista antes da leitura;
+4. lê o estado atual de `business_auth_state`;
+5. bloqueia qualquer tentativa de voltar a `legacy/prepare` se produção já estiver `user_only`;
 6. instala/atualiza o secret de e-mail;
 7. publica somente o modo de preparação;
 8. comprova que o PIN legado continua entrando e que os endpoints estreitos de ativação/convite estão disponíveis.
