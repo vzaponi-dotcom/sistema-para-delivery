@@ -34,11 +34,12 @@ const send = (f, path, body, options = {}) => handleGlobalAuthApi(req(path, body
 
 test('global login resolves one, many, zero and administrative destinations without tenant input', async (t) => {
   const f = await createTenancyFixture(t)
-  for (const [email, scope, businessId] of [['bob@example.test', 'business', f.businesses.A], ['alice@example.test', 'identity', undefined], ['admin@example.test', 'platform', undefined]]) {
+  for (const [email, scope, businessId, eligibleBusinessCount] of [['bob@example.test', 'business', f.businesses.A, 1], ['alice@example.test', 'identity', undefined, 2], ['admin@example.test', 'platform', undefined, 0]]) {
     const response = await send(f, '/api/auth/login', { email, password: 'Fixture password 2026!', deviceMode: 'shared' })
     assert.equal(response.status, 200)
     const payload = await response.json()
     assert.equal(payload.scope, scope); assert.equal(payload.businessId, businessId)
+    assert.equal(payload.eligibleBusinessCount, eligibleBusinessCount)
     assert.match(response.headers.get('set-cookie'), /^mesiva_session=/)
     assert.equal(response.headers.get('cache-control'), 'no-store')
     if (scope !== 'business') assert.deepEqual(payload.capabilities, [])
