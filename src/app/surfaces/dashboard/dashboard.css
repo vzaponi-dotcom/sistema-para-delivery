@@ -1,6 +1,16 @@
+.dashboard-overview-header .page-header {
+  position: relative;
+}
 .dashboard-privacy-toggle {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
+  border-color: transparent;
+  border-radius: 10px;
+  background: transparent;
+}
+.dashboard-privacy-toggle:hover {
+  border-color: var(--border);
+  background: var(--surface-soft);
 }
 
 :root[data-visual-theme='mesiva'] .dashboard-stat-sales .stat-icon {
@@ -273,5 +283,30 @@
 @media (max-width: 390px) {
   .dashboard-chart-axis {
     font-size: 20px;
+  }
+}
+
+
+@media (max-width: 640px) {
+  .dashboard-overview-header .page-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 40px;
+    align-items: start;
+    gap: 0 10px;
+  }
+  .dashboard-overview-header .page-header-copy {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .dashboard-overview-header .page-actions {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: start;
+    justify-self: end;
+    margin-top: 22px;
+  }
+  .dashboard-privacy-toggle {
+    width: 40px;
+    height: 40px;
   }
 }
