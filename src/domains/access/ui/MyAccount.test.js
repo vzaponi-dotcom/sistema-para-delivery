@@ -14,9 +14,18 @@ test('global account remains available in identity scope without a company membe
 
 test('account displays the confirmed email without offering an email mutation',async t=>{
   const {screen}=await setup(t,'MyAccount',{sessionContext:manager},()=>assert.fail('no read needed'))
-  assert.match(nodeText(screen.root),/E-mail.*maria@example.test/)
+  assert.match(nodeText(screen.root),/Maria.*maria@example.test.*Gerente/s)
   assert.equal(screen.root.findAllByType('input').some(n=>n.props.name==='email'),false)
 })
+
+test('account separates identity summary from the password security card', async t => {
+  const { screen } = await setup(t, 'MyAccount', { sessionContext: manager }, () => assert.fail('no read needed'))
+  assert.ok(screen.root.findByProps({ className: 'surface-card access-section access-identity-card access-identity-summary' }))
+  assert.ok(screen.root.findByProps({ className: 'surface-card access-section access-security-card' }))
+  assert.match(nodeText(screen.root), /Senha e segurança.*Senha atual.*Nova senha.*Confirme a nova senha/s)
+  assert.equal(screen.root.findAllByType('input').filter(node => ['currentPassword', 'password', 'confirmPassword'].includes(node.props.name)).length, 3)
+})
+
 
 async function account(t, { capabilities = [], passwordResponse, verificationFailure = false } = {}) {
   const h = await workspaceHarness(t)
