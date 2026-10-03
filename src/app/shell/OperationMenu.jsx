@@ -31,6 +31,13 @@ function MenuAction({ label, description, icon, onClick, disabled = false, class
   </button>
 }
 
+function MenuSectionHeading({ title, description, icon }) {
+  return <div className="operation-menu-section-heading">
+    <span className="operation-menu-section-icon" aria-hidden="true"><Icon name={icon} size={18} /></span>
+    <span className="operation-menu-section-heading-copy"><h2>{title}</h2>{description && <small>{description}</small>}</span>
+  </div>
+}
+
 export default function OperationMenu({ businessName, businessHasLogo = false, businessLogoVersion = null, showLogo = true, user, onSwitchCompany, onPlatform, onSwitchUser, onLogout, logoutDisabled = false }) {
   const { granted, implemented, requestNavigation, authenticated } = useNavigation()
   const operationName = normalizeOperationName(businessName)
@@ -78,31 +85,41 @@ export default function OperationMenu({ businessName, businessHasLogo = false, b
       <span className="operation-menu-person-copy"><strong>{personName}</strong><small>{profileName}</small></span>
       <span className="operation-menu-connected">Conectado</span>
     </header>}
-    {(accountEntry || onSwitchUser) && <section className="operation-menu-section" aria-label="Sua conta">
-      <h2>Sua conta</h2>
-      {accountEntry && <MenuAction label="Minha conta" description="Seus dados e sua senha" icon="client" onClick={() => navigate(accountEntry.id)} />}
-      {onSwitchUser && <MenuAction label="Trocar usuário" description="Encerrar a sessão e abrir o login" icon="clients" disabled={logoutDisabled} onClick={() => { close(); onSwitchUser() }} />}
+    {(accountEntry || onSwitchUser) && <section className="operation-menu-section operation-menu-account-section" aria-label="Sua conta">
+      <MenuSectionHeading title="Minha conta" description="Seus dados, acesso e segurança." icon="client" />
+      <div className="operation-menu-group-card">
+        {accountEntry && <MenuAction label="Minha conta" description="Seus dados e sua senha" icon="client" onClick={() => navigate(accountEntry.id)} />}
+        {onSwitchUser && <MenuAction label="Trocar usuário" description="Encerrar a sessão e abrir o login" icon="clients" disabled={logoutDisabled} onClick={() => { close(); onSwitchUser() }} />}
+      </div>
     </section>}
     <section className="operation-menu-section operation-menu-company-section" aria-label="Empresa atual">
-      <h2>Empresa</h2>
-      <div className="operation-menu-heading">
-        {operationIdentity('operation-menu-logo')}
-        <div className="operation-menu-heading-copy"><strong>{operationName}</strong>
-          <span>Empresa atual{personName && <> · {profileName}</>}</span>
+      <MenuSectionHeading title="Empresa atual" description="Gerencie a empresa onde você está trabalhando." icon="orders" />
+      <div className="operation-menu-company-card">
+        <div className="operation-menu-heading">
+          {operationIdentity('operation-menu-logo')}
+          <div className="operation-menu-heading-copy"><strong>{operationName}</strong>
+            <span>Você está atuando como <b>{profileName}</b></span>
+          </div>
         </div>
+        {(onSwitchCompany || companySettingsEntry) && <div className="operation-menu-company-actions">
+          {onSwitchCompany && <MenuAction label="Trocar empresa" description="Escolher onde você vai trabalhar" icon="transfer" disabled={logoutDisabled} onClick={() => { close(); onSwitchCompany() }} />}
+          {companySettingsEntry && <MenuAction label="Configurações da empresa" description={`Ajustes de ${operationName}`} icon="settings" onClick={() => navigate(companySettingsEntry.id)} />}
+        </div>}
       </div>
-      {onSwitchCompany && <MenuAction label="Trocar empresa" description="Escolher onde você vai trabalhar" icon="transfer" disabled={logoutDisabled} onClick={() => { close(); onSwitchCompany() }} />}
-      {companySettingsEntry && <MenuAction label="Configurações da empresa" description={`Ajustes de ${operationName}`} icon="settings" onClick={() => navigate(companySettingsEntry.id)} />}
     </section>
     {onPlatform && <section className="operation-menu-section operation-menu-platform-section" aria-label="Administração Mesiva">
-      <h2>Mesiva</h2>
-      <MenuAction label="Administração Mesiva" icon="settings" disabled={logoutDisabled} onClick={() => { close(); onPlatform() }} />
+      <MenuSectionHeading title="Mesiva" description="Configurações e administração da plataforma." icon="details" />
+      <div className="operation-menu-group-card">
+        <MenuAction label="Administração Mesiva" description="Gerencie empresas e acessos da plataforma" icon="settings" disabled={logoutDisabled} onClick={() => { close(); onPlatform() }} />
+      </div>
     </section>}
-    <section className="operation-menu-section" aria-label="Preferências e ajuda">
+    <section className="operation-menu-section operation-menu-utility-section" aria-label="Preferências e ajuda">
       <h2>Preferências e ajuda</h2>
-      {!companySettingsEntry && settingsEntry && <MenuAction label="Configurações" icon="settings" onClick={() => navigate(settingsEntry.id)} />}
-      {deviceEntry && <MenuAction label="Este dispositivo" description="Tema e som de novos pedidos" icon="system" onClick={() => navigate(deviceEntry.id)} />}
-      <MenuAction label="Sobre a Mesiva" icon="details" onClick={openAbout} />
+      <div className="operation-menu-group-card">
+        {!companySettingsEntry && settingsEntry && <MenuAction label="Configurações" icon="settings" onClick={() => navigate(settingsEntry.id)} />}
+        {deviceEntry && <MenuAction label="Este dispositivo" description="Tema e som de novos pedidos" icon="system" onClick={() => navigate(deviceEntry.id)} />}
+        <MenuAction label="Sobre a Mesiva" icon="details" onClick={openAbout} />
+      </div>
     </section>
     {onLogout && <footer className="operation-menu-footer"><MenuAction label="Sair do sistema" icon="logout" className="operation-menu-logout" disabled={logoutDisabled} onClick={() => { close(); onLogout() }} /></footer>}
   </div>
