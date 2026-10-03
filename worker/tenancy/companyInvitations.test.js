@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createTenancyFixture } from '../test-support/tenancyDb.js'
-import { prepareMembershipInvitation, inspectCompanyInvitation, acceptCompanyInvitation, resendCompanyInvitation } from './companyInvitations.js'
+import { prepareMembershipInvitation, inspectCompanyInvitation, acceptCompanyInvitation, resendCompanyInvitation, deliverPersistedCompanyInvitation } from './companyInvitations.js'
 import { commitIdentityStatements } from '../identity/transactions.js'
 import { prepareAccountSession, authenticateAccountRequest } from '../identity/sessions.js'
 import { verifyHumanPassword } from '../access/credentials.js'
@@ -18,6 +18,21 @@ async function identityContext(f, accountId) {
   await commitIdentityStatements(f.db, prepared.statements)
   return authenticateAccountRequest(new Request('https://example.test', { headers: { cookie: `mesiva_session=${prepared.value.token}` } }), { DB: f.db }, f.now)
 }
+
+test('delivered invitation identifies the role and company of the persisted invitation', async t => {
+  const f = await createTenancyFixture(t)
+  const issued = await invite(f)
+  let payload
+  const result = await deliverPersistedCompanyInvitation(f.db, envFor(f.db), issued, { now:f.now, fetchImpl:async (_url,options) => {
+    payload = JSON.parse(options.body)
+    return Response.json({id:'22222222-2222-4222-8222-222222222222'})
+  } })
+  assert.equal(result.status,'accepted')
+  assert.match(payload.text,/Company A/)
+  assert.match(payload.text,/Operador/)
+  assert.match(payload.html,/Operador/)
+  assert.doesNotMatch(payload.text,/Company B|Gerente/)
+})
 
 test('new identity invitation activates its credential and membership once', async (t) => {
   const f = await createTenancyFixture(t)

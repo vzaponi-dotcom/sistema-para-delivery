@@ -31,3 +31,25 @@ test('templates reject foreign-purpose links, non-HTTPS links and malformed expi
     assert.throws(() => buildChallengeEmail({...input,...patch}),{code:'INVALID_EMAIL_INPUT'})
   }
 })
+
+test('logo uses an absolute public asset on the access origin without leaking the challenge', () => {
+  const result = buildChallengeEmail(input)
+  const src = result.html.match(/<img\b[^>]*\bsrc="([^"]+)"/i)?.[1]
+  assert.ok(src, 'The email must display the public Mesiva logo')
+  const logo = new URL(src)
+  assert.equal(logo.origin, 'https://staging.mesiva.com.br')
+  assert.equal(logo.pathname.endsWith('.png'), true)
+  assert.equal(logo.search, '')
+  assert.equal(logo.hash, '')
+  assert.equal(logo.href.includes('t'.repeat(43)), false)
+})
+
+for (const [purpose, path] of [['activation','/ativar-conta'],['password_reset','/redefinir-senha'],['company_invitation','/aceitar-convite']]) {
+  test(`${purpose} production email omits staging notices in subject, HTML and plain text`, () => {
+    const link = `https://mesiva.com.br${path}#token=${'t'.repeat(43)}`
+    const production = buildChallengeEmail({...input,purpose,link,isStaging:false})
+    for (const content of [production.subject,production.html,production.text]) assert.doesNotMatch(content,/staging|Ambiente de testes/)
+    const staging = buildChallengeEmail({...input,purpose,link:link.replace('mesiva.com.br','staging.mesiva.com.br'),isStaging:true})
+    for (const content of [staging.subject,staging.html,staging.text]) assert.match(content,/Ambiente de testes/)
+  })
+}

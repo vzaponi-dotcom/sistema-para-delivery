@@ -147,10 +147,10 @@ export async function acceptCompanyInvitation(db, { token, password, context = n
 }
 
 export async function deliverPersistedCompanyInvitation(db, env, message, { deliver = deliverIdentityMessage, now = new Date(), fetchImpl } = {}) {
-  const row = await db.prepare('SELECT h.account_id,h.issued_by_account_id,h.purpose,b.name FROM company_invitations h JOIN businesses b ON b.id = h.business_id WHERE h.id = ? AND h.business_id = ?').bind(message.invitationId, message.businessId).first()
+  const row = await db.prepare('SELECT h.account_id,h.issued_by_account_id,h.purpose,b.name,r.name AS role_name FROM company_invitations h JOIN businesses b ON b.id = h.business_id JOIN roles r ON r.id = h.role_id AND r.business_id = h.business_id WHERE h.id = ? AND h.business_id = ?').bind(message.invitationId, message.businessId).first()
   if (!row) throw invalidCompanyInvitation()
   let result
-  try { result = await deliver(env, { ...message, purpose: 'company_invitation', businessName: row.name }, { fetchImpl }) } catch { result = { status: 'uncertain' } }
+  try { result = await deliver(env, { ...message, purpose: 'company_invitation', businessName: row.name, roleName: row.role_name }, { fetchImpl }) } catch { result = { status: 'uncertain' } }
   const status = ['accepted', 'rejected', 'uncertain'].includes(result?.status) ? result.status : 'uncertain'
   const providerId = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(result?.providerId || '') ? result.providerId : null
   const update = db.prepare("UPDATE company_invitations SET delivery_status = ?,provider_id = ?,revoked_at = CASE WHEN ? = 'rejected' THEN COALESCE(revoked_at,?) ELSE revoked_at END WHERE id = ? AND business_id = ?")
