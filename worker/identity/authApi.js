@@ -14,12 +14,38 @@ import { commitIdentityStatements } from './transactions.js'
 import { deliverPersistedIdentityMessage } from './emailMessages.js'
 import { requireIdentityContext } from '../tenancy/businessContext.js'
 import { selectAccountScope } from '../tenancy/scopeSelection.js'
-import { listEligibleBusinesses } from '../tenancy/eligibleBusinesses.js'
+import { listEligibleBusinesses, loadEligibleBusinessLogo } from '../tenancy/eligibleBusinesses.js'
+import { readBusinessLogo } from '../businessLogoStorage.js'
 
 const response = (body, init = {}) => json(body, { ...init, headers: { 'cache-control': 'no-store', ...init.headers } })
 const invalidLogin = () => apiError(401, 'INVALID_LOGIN', 'E-mail ou senha inválidos.')
+const objectBody = async (object) => {
+  if (object?.body) return object.body
+  if (typeof object?.arrayBuffer === 'function') return object.arrayBuffer()
+  throw apiError(503, 'BUSINESS_LOGO_STORAGE_UNAVAILABLE', 'O armazenamento do logo está indisponível. Tente novamente.')
+}
+const etagHeader = (object) => {
+  const value = object?.httpEtag || object?.etag
+  if (typeof value !== 'string' || !value) return null
+  return value.startsWith('"') ? value : `"${value}"`
+}
+async function eligibleBusinessLogo(request, env, context) {
+  if (!context) throw apiError(401, 'UNAUTHENTICATED', 'Sua sessão expirou. Entre novamente.')
+  const businessId = new URL(request.url).searchParams.get('businessId')
+  const logo = await loadEligibleBusinessLogo(env.DB, context.accountId, businessId)
+  if (!logo?.objectKey) throw apiError(404, 'BUSINESS_LOGO_NOT_FOUND', 'Esta operação ainda não possui logo.')
+  const object = await readBusinessLogo(env.BUSINESS_ASSETS, logo.objectKey, businessId)
+  if (!object) throw apiError(503, 'BUSINESS_LOGO_STORAGE_UNAVAILABLE', 'O logo configurado não está disponível no armazenamento.')
+  const headers = new Headers({
+    'content-type': object.httpMetadata?.contentType || logo.contentType || 'application/octet-stream',
+    'cache-control': 'private',
+  })
+  const etag = etagHeader(object)
+  if (etag) headers.set('etag', etag)
+  return new Response(await objectBody(object), { status: 200, headers })
+}
 const methods = new Map([
-  ['/api/auth/login', 'POST'], ['/api/auth/session', 'GET'], ['/api/auth/logout', 'POST'], ['/api/auth/businesses', 'GET'],
+  ['/api/auth/login', 'POST'], ['/api/auth/session', 'GET'], ['/api/auth/logout', 'POST'], ['/api/auth/businesses', 'GET'], ['/api/auth/business-logo', 'GET'],
   ['/api/auth/select-business', 'POST'], ['/api/auth/select-platform', 'POST'], ['/api/auth/password-recovery', 'POST'],
   ['/api/auth/email-challenges/inspect', 'POST'], ['/api/auth/email-challenges/complete', 'POST'], ['/api/access/me/password', 'POST'],
 ])
@@ -84,6 +110,7 @@ export async function handleGlobalAuthApi(request, env, { waitUntil, now = new D
   try {
     assertSameOriginMutation(request)
     if (path === '/api/auth/session') return response(await accountSessionView(env.DB, await authenticateAccountRequest(request, env, now)))
+    if (path === '/api/auth/business-logo') return await eligibleBusinessLogo(request, env, await authenticateAccountRequest(request, env, now))
     // Platform selection, like logout, is a bodyless command. Its authority and
     // source scope come solely from the authenticated cookie and context marker.
     const body = request.method === 'POST' && !['/api/auth/logout', '/api/auth/select-platform'].includes(path) ? await readJson(request) : {}
