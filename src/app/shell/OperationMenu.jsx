@@ -83,15 +83,16 @@ export default function OperationMenu({ businessName, businessHasLogo = false, b
       {accountEntry && <MenuAction label="Minha conta" description="Seus dados e sua senha" icon="client" onClick={() => navigate(accountEntry.id)} />}
       {onSwitchUser && <MenuAction label="Trocar usuário" description="Encerrar a sessão e abrir o login" icon="clients" disabled={logoutDisabled} onClick={() => { close(); onSwitchUser() }} />}
     </section>}
-    <section className="operation-menu-section" aria-label="Empresa atual">
-      <h2>Empresa atual</h2>
+    <section className="operation-menu-section operation-menu-company-section" aria-label="Empresa atual">
+      <h2>Empresa</h2>
       <div className="operation-menu-heading">
         {operationIdentity('operation-menu-logo')}
         <div className="operation-menu-heading-copy"><strong>{operationName}</strong>
-          {onSwitchCompany && <button className="operation-menu-switch-company" type="button" aria-label="Trocar empresa" disabled={logoutDisabled} onClick={() => { close(); onSwitchCompany() }}>Trocar empresa <span aria-hidden="true">→</span></button>}
+          <span>Empresa atual{personName && <> · {profileName}</>}</span>
         </div>
       </div>
-      {companySettingsEntry && <MenuAction label="Configurações da empresa" icon="settings" onClick={() => navigate(companySettingsEntry.id)} />}
+      {onSwitchCompany && <MenuAction label="Trocar empresa" description="Escolher onde você vai trabalhar" icon="transfer" disabled={logoutDisabled} onClick={() => { close(); onSwitchCompany() }} />}
+      {companySettingsEntry && <MenuAction label="Configurações da empresa" description={`Ajustes de ${operationName}`} icon="settings" onClick={() => navigate(companySettingsEntry.id)} />}
     </section>
     {onPlatform && <section className="operation-menu-section operation-menu-platform-section" aria-label="Administração Mesiva">
       <h2>Mesiva</h2>

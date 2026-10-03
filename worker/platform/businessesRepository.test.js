@@ -6,6 +6,17 @@ import { listPlatformBusinesses, getPlatformBusiness } from './businessesReposit
 
 const env = f => ({ DB: f.db, AUTH_MULTI_COMPANY_ENABLED: true, RESEND_API_KEY: 'synthetic', AUTH_EMAIL_FROM: 'Mesiva <access@example.test>', AUTH_PUBLIC_ORIGIN: 'https://example.test' })
 
+test('generated pagination cursor preserves legacy SQLite timestamps and reaches every company', async t => {
+  const f = await createTenancyFixture(t)
+  f.sqlite.prepare('UPDATE businesses SET created_at=? WHERE id=?').run('2026-10-03 00:00:00', 'amor-e-sabor')
+  const first = await listPlatformBusinesses(f.db, { limit: 1 })
+  assert.equal(first.items[0].id, 'amor-e-sabor')
+  const second = await listPlatformBusinesses(f.db, { limit: 1, cursor: first.nextCursor })
+  const third = await listPlatformBusinesses(f.db, { limit: 1, cursor: second.nextCursor })
+  assert.deepEqual([first, second, third].flatMap(page => page.items.map(item => item.id)).sort(), ['amor-e-sabor', 'company-A', 'company-B'])
+  assert.equal(third.nextCursor, null)
+})
+
 test('existing company metadata identifies its verified linked manager without inventing an invitation', async t => {
   const f = await createTenancyFixture(t)
   const result = await listPlatformBusinesses(f.db)

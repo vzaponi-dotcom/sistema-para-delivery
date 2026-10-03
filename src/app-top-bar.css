@@ -61,19 +61,20 @@
 .operation-menu-connected { padding: 4px 7px; border-radius: 7px; background: var(--success-soft); color: var(--success); font-size: .63rem; }
 .operation-menu-section { padding-top: 14px; }
 .operation-menu-section h2 { margin: 0 8px 5px; color: var(--muted); font-size: .61rem; font-weight: 650; letter-spacing: .09em; text-transform: uppercase; }
-.operation-menu-heading { display: flex; align-items: center; gap: 10px; margin: 8px 4px 4px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-soft); }
+.operation-menu-heading { display: flex; align-items: center; gap: 14px; margin: 8px 8px; padding: 8px 0 18px; border-bottom: 1px solid var(--border); }
 .operation-menu-heading-copy { display: grid; min-width: 0; flex: 1; gap: 3px; }
-.operation-menu-heading .operation-menu-initials, .operation-menu-heading .operation-menu-logo { border-radius: 10px; }
+.operation-menu-heading-copy strong { font-size: 1.02rem; }
+.operation-menu-heading .operation-menu-initials, .operation-menu-heading .operation-menu-logo { width: 48px; height: 48px; flex-basis: 48px; border: 0; border-radius: 12px; background: var(--primary-soft); color: var(--primary); }
 .operation-menu-content button { font: inherit; cursor: pointer; }
 .operation-menu-content button:disabled { opacity: .5; cursor: not-allowed; }
-.operation-menu-content .operation-menu-switch-company { display: inline-flex; align-items: center; justify-self: start; gap: 8px; max-width: 100%; min-height: 44px; padding: 4px 0; border: 0; border-radius: 5px; background: transparent; color: var(--primary); font-size: .74rem; text-align: left; }
 .operation-menu-platform-section { margin-top: 10px; border-top: 1px solid var(--border); }
 .operation-menu-content .operation-menu-action { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 10px 8px; border: 0; border-radius: 10px; background: transparent; color: var(--text); text-align: left; }
 .operation-menu-action > svg { flex: 0 0 auto; color: var(--muted); }
 .operation-menu-action-copy { display: grid; min-width: 0; flex: 1; gap: 3px; overflow-wrap: anywhere; }
 .operation-menu-action-copy small { color: var(--muted); font-size: .7rem; }
+.operation-menu-company-section .operation-menu-action { min-height: 64px; padding-block: 12px; gap: 14px; }
+.operation-menu-company-section .operation-menu-action-copy small { font-size: .78rem; }
 .operation-menu-content .operation-menu-action:hover { background: var(--primary-soft); }
-.operation-menu-content .operation-menu-switch-company:hover { text-decoration: underline; }
 .operation-menu-footer { border-top: 1px solid var(--border); margin-top: 10px; padding-top: 5px; }
 .operation-menu-content .operation-menu-logout, .operation-menu-logout > svg { color: var(--danger); }
 .operation-menu-logout .operation-menu-chevron { display: none; }

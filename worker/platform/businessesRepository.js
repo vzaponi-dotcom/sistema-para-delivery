@@ -21,12 +21,18 @@ function project(row, now) {
       canResend: row.access_status === 'pending' && row.membership_state === 'invited' && row.member_active === 1 } : null }
 }
 const encodeCursor = data => btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(data)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+function validCursorTimestamp(value) {
+  if (typeof value !== 'string') return false
+  // Initial businesses use SQLite datetime('now'); keep its original value for the SQL keyset comparison.
+  const canonical = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value) ? `${value.replace(' ', 'T')}.000Z` : value
+  return new Date(canonical).toISOString() === canonical
+}
 function decodeCursor(cursor, query) {
   try {
     if (typeof cursor !== 'string' || cursor.length > 2000 || !/^[A-Za-z0-9_-]+$/.test(cursor)) throw invalidPage()
     const data = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(atob(cursor.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0))))
     if (Object.keys(data).sort().join(',') !== 'createdAt,id,query' || data.query !== query || typeof data.id !== 'string'
-      || !data.id || data.id.length > 200 || typeof data.createdAt !== 'string' || new Date(data.createdAt).toISOString() !== data.createdAt) throw invalidPage()
+      || !data.id || data.id.length > 200 || !validCursorTimestamp(data.createdAt)) throw invalidPage()
     return data
   } catch { throw invalidPage() }
 }
