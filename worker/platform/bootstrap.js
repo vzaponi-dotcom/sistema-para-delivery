@@ -132,6 +132,7 @@ export async function finalizeMultiCompanyEnvironment(db, inventory, readiness, 
   if (!current.ready) throw unavailable()
   const record = await db.prepare('SELECT * FROM platform_bootstraps WHERE environment=? AND account_id=?').bind(environment, current.adminAccountId).first()
   if (!record || !Array.isArray(inventory) || JSON.stringify(inventory) !== record.legacy_inventory_json) throw unavailable()
+  if (environment === 'production' && inventory.some(item => item?.businessId !== current.businessId)) throw unavailable()
   const admin = await db.prepare(accountSql).bind(current.adminAccountId).first(), manager = await db.prepare(accountSql).bind(current.managerAccountId).first()
   const timestamp = now.toISOString(), statements = [guard(db, adminPredicate, [environment, admin.id, admin.password_verifier, admin.revision]),
     guard(db, managerPredicate, [current.businessId, manager.id, manager.password_verifier, manager.revision]),
