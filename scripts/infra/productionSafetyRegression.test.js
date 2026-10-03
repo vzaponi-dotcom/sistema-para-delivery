@@ -101,6 +101,20 @@ test('production deploy is manual, master-only, and validates locally before rem
   assert.doesNotMatch(productionWorkflow, /npm run deploy\s*$/m)
 })
 
+test('production auth-state guard runs only after the schema exists and before auth mutations', () => {
+  const migrations = productionWorkflow.indexOf('- name: Apply D1 migrations')
+  const authStateGuard = productionWorkflow.indexOf('- name: Guard requested phase against current production auth state')
+  const pin = productionWorkflow.indexOf('- name: Configure production PIN only in legacy phase')
+  const emailSecret = productionWorkflow.indexOf('- name: Configure production e-mail secret for account phases')
+  const deploy = productionWorkflow.indexOf('- name: Deploy')
+
+  for (const index of [migrations, authStateGuard, pin, emailSecret, deploy]) assert.notEqual(index, -1)
+  assert.ok(migrations < authStateGuard, 'business_auth_state must not be queried before its migration can create the table')
+  assert.ok(authStateGuard < pin, 'auth-state guard must block legacy PIN recreation before credential writes')
+  assert.ok(authStateGuard < emailSecret, 'auth-state guard must run before account-phase secret changes')
+  assert.ok(authStateGuard < deploy, 'auth-state guard must run before production publish')
+})
+
 test('production auth cutover is explicit, phased, and never recreates PIN outside legacy mode', () => {
   assert.match(productionWorkflow, /auth_phase:/)
   assert.match(productionWorkflow, /- legacy[\s\S]*- prepare[\s\S]*- multi_company/)
