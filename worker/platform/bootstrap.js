@@ -77,7 +77,7 @@ export async function prepareExistingBusinessManager(db, { businessId, name, ema
   const account = await findAccountByEmail(db, email), credential = await db.prepare(accountSql).bind(account.id).first()
   const existing = await db.prepare('SELECT * FROM users WHERE business_id=? AND account_id=?').bind(businessId, account.id).first()
   if (existing?.membership_state === 'active') {
-    const readiness = await readMultiCompanyReadiness(db, { adminAccountId: admin.id, managerAccountId: account.id, businessId })
+    const readiness = await readMultiCompanyReadiness(db, { adminAccountId: admin.id, managerAccountId: account.id, businessId, environment })
     if (!readiness.ready) throw unavailable()
     return { accountId: account.id, userId: existing.id, activated: true }
   }
@@ -115,9 +115,10 @@ const managerPredicate = `SELECT EXISTS(SELECT 1 FROM users u JOIN businesses b 
   WHERE u.business_id=? AND u.account_id=? AND u.active=1 AND u.membership_state='active' AND b.access_status='active' AND r.active=1
   AND a.active=1 AND a.email_verified_at IS NOT NULL AND c.version=1 AND c.password_verifier=? AND c.revision=?
   AND EXISTS(SELECT 1 FROM role_capabilities rc WHERE rc.role_id=r.id AND rc.business_id=r.business_id AND rc.capability='access.users.manage'))`
-export async function readMultiCompanyReadiness(db, { adminAccountId, businessId, managerAccountId }) {
+export async function readMultiCompanyReadiness(db, { adminAccountId, businessId, managerAccountId, environment = 'staging' }) {
+  environment = bootstrapEnvironment(environment)
   const admin = await db.prepare(accountSql).bind(adminAccountId).first(), manager = await db.prepare(accountSql).bind(managerAccountId).first()
-  const adminResult = usable(admin) ? await db.prepare(adminPredicate).bind(adminAccountId, admin.password_verifier, admin.revision).first() : null
+  const adminResult = usable(admin) ? await db.prepare(adminPredicate).bind(environment, adminAccountId, admin.password_verifier, admin.revision).first() : null
   const adminReady = adminResult && Object.values(adminResult)[0] === 1
   const managerResult = usable(manager) ? await db.prepare(managerPredicate).bind(businessId, managerAccountId, manager.password_verifier, manager.revision).first() : null
   const managerReady = managerResult && Object.values(managerResult)[0] === 1
@@ -127,7 +128,7 @@ export async function readMultiCompanyReadiness(db, { adminAccountId, businessId
 export async function finalizeMultiCompanyEnvironment(db, inventory, readiness, { now = new Date(), environment = 'staging', inventoryReviewed = false } = {}) {
   environment = bootstrapEnvironment(environment)
   if (readiness?.loginVerified !== true || (environment === 'production' && inventoryReviewed !== true)) throw unavailable()
-  const current = await readMultiCompanyReadiness(db, readiness)
+  const current = await readMultiCompanyReadiness(db, { ...readiness, environment })
   if (!current.ready) throw unavailable()
   const record = await db.prepare('SELECT * FROM platform_bootstraps WHERE environment=? AND account_id=?').bind(environment, current.adminAccountId).first()
   if (!record || !Array.isArray(inventory) || JSON.stringify(inventory) !== record.legacy_inventory_json) throw unavailable()
