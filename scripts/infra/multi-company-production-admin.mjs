@@ -129,6 +129,7 @@ export async function runMultiCompanyProductionAdmin(args, {
         adminAccountId: options['--admin-account-id'],
         businessId: input.businessId,
         managerAccountId: options['--manager-account-id'],
+        environment,
       })
       if (command === 'check-ready') {
         result = readiness
