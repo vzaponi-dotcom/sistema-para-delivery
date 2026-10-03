@@ -29,13 +29,13 @@ export function buildChallengeEmail({purpose,displayName,businessName,roleName,e
   const detail = `Este link vale por ${copy.validity}, até ${deadline} (horário de Brasília), e só pode ser usado uma vez. Se recebeu mais de um e-mail, use o link mais recente.`
   const ignore = purpose==='password_reset' ? 'Se você não solicitou esta alteração, ignore este e-mail. Sua senha não será alterada.' : 'Se não reconhece este convite, ignore este e-mail.'
   const subject = `${isStaging ? '[Ambiente de testes] ' : ''}Mesiva — ${copy.title}`
-  const text = `Mesiva${notice ? `\n${notice}` : ''}\n\n${copy.title}\n\nOlá, ${name}.${showOperation ? `\nOperação: ${operation}${roleName ? `\nPerfil: ${roleName}` : ''}` : ''}\n\n${introduction}\n\n${copy.button}:\n${link}\n\n${detail}${guidance ? `\n\n${guidance}` : ''}\n\n${ignore}\n\nMesiva · Gestão para restaurantes\nPeople · Food · Progress`
+  const text = `Mesiva${notice ? `\n${notice}` : ''}\n\n${copy.title}\n\nOlá, ${name}.${showOperation ? `\nOperação: ${operation}${roleName ? `\nPerfil: ${roleName}` : ''}` : ''}\n\n${introduction}\n\n${copy.button}:\n${link}\n\n${detail}${guidance ? `\n\n${guidance}` : ''}\n\n${ignore}\n\nMesiva · Gestão para restaurantes\nPessoas. Sabor. Evolução.`
   const html = `<!doctype html><html lang="pt-BR" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(copy.title)}</title></head>
     <body style="margin:0;background:#f3f7fa;font-family:Arial,Helvetica,sans-serif;color:#082743">
     <div lang="pt-BR" dir="ltr">
     <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="width:100%;background:#f3f7fa"><tr><td align="center" style="padding:24px 12px">
     <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="width:100%;max-width:560px;background:#ffffff;border:1px solid #dbe7ed;border-top:4px solid #007f76;border-radius:16px"><tr><td style="padding:28px 24px;color:#082743">
-    <img src="${escape(logoUrl)}" alt="Mesiva — People Food Progress" width="180" height="52" style="display:block;width:180px;max-width:100%;height:auto;border:0">
+    <img src="${escape(logoUrl)}" alt="Mesiva — Pessoas. Sabor. Evolução." width="180" height="52" style="display:block;width:180px;max-width:100%;height:auto;border:0">
     ${notice ? `<p style="margin:24px 0 0;padding:12px;background:#fff6d9;border:1px solid #e8cd7b;border-radius:8px;color:#665017;font-size:12px;line-height:1.5">${escape(notice)}</p>` : ''}
     <p style="margin:32px 0 12px;color:#007f76;font-size:11px;font-weight:bold;letter-spacing:1px;line-height:1.5">${eyebrow}</p>
     <h1 style="margin:0 0 24px;color:#082743;font-size:28px;font-weight:bold;line-height:1.25">${escape(copy.title)}</h1>
@@ -49,7 +49,7 @@ export function buildChallengeEmail({purpose,displayName,businessName,roleName,e
     <p style="margin:24px 0 0;border-top:1px solid #dbe7ed;padding-top:20px;color:#4f687b;font-size:12px;line-height:1.7">${escape(ignore)}</p>
     </td></tr></table>
     <p style="margin:20px 0 4px;color:#4f687b;font-size:12px;line-height:1.6">Mesiva · Gestão para restaurantes</p>
-    <p style="margin:0;color:#4f687b;font-size:10px;letter-spacing:1px;line-height:1.6">People · Food · Progress</p>
+    <p style="margin:0;color:#4f687b;font-size:10px;letter-spacing:1px;line-height:1.6">Pessoas. Sabor. Evolução.</p>
     </td></tr></table></div></body></html>`
   return {subject,html,text}
 }
