@@ -15,6 +15,7 @@ import { deliverPersistedCompanyInvitation } from '../../worker/tenancy/companyI
 const fields = {
   'prepare-admin': ['--name', '--email', '--ownership-verified'],
   'prepare-business-manager': ['--business-id', '--name', '--email', '--ownership-verified'],
+  'inspect-inventory': ['--admin-account-id'],
   'check-ready': ['--admin-account-id', '--business-id', '--manager-account-id'],
   'finalize-legacy': ['--admin-account-id', '--business-id', '--manager-account-id', '--login-verified', '--inventory-reviewed'],
   'issue-account-recovery': ['--account-id', '--ownership-verified', '--show-link-once'],
@@ -102,6 +103,27 @@ export async function runMultiCompanyProductionAdmin(args, {
       link.hash = new URLSearchParams({ token: challenge.token }).toString()
       emitPrivateLink(link.href)
       result = { issued: true, expiresAt: challenge.expiresAt }
+    } else if (command === 'inspect-inventory') {
+      const record = await connection.db.prepare(
+        'SELECT legacy_inventory_json FROM platform_bootstraps WHERE environment=? AND account_id=?',
+      ).bind(environment, options['--admin-account-id']).first()
+      const inventory = JSON.parse(record?.legacy_inventory_json || 'null')
+      if (!Array.isArray(inventory)) throw new Error('Inventário de produção indisponível.')
+      const items = []
+      for (const item of inventory) {
+        const row = await connection.db.prepare(
+          'SELECT business_id,id,display_name,role_id,active,membership_state FROM users WHERE business_id=? AND id=? AND account_id IS NULL',
+        ).bind(item.businessId, item.userId).first()
+        if (row) items.push({
+          businessId: row.business_id,
+          userId: row.id,
+          displayName: row.display_name,
+          roleId: row.role_id,
+          active: row.active === 1,
+          membershipState: row.membership_state,
+        })
+      }
+      result = { count: items.length, items }
     } else {
       const readiness = await readMultiCompanyReadiness(connection.db, {
         adminAccountId: options['--admin-account-id'],
