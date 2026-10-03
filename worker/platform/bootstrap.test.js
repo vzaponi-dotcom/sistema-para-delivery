@@ -54,7 +54,7 @@ test('production bootstrap uses its own environment record', async t => {
   await completeIdentityChallenge(f.db, { token: admin.challenge.token, password: 'Production owner password 2026!', now: f.now })
   const manager = await prepareExistingBusinessManager(f.db, { businessId: 'amor-e-sabor', name: 'Prod Owner', email: 'prod-owner@example.test', ownershipVerified: true, now: f.now, environment: 'production' })
   assert.equal(manager.activated, true)
-  const readiness = await readMultiCompanyReadiness(f.db, { adminAccountId: admin.accountId, businessId: 'amor-e-sabor', managerAccountId: admin.accountId })
+  const readiness = await readMultiCompanyReadiness(f.db, { adminAccountId: admin.accountId, businessId: 'amor-e-sabor', managerAccountId: admin.accountId, environment: 'production' })
   assert.equal(readiness.ready, true)
   const record = f.sqlite.prepare("SELECT * FROM platform_bootstraps WHERE environment='production'").get()
   await assert.rejects(
