@@ -64,12 +64,16 @@ export async function prepareExistingBusinessManager(db, { businessId, name, ema
   const admin = bootstrap && await db.prepare(accountSql).bind(bootstrap.account_id).first()
   if (!usable(admin)) throw unavailable()
   const creation = prepareAccountCreation(db, { email, displayName: name, now })
-  // This procedure operates on inventoried fictitious staging identities only.
-  // Preserve the old display name/history; retire a conflicting legacy login.
-  await commit(db, [guard(db, adminPredicate, [environment, admin.id, admin.password_verifier, admin.revision]), ...creation.statements,
-    db.prepare(`UPDATE users SET login_normalized=login_normalized || ':legacy:' || id WHERE business_id=? AND login_normalized=? AND account_id IS NULL
-      AND EXISTS(SELECT 1 FROM json_each(?) j WHERE json_extract(j.value,'$.businessId')=users.business_id AND json_extract(j.value,'$.userId')=users.id)`).bind(businessId, email, bootstrap.legacy_inventory_json),
-  ])
+  // Staging may retire inventoried synthetic logins. Production never rewrites a
+  // legacy human identity implicitly: a collision is a stop gate for manual review.
+  const legacyIdentityGuard = environment === 'staging'
+    ? db.prepare(`UPDATE users SET login_normalized=login_normalized || ':legacy:' || id WHERE business_id=? AND login_normalized=? AND account_id IS NULL
+      AND EXISTS(SELECT 1 FROM json_each(?) j WHERE json_extract(j.value,'$.businessId')=users.business_id AND json_extract(j.value,'$.userId')=users.id)`).bind(businessId, email, bootstrap.legacy_inventory_json)
+    : guard(db, `SELECT NOT EXISTS(SELECT 1 FROM users
+        WHERE business_id=? AND login_normalized=? AND account_id IS NULL
+        AND EXISTS(SELECT 1 FROM json_each(?) j WHERE json_extract(j.value,'$.businessId')=users.business_id AND json_extract(j.value,'$.userId')=users.id))`,
+      [businessId, email, bootstrap.legacy_inventory_json])
+  await commit(db, [guard(db, adminPredicate, [environment, admin.id, admin.password_verifier, admin.revision]), ...creation.statements, legacyIdentityGuard])
   const account = await findAccountByEmail(db, email), credential = await db.prepare(accountSql).bind(account.id).first()
   const existing = await db.prepare('SELECT * FROM users WHERE business_id=? AND account_id=?').bind(businessId, account.id).first()
   if (existing?.membership_state === 'active') {
@@ -120,9 +124,9 @@ export async function readMultiCompanyReadiness(db, { adminAccountId, businessId
   return { ready: Boolean(adminReady && managerReady), adminAccountId, businessId, managerAccountId }
 }
 
-export async function finalizeMultiCompanyEnvironment(db, inventory, readiness, { now = new Date(), environment = 'staging' } = {}) {
+export async function finalizeMultiCompanyEnvironment(db, inventory, readiness, { now = new Date(), environment = 'staging', inventoryReviewed = false } = {}) {
   environment = bootstrapEnvironment(environment)
-  if (readiness?.loginVerified !== true) throw unavailable()
+  if (readiness?.loginVerified !== true || (environment === 'production' && inventoryReviewed !== true)) throw unavailable()
   const current = await readMultiCompanyReadiness(db, readiness)
   if (!current.ready) throw unavailable()
   const record = await db.prepare('SELECT * FROM platform_bootstraps WHERE environment=? AND account_id=?').bind(environment, current.adminAccountId).first()
