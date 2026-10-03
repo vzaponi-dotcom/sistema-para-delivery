@@ -32,6 +32,16 @@ test('active kitchen ticket actions give the primary mobile button more room and
   assert.match(source, /\.kitchen-ticket-actions \.button\s*\{[^}]*min-height:\s*var\(--mobile-touch-target\)[^}]*white-space:\s*nowrap/s)
 })
 
+test('active kitchen orders use separated card surfaces and a distinct mobile action footer', async () => {
+  const base = await read('./order-operations.css')
+  const compact = await read('./order-operations-compact.css')
+  assert.match(base, /\.kitchen-ticket-list\s*\{[^}]*gap:\s*12px/s)
+  assert.match(base, /\.kitchen-ticket-shell\s*\{[^}]*display:\s*block/s)
+  assert.match(base, /\.kitchen-ticket\s*\{[^}]*border-radius:\s*14px[^}]*box-shadow:/s)
+  assert.match(compact, /@media \(max-width: 640px\)[\s\S]*\.kitchen-ticket\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto[^}]*"customer timing"/s)
+  assert.match(compact, /\.kitchen-ticket-actions\s*\{[^}]*border-top:\s*1px solid/s)
+})
+
 test('theme is absent from Sidebar and remains available in Settings device preferences', async () => {
   const sidebar = await read('./app/shell/Sidebar.jsx')
   const settings = await read('./app/surfaces/settings/local/DevicePreferences.jsx')
