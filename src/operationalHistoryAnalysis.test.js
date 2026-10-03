@@ -85,7 +85,7 @@ test('commercial and operational periods remain independent with 30d defaults an
   assert.deepEqual(changes, ['today'])
 })
 
-test('real App gates history analysis with orders.analysis while keeping history accessible', async (t) => {
+test('real App keeps history free of operational analysis regardless of analysis capability', async (t) => {
   const h = await workspaceHarness(t)
   globalThis.fetch = async (path) => {
     const url = String(path)
@@ -106,5 +106,5 @@ test('real App gates history analysis with orders.analysis while keeping history
   const { renderer: withAnalysis } = await h.renderAdminApp(App, { capabilities: new Set(['orders.history', 'orders.analysis']) }, { initialEntries: ['/pedidos/historico'] })
   await act(flush)
   assert.match(nodeText(withAnalysis.root), /Histórico/)
-  assert.match(nodeText(withAnalysis.root), /Tempo operacional/)
+  assert.doesNotMatch(nodeText(withAnalysis.root), /Tempo operacional|Tempo médio|Por faixa de tempo|Por tipo de atendimento/)
 })
