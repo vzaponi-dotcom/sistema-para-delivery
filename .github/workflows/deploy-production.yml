@@ -2,6 +2,16 @@ name: Deploy production
 
 on:
   workflow_dispatch:
+    inputs:
+      auth_phase:
+        description: Production authentication phase
+        required: true
+        default: legacy
+        type: choice
+        options:
+          - legacy
+          - prepare
+          - multi_company
 
 permissions:
   contents: read
@@ -19,6 +29,11 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PRODUCTION_AUTH_PHASE: ${{ inputs.auth_phase }}
+      PRODUCTION_URL: ${{ vars.PRODUCTION_URL || 'https://sistema-para-delivery.vzaponi.workers.dev' }}
+      PRODUCTION_AUTH_PUBLIC_ORIGIN: ${{ vars.AUTH_PUBLIC_ORIGIN }}
+      PRODUCTION_AUTH_EMAIL_FROM: ${{ vars.AUTH_EMAIL_FROM }}
+      PRODUCTION_AUTH_EMAIL_DAILY_LIMIT: ${{ vars.AUTH_EMAIL_DAILY_LIMIT || '80' }}
 
     steps:
       - name: Checkout master
@@ -38,11 +53,47 @@ jobs:
       - name: Test
         run: npm test
 
+      - name: Validate frontend architecture
+        run: npm run test:architecture
+
       - name: Lint
         run: npm run lint
 
       - name: Build
         run: npm run build
+
+      - name: Configure production authentication phase
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs'
+
+          const phase = process.env.PRODUCTION_AUTH_PHASE
+          if (!['legacy', 'prepare', 'multi_company'].includes(phase)) throw new Error('Invalid production auth phase.')
+
+          const config = JSON.parse(fs.readFileSync('wrangler.jsonc', 'utf8'))
+          const vars = config.vars ||= {}
+          vars.AUTH_EMAIL_ENABLED = phase === 'multi_company' ? 'true' : 'false'
+          vars.AUTH_MULTI_COMPANY_ENABLED = phase === 'multi_company' ? 'true' : 'false'
+          vars.AUTH_MULTI_COMPANY_PREPARE_ENABLED = phase === 'prepare' ? 'true' : 'false'
+
+          if (phase !== 'legacy') {
+            const origin = process.env.PRODUCTION_AUTH_PUBLIC_ORIGIN || ''
+            const from = process.env.PRODUCTION_AUTH_EMAIL_FROM || ''
+            const dailyLimit = Number(process.env.PRODUCTION_AUTH_EMAIL_DAILY_LIMIT || '80')
+            const url = new URL(origin)
+            if (url.protocol !== 'https:' || url.origin !== origin || url.username || url.password) throw new Error('Production AUTH_PUBLIC_ORIGIN must be a trusted HTTPS origin.')
+            if (!from.trim()) throw new Error('Production AUTH_EMAIL_FROM is required for prepare/multi_company.')
+            if (!Number.isSafeInteger(dailyLimit) || dailyLimit < 1) throw new Error('Production AUTH_EMAIL_DAILY_LIMIT is invalid.')
+            vars.AUTH_PUBLIC_ORIGIN = origin
+            vars.AUTH_EMAIL_FROM = from
+            vars.AUTH_EMAIL_DAILY_LIMIT = String(dailyLimit)
+          }
+
+          fs.writeFileSync('wrangler.jsonc', JSON.stringify(config, null, 2) + '\n')
+          console.log(`Prepared production auth phase: ${phase}`)
+          NODE
 
       - name: Validate Worker bundle
         run: npx --yes wrangler@4.128.0 deploy --dry-run
@@ -58,13 +109,24 @@ jobs:
             exit 1
           fi
 
+      - name: Require latest master commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          latest="$(git ls-remote origin refs/heads/master | cut -f1)"
+          if [ "$latest" != "$GITHUB_SHA" ]; then
+            echo "This master commit has been superseded; production publishing is blocked."
+            exit 1
+          fi
+
       - name: Show pending D1 migrations
         run: npx --yes wrangler@4.128.0 d1 migrations list amor-e-sabor-delivery --remote
 
       - name: Apply D1 migrations
         run: npm run d1:migrate:production
 
-      - name: Configure production PIN when provided
+      - name: Configure production PIN only in legacy phase
+        if: inputs.auth_phase == 'legacy'
         shell: bash
         env:
           AMOR_PIN: ${{ secrets.AMOR_PIN }}
@@ -97,42 +159,34 @@ jobs:
           rm -f /tmp/amor-pin.sql
           unset VERIFIER
 
-      - name: Verify production PIN row
-        run: >-
-          npx --yes wrangler@4.128.0 d1 execute amor-e-sabor-delivery --remote --yes
-          --command "SELECT business_id, length(pin_hash) AS verifier_length FROM auth_credentials WHERE business_id = 'amor-e-sabor';"
+      - name: Configure production e-mail secret for account phases
+        if: inputs.auth_phase != 'legacy'
+        shell: bash
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$RESEND_API_KEY" ]; then
+            echo "RESEND_API_KEY is required for prepare/multi_company."
+            exit 1
+          fi
+          printf '%s' "$RESEND_API_KEY" | npx --yes wrangler@4.128.0 secret put RESEND_API_KEY
 
       - name: Deploy
         run: npm run deploy:production
 
-      - name: Verify production login with configured PIN
+      - name: Verify production authentication phase
         env:
           AMOR_PIN: ${{ secrets.AMOR_PIN }}
-          PRODUCTION_URL: https://sistema-para-delivery.vzaponi.workers.dev
+        run: node scripts/infra/production-auth-smoke.mjs
+
+      - name: Summarize production release
         run: |
-          if [ -z "$AMOR_PIN" ]; then
-            echo "AMOR_PIN is not configured; skipping production login verification."
-            exit 0
+          echo "Production URL: $PRODUCTION_URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "Published commit: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo "Authentication phase: $PRODUCTION_AUTH_PHASE" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$PRODUCTION_AUTH_PHASE" = "prepare" ]; then
+            echo "Legacy PIN remains authoritative; only account activation/invitation preparation endpoints are enabled." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$PRODUCTION_AUTH_PHASE" = "multi_company" ]; then
+            echo "Multi-company login is enabled. Do not finalize legacy access until real administrator and manager logins are manually verified." >> "$GITHUB_STEP_SUMMARY"
           fi
-
-          node --input-type=module <<'NODE'
-          const baseUrl = process.env.PRODUCTION_URL
-          const pin = process.env.AMOR_PIN
-          const response = await fetch(`${baseUrl}/api/auth/login`, {
-            method: 'POST',
-            headers: {
-              'content-type': 'application/json',
-              origin: baseUrl,
-            },
-            body: JSON.stringify({ pin }),
-          })
-
-          let payload = null
-          try {
-            payload = await response.json()
-          } catch {}
-
-          const code = payload?.error?.code ? ` (${payload.error.code})` : ''
-          console.log(`Production login HTTP ${response.status}${code}`)
-          if (!response.ok) process.exit(1)
-          NODE
