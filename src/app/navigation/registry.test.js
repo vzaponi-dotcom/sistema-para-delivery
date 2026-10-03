@@ -41,6 +41,22 @@ test('C2 preserva IDs, fallbacks e menus atuais', () => {
 })
 
 
+
+test('printing settings require administrative printing capabilities, not operational station view', () => {
+  const destination = NAVIGATION_DESTINATIONS.find(({ id }) => id === 'settings-printing')
+  assert.deepEqual(destination, {
+    id: 'settings-printing',
+    path: '/configuracoes/impressao',
+    area: 'settings',
+    label: 'Impressão',
+    mobileEntry: 'more',
+    anyCapability: ['printing.settings.view', 'printing.settings', 'printing.station.configure'],
+  })
+  const settingsHome = NAVIGATION_DESTINATIONS.find(({ id }) => id === 'settings-home')
+  assert.equal(settingsHome.anyCapability.includes('printing.station.view'), false)
+  assert.equal(settingsHome.anyCapability.includes('printing.station.configure'), true)
+})
+
 test('operation identity is an internal Settings destination without adding a new mobile global entry', () => {
   const destination = NAVIGATION_DESTINATIONS.find(({ id }) => id === 'settings-business-profile')
   assert.deepEqual(destination, {
