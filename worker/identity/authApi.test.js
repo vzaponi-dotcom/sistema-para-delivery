@@ -112,8 +112,9 @@ test('session discovery, company listing, selection and bodyless logout enforce 
 test('company chooser metadata and logo endpoint expose only eligible company identity', async (t) => {
   const f = await createTenancyFixture(t)
   const key = `businesses/${encodeURIComponent(f.businesses.A)}/logo/selection.webp`
-  f.sqlite.prepare(`UPDATE business_profiles SET logo_object_key = ?,logo_content_type = 'image/webp',logo_updated_at = ? WHERE business_id = ?`)
-    .run(key, '2026-10-03T18:30:00.000Z', f.businesses.A)
+  f.sqlite.prepare(`INSERT INTO business_profiles(business_id,logo_object_key,logo_content_type,logo_updated_at,created_at,updated_at)
+    VALUES(?,?,'image/webp',?,?,?)`)
+    .run(f.businesses.A, key, '2026-10-03T18:30:00.000Z', f.now.toISOString(), f.now.toISOString())
 
   const login = await send(f, '/api/auth/login', { email: 'alice@example.test', password: 'Fixture password 2026!' })
   const session = await login.json()
