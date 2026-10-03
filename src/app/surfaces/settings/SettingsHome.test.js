@@ -86,19 +86,25 @@ test('omits unavailable future screens and activates an entire allowed card', as
   assert.deepEqual(calls, ['settings-payments'])
 })
 
-test('each printing view capability exposes a Home card with an allowed printing destination', async (t) => {
+test('printing configuration Home card requires an administrative printing capability', async (t) => {
   const h = await workspaceHarness(t)
   const { default: SettingsHome } = await h.load('/src/app/surfaces/settings/SettingsHome.jsx')
-  for (const capability of ['printing.settings.view', 'printing.station.view']) {
+  const implemented = new Set(['settings-home', 'settings-printing'])
+
+  for (const capability of ['printing.settings.view', 'printing.settings', 'printing.station.configure']) {
     const granted = new Set([capability])
-    const implemented = new Set(['settings-home', 'settings-printing'])
     const calls = []
     const screen = await h.render(SettingsHome, { granted, implemented, onNavigate: (id) => calls.push(id) })
-
     await act(async () => buttonNamed(screen.root, 'Impressão').props.onClick())
     assert.deepEqual(calls, ['settings-printing'])
     assert.deepEqual(resolveDestination(calls[0], granted, implemented), { status: 'allowed', id: 'settings-printing' })
+    await act(async () => screen.unmount())
   }
+
+  const operator = new Set(['printing.station.view', 'printing.queue', 'printing.execute', 'preferences.local'])
+  const screen = await h.render(SettingsHome, { granted: operator, implemented, onNavigate() {} })
+  assert.equal(buttonNamed(screen.root, 'Impressão'), undefined)
+  assert.deepEqual(resolveDestination('settings-printing', operator, implemented), { status: 'denied', id: 'settings-printing' })
 })
 
 test('settings home style uses existing theme tokens and a mobile one-column grid', async () => {
