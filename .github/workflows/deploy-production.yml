@@ -149,17 +149,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npx --yes wrangler@4.128.0 d1 execute amor-e-sabor-delivery --remote --yes --json             --command "SELECT mode FROM business_auth_state WHERE business_id = 'amor-e-sabor' LIMIT 1;" > /tmp/production-auth-state.json
           current_mode="$(node --input-type=module <<'NODE'
-          import fs from 'node:fs'
-          const payload = JSON.parse(fs.readFileSync('/tmp/production-auth-state.json', 'utf8'))
-          const rows = Array.isArray(payload) ? payload.flatMap(item => item?.results || []) : (payload?.results || [])
-          const mode = rows[0]?.mode || ''
-          if (!['legacy', 'enrollment', 'user_only'].includes(mode)) throw new Error('Unable to resolve production auth state.')
-          process.stdout.write(mode)
+          import { connectInfrastructure } from './scripts/infra/issue-44-access-admin.mjs'
+          process.env.WRANGLER_LOG = 'error'
+          process.env.WRANGLER_SEND_METRICS = 'false'
+          process.env.CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV = 'false'
+          const connection = await connectInfrastructure('production')
+          try {
+            const row = await connection.db.prepare("SELECT mode FROM business_auth_state WHERE business_id='amor-e-sabor' LIMIT 1").first()
+            const mode = row?.mode || ''
+            if (!['legacy', 'enrollment', 'user_only'].includes(mode)) throw new Error('Unable to resolve production auth state.')
+            process.stdout.write(mode)
+          } finally {
+            await connection.dispose()
+          }
           NODE
           )"
-          rm -f /tmp/production-auth-state.json
           echo "Current production auth state: $current_mode"
           if [ "$current_mode" = "user_only" ] && [ "$PRODUCTION_AUTH_PHASE" != "multi_company" ]; then
             echo "Production is already user_only; legacy/prepare deployment is blocked."
