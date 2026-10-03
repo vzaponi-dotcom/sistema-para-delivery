@@ -427,7 +427,8 @@ test('a free table keeps its current occupancy separate from its reservation and
     canCancelOrders: true,
   })
 
-  assert.match(nodeText(renderer.root), /Mesas, consumo e reservas/)
+  assert.match(nodeText(renderer.root), /Mesas do salão/)
+  assert.doesNotMatch(nodeText(renderer.root), /Mesas, consumo e reservas/)
   const reservedCard = list(renderer).findAllByType('button').find((button) => nodeText(button).includes('Varanda'))
   assert.match(nodeText(reservedCard), /Varanda.*Livre agora/)
   assert.match(nodeText(list(renderer).findByProps({ className: 'comanda-reservation-button' })), /Reservada.*João.*20:00/)
