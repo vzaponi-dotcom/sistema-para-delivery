@@ -2,6 +2,7 @@ import { cookieValue, sha256Hex } from '../auth.js'
 import { APPLICATION_CAPABILITIES } from '../../shared/settingsAccess.js'
 import { loadRoleGrants } from './roles.js'
 import { apiError } from '../http.js'
+import { authenticateAccountRequest } from '../identity/sessions.js'
 
 export const SESSION_DURATIONS = Object.freeze({ shared: 12 * 60 * 60, personal: 7 * 24 * 60 * 60 })
 export async function loadAuthMode(db, businessId) {
@@ -31,6 +32,10 @@ export async function createUserSession(env, options) {
   return { token, sessionId, expiresAt }
 }
 export async function authenticateHumanRequest(request, env, now = new Date()) {
+  if (env.AUTH_MULTI_COMPANY_ENABLED === 'true' || env.AUTH_MULTI_COMPANY_ENABLED === true) {
+    const context = await authenticateAccountRequest(request, env, now)
+    return context?.scope === 'business' ? context : null
+  }
   const token = cookieValue(request, 'amor_session')
   if (!token || !/^[A-Za-z0-9_-]{43}$/.test(token)) return null
   const row = await env.DB.prepare(`SELECT id,business_id,user_id,device_mode,expires_at,revoked_at

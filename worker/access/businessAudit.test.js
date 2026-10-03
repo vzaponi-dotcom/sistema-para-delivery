@@ -187,7 +187,11 @@ test('timeout audit never adopts a stored station from a different tenant',async
   const {db,sqlite}=await setup(t),at=now.toISOString()
   sqlite.prepare("INSERT INTO businesses(id,slug,name,created_at,updated_at) VALUES('foreign','foreign','Foreign',?,?)").run(at,at)
   sqlite.prepare("INSERT INTO print_stations(id,business_id,name,platform,is_primary,auto_print_enabled,default_copies,created_at,updated_at) VALUES('foreign-station','foreign','Printer','windows',1,1,1,?,?)").run(at,at)
-  sqlite.prepare("INSERT INTO print_jobs(id,business_id,type,trigger,status,copies_requested,copies_printed,station_id,snapshot_json,created_at,available_at,processing_started_at) VALUES('foreign-station-job',?,'test','manual','processing',1,0,'foreign-station','{}',?,?,?)").run(businessId,at,at,at)
+  const corruptInsert=()=>sqlite.prepare("INSERT INTO print_jobs(id,business_id,type,trigger,status,copies_requested,copies_printed,station_id,snapshot_json,created_at,available_at,processing_started_at) VALUES('foreign-station-job',?,'test','manual','processing',1,0,'foreign-station','{}',?,?,?)").run(businessId,at,at,at)
+  assert.throws(corruptInsert,/TENANT_REFERENCE_MISMATCH/)
+  // Simulate pre-guard corruption only in this isolated fixture to retain the defensive audit test.
+  sqlite.exec('DROP TRIGGER tenant_print_jobs_reference_insert')
+  corruptInsert()
   await listPrintJobs(db,businessId,{now:new Date(now.getTime()+180000)})
   const event=sqlite.prepare("SELECT * FROM audit_events WHERE resource_id='foreign-station-job'").get()
   assert.equal(event.business_id,businessId);assert.equal(event.actor_type,'system')

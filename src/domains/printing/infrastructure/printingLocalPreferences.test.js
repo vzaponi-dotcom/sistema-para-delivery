@@ -12,6 +12,19 @@ class MemoryStorage {
   setItem(key, value) { this.values.set(key, String(value)) }
 }
 
+test('company station and origin preferences are independent and never adopt legacy keys', () => {
+  const storage = new MemoryStorage()
+  getOrCreateLocalPrintStationId(storage, () => 'legacy')
+  rememberOriginOrderId('legacy-order', storage)
+  assert.equal(getOrCreateLocalPrintStationId(storage, () => 'A-station', 'A'), 'A-station')
+  assert.equal(getOrCreateLocalPrintStationId(storage, () => 'B-station', 'B'), 'B-station')
+  assert.equal(getOrCreateLocalPrintStationId(storage, () => 'unexpected', 'A'), 'A-station')
+  assert.deepEqual([...readOriginOrderIds(storage, 'A')], [])
+  rememberOriginOrderId('A-order', storage, 'A')
+  assert.deepEqual([...readOriginOrderIds(storage, 'B')], [])
+  assert.deepEqual([...readOriginOrderIds(storage, 'A')], ['A-order'])
+})
+
 test('local station id keeps the current delivery-print-station-id key', () => {
   const storage = new MemoryStorage()
   let seq = 0

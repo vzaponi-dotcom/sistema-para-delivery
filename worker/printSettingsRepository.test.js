@@ -64,7 +64,7 @@ test('policy validation and injected late failure leave header and receipt state
 
 test('printing policies and receipts are isolated by business', async (t) => {
   const { db, sqlite } = setup(t)
-  sqlite.exec("INSERT INTO businesses VALUES ('second', 'second', 'Second', '2026-09-12', '2026-09-12')")
+  sqlite.exec("INSERT INTO businesses (id,slug,name,created_at,updated_at) VALUES ('second', 'second', 'Second', '2026-09-12', '2026-09-12')")
   const second = await loadPrintingPolicy(db, 'second')
   assert.equal(second.revision, 0)
   await savePrintingPolicy(db, 'second', input('print-1', 0), NOW)

@@ -1,5 +1,10 @@
 import { apiRequest, withJson } from '../../../infrastructure/api/httpClient.js'
 
-export const getKitchenTvSettings = () => apiRequest('/api/kitchen-tv/settings')
-export const approveKitchenTvPairing = (code) => apiRequest('/api/kitchen-tv/approve', withJson('POST', { code }))
-export const revokeKitchenTvAccess = () => apiRequest('/api/kitchen-tv/revoke', { method: 'POST' })
+export const createKitchenTvSettingsApi = ({ request = apiRequest } = {}) => {
+const getKitchenTvSettings = () => request('/api/kitchen-tv/settings')
+const approveKitchenTvPairing = (code) => request('/api/kitchen-tv/approve', withJson('POST', { code }))
+const revokeKitchenTvAccess = () => request('/api/kitchen-tv/revoke', { method: 'POST' })
+
+return Object.freeze({ getKitchenTvSettings, approveKitchenTvPairing, revokeKitchenTvAccess })
+}
+export const { getKitchenTvSettings, approveKitchenTvPairing, revokeKitchenTvAccess } = createKitchenTvSettingsApi()

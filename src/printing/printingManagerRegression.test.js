@@ -90,7 +90,7 @@ test('Windows QZ lifecycle configures signed security and exposes explicit local
   assert.match(manager, /const \[transportReady, setTransportReady\] = useState\(/)
   assert.match(manager, /const refreshPrinters = useCallback\(async \(\) =>/)
   assert.match(manager, /const selectPrinter = useCallback\(async \(printerName\) =>/)
-  assert.match(manager, /createQzTransport\(\{[\s\S]*getCertificate:\s*getQzCertificate,[\s\S]*signPayload:\s*signQzPayload/)
+  assert.match(manager, /createQzTransport\(\{[\s\S]*getCertificate:\s*api\.getQzCertificate,[\s\S]*signPayload:\s*api\.signQzPayload/)
   assert.match(manager, /qzTransport\.connect\(\)/)
   assert.match(manager, /qzTransport\.resolvePrinter\(savedPrinterName\)/)
   assert.match(manager, /qzTransport\.savePrinterName\(stationId, selectedPrinter\)/)
@@ -143,7 +143,7 @@ test('second copy resumes the existing partial job explicitly without creating a
   const block = manager.slice(start, end)
 
   assert.match(block, /claimAndExecuteSecondCopy\(\{/)
-  assert.match(block, /claimJob: claimPrintJob/)
+  assert.match(block, /claimJob: api\.claimPrintJob/)
   assert.match(block, /executeClaimedJob\(claimedJob, null/)
   assert.match(block, /preparePort: getExplicitPort/)
   assert.doesNotMatch(block, /createManualPrintJob/)

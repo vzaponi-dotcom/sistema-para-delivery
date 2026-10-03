@@ -65,8 +65,10 @@ export async function approveKitchenTvPairingCode(db, code, businessId, now = ne
   const results = await db.batch([
     db.prepare(`UPDATE kitchen_tv_pairing_requests
       SET consumed_at = ?
-      WHERE approved_business_id = ? AND consumed_at IS NULL`)
-      .bind(approvedAt, businessId),
+      WHERE approved_business_id = ? AND consumed_at IS NULL
+        AND EXISTS (SELECT 1 FROM kitchen_tv_pairing_requests target WHERE target.pairing_code = ?
+          AND target.approved_business_id IS NULL AND target.consumed_at IS NULL AND target.expires_at > ?)`)
+      .bind(approvedAt, businessId, code, approvedAt),
     db.prepare(`UPDATE kitchen_tv_pairing_requests
       SET approved_business_id = ?, approved_at = ?
       WHERE pairing_code = ? AND approved_business_id IS NULL
@@ -93,7 +95,7 @@ export async function activateKitchenTvApprovedRequest(db, requestHash, sessionH
       )
       SELECT approved_business_id, NULL, NULL, ?, ?, ?, ?, NULL, ?, ?
       FROM kitchen_tv_pairing_requests
-      WHERE request_token_hash = ? AND consumed_at = ?
+      WHERE request_token_hash = ? AND consumed_at = ? AND changes() = 1
       ON CONFLICT(business_id) DO UPDATE SET
         pairing_token_hash = NULL,
         pairing_expires_at = NULL,

@@ -1,15 +1,17 @@
+import { useContextApi } from '../../../infrastructure/api/ContextApi.js'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { matchesReservationDetail, reservationOwnerKey } from '../domain/tableReservation.js'
-import { tableReservationApi } from '../infrastructure/tableReservationApi.js'
+import { tableReservationApi, createTableReservationApi } from '../infrastructure/tableReservationApi.js'
 
 const emptySnapshot = Object.freeze({ detail: null, loading: false, error: null })
 
 export function useTableReservationDetail({
   selection,
   officialTables = [],
-  api = tableReservationApi,
+  api: suppliedApi = tableReservationApi,
   onUnauthorized = () => {},
 } = {}) {
+  const api = useContextApi(createTableReservationApi, suppliedApi, tableReservationApi)
   const apiRef = useRef(api)
   const onUnauthorizedRef = useRef(onUnauthorized)
   const ownerRef = useRef(null)

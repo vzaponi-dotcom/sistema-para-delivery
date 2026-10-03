@@ -5,6 +5,7 @@ test('C10 exposes only Orders contracts consumed outside the Orders domain', asy
   const orders = await import('./domains/orders/index.js')
 
   assert.deepEqual(Object.keys(orders).sort(), [
+    'createOrdersApi', 'createOperationsPolicy', 'createCancellationReasonsPolicy',
     'NewOrderRoute',
     'OrderDetail',
     'OrderHistory',
@@ -43,6 +44,7 @@ test('C10 exposes only Customers contracts consumed outside the Customers domain
   const customers = await import('./domains/customers/index.js')
 
   assert.deepEqual(Object.keys(customers).sort(), [
+    'createCustomersApi',
     'ClientDuplicateModal',
     'CustomersWorkspace',
     'findClientDuplicates',

@@ -52,6 +52,14 @@ For a behavior or infrastructure change, deploy that branch to staging and compl
 
 ## Staging release
 
+GitHub is the source of truth for code, environment configuration and release history. Publish through GitHub Actions; local Wrangler deployment is not the normal release path. A local test/build is useful for development, but only a successful GitHub deployment run confirms publication.
+
+After the accepted multi-company cutover on 2026-10-02, staging automatically follows `feature/issue-87-multi-company-onboarding` while PR 88 is open, and `master` after integration. The current workflow no longer automatically publishes historical feature branches. Do not push release updates to old branches. `wrangler.jsonc` now records staging multi-company enabled and preparation disabled; production flags remain disabled until its own approved cutover.
+
+The workflow checks that its commit is still the latest on its GitHub branch before any remote writes. It publishes `release.json` containing the commit and run URL, then verifies that exact commit and the multi-company authentication mode on staging. It deploys the already-tested build without rebuilding it after the release stamp. Changes to workflows take effect on the branch containing them; these rules reach master through the reviewed merge.
+
+Secrets remain in GitHub environment/repository secrets or Cloudflare Worker secrets; secret values never belong in Git. Production remains a manual, master-only workflow and checks out the exact GitHub event commit.
+
 Use the **Deploy staging** GitHub Actions workflow. It may write only to staging resources. The workflow validates the application, applies migrations to `amor-e-sabor-delivery-staging`, configures the staging-only credential, deploys `sistema-para-delivery-staging`, and performs a staging login smoke check.
 
 If staging deployment, migration, or acceptance fails, the production release stops. Production is not used to diagnose unfinished branch changes.

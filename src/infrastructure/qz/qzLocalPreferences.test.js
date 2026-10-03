@@ -13,6 +13,19 @@ class MemoryStorage {
   removeItem(key) { this.values.delete(key) }
 }
 
+test('company printer preference never adopts legacy or another company queue', () => {
+  const storage = new MemoryStorage()
+  saveQzPrinterName(storage, 'station', 'Legacy')
+  assert.equal(getQzPrinterName(storage, 'A', 'station'), null)
+  saveQzPrinterName(storage, 'A', 'station', 'Printer A')
+  saveQzPrinterName(storage, 'B', 'station', 'Printer B')
+  assert.equal(getQzPrinterName(storage, 'A', 'station'), 'Printer A')
+  assert.equal(getQzPrinterName(storage, 'B', 'station'), 'Printer B')
+  clearQzPrinterName(storage, 'A', 'station')
+  assert.equal(getQzPrinterName(storage, 'A', 'station'), null)
+  assert.equal(getQzPrinterName(storage, 'B', 'station'), 'Printer B')
+})
+
 test('QZ printer name stays trimmed and scoped by local station id', () => {
   const storage = new MemoryStorage()
   assert.equal(saveQzPrinterName(storage, 'station-a', '  MPT-II  '), 'MPT-II')

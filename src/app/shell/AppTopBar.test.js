@@ -15,11 +15,11 @@ test('desktop top bar owns the business identity and operation utilities', async
   assert.ok(renderer.root.findByProps({ className: 'app-topbar' }))
   assert.match(nodeText(renderer.root), /Pizzaria Bella/)
   assert.doesNotMatch(nodeText(renderer.root), /Amor & Sabor/)
-  assert.match(nodeText(renderer.root), /Operação atual/)
+  assert.match(nodeText(renderer.root), /Empresa atual/)
   assert.ok(renderer.root.findByProps({ 'aria-label': 'Localização: Pedidos' }))
   assert.doesNotMatch(nodeText(renderer.root), /Seu delivery no controle/)
   assert.ok(buttonNamed(renderer.root, 'Notificações, 1 não lida'))
-  assert.ok(buttonNamed(renderer.root, 'Pizzaria Bella, operação atual'))
+  assert.ok(buttonNamed(renderer.root, 'Pizzaria Bella, empresa atual'))
   assert.equal(renderer.root.findByProps({ className: 'operation-menu-initials' }).children.join(''), 'PB')
 })
 
@@ -38,7 +38,7 @@ test('mobile top bar exposes the official Mesiva logo and keeps operation utilit
   assert.doesNotMatch(nodeText(renderer.root), /Gestão do delivery/)
   assert.ok(renderer.root.findByProps({ className: 'app-topbar-actions' }))
   assert.ok(buttonNamed(renderer.root, 'Notificações, 1 não lida'))
-  assert.ok(buttonNamed(renderer.root, 'Pizzaria Bella, operação atual'))
+  assert.ok(buttonNamed(renderer.root, 'Pizzaria Bella, empresa atual'))
   assert.equal(renderer.root.findByProps({ className: 'operation-menu-initials' }).children.join(''), 'PB')
 })
 
@@ -62,7 +62,7 @@ test('desktop operation identity uses the confirmed operation logo and keeps the
   assert.equal(logo.props.src, '/api/business/logo?v=logo-v7')
   assert.equal(logo.props.alt, '')
   assert.match(nodeText(renderer.root), /Pizzaria Bella/)
-  assert.match(nodeText(renderer.root), /Operação atual/)
+  assert.match(nodeText(renderer.root), /Empresa atual/)
   assert.ok(renderer.root.findByProps({ 'aria-label': 'Localização: Pedidos' }))
 })
 

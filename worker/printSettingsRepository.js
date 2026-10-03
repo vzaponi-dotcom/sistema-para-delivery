@@ -5,7 +5,7 @@ import { clearSettingsAssertions, hashSettingsPayload, prepareSettingsAssertion,
 const unavailable = (cause) => settingsError('SETTINGS_UNAVAILABLE', 503, { cause })
 const revisionConflict = () => settingsError('SETTINGS_REVISION_CONFLICT', 409)
 const validDate = (value) => Number.isFinite(Date.parse(value))
-const DEFAULT_PRINTING_POLICY = Object.freeze({ orderDefaultCopies: 2, tableTabDefaultCopies: 1 })
+export const DEFAULT_PRINTING_POLICY = Object.freeze({ orderDefaultCopies: 2, tableTabDefaultCopies: 1 })
 
 function validateSaveInput(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input) ||

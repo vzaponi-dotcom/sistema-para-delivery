@@ -3,6 +3,16 @@ import assert from 'node:assert/strict'
 import React from 'react'
 import { setup, manager, users, roles, response, fill, submit, act, nodeText, buttonNamed } from '../../../test-support/accessUi.js'
 
+test('global company team offers personal recovery guidance and resends pending memberships of verified accounts', async t => {
+  const pending = { ...users[1], credentialState: 'invited', membershipState: 'invited', emailVerified: true }
+  const sessionContext = { ...manager, authMode: 'multi_company', account: { id: 'account-manager' } }
+  const { screen } = await setup(t, 'TeamAccess', { sessionContext }, async () => response({ users: [users[0], pending], roles }))
+  await act(async () => screen.root.findByProps({ 'aria-label': `Ações de ${pending.displayName}` }).props.onClick({ preventDefault() {} }))
+  assert.ok(buttonNamed(screen.root, `Reenviar convite para ${pending.displayName}`))
+  assert.equal(buttonNamed(screen.root, `Redefinir senha de ${pending.displayName}`), undefined)
+  assert.match(nodeText(screen.root), /Esqueci minha senha/)
+})
+
 for(const status of ['accepted','rejected','uncertain'])test(`email invitation reports ${status} honestly and offers resend without exposing a token`,async t=>{
   const requests=[],pending={...users[1],id:'pending',email:'ana@example.test',emailVerified:false,credentialState:'invited'}
   const {screen}=await setup(t,'TeamAccess',{sessionContext:manager},async(url,options={})=>{

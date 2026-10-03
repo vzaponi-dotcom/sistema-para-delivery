@@ -9,3 +9,5 @@ export {
 } from './domain/catalogPresentation.js'
 
 export { CatalogWorkspace } from './ui/catalogSurfaces.js'
+
+export { createCatalogApi } from './infrastructure/catalogApi.js'

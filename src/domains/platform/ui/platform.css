@@ -1,0 +1,54 @@
+.platform-shell { min-height: 100dvh; background: var(--bg, #f4f7fa); color: var(--text, #102c4d); }
+.platform-shell .eyebrow { color: var(--navigation-accent, var(--primary)); }
+.platform-topbar { padding: 14px clamp(16px, 4vw, 48px); border-bottom: 1px solid var(--border); background: var(--surface); }
+.platform-topbar-inner { display: flex; justify-content: space-between; align-items: center; gap: 24px; max-width: 1104px; margin: auto; }
+.platform-brand, .platform-account-actions { display: flex; align-items: center; gap: 16px; }
+.platform-brand { min-width: 0; }
+.platform-brand img { flex-shrink: 0; object-fit: contain; }
+:root[data-theme='dark'] .platform-brand img { content: url('/brand/mesiva-logo-dark.svg'); }
+.platform-brand small { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; font-weight: 400; }
+.platform-topbar span { font-weight: 600; overflow-wrap: anywhere; }
+.platform-account-actions small { display: block; font-size: 12px; color: var(--muted); font-weight: 400; }
+.platform-account-actions { gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.platform-account-actions > span { margin-right: 8px; font-size: 13px; }
+.platform-content { max-width: 1200px; margin: auto; padding: 40px clamp(16px, 4vw, 48px); }
+.platform-card { padding: 28px; border: 1px solid var(--border, #dbe5ef); border-radius: 20px; background: var(--surface, #fff); }
+.platform-card h2 { font-size: 20px; margin-top: 0; }
+.platform-new-company { max-width: 760px; }
+.platform-new-company > .page-header { margin-top: 24px; }
+.platform-search { display: flex; align-items: flex-end; gap: 12px; margin: 24px 0; padding: 20px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+.platform-search .platform-toolbar-create { margin-left: auto; }
+.platform-search label { flex: 1; max-width: 520px; }
+.platform-search label, .platform-form label { display: grid; gap: 8px; font-weight: 600; }
+.platform-search input, .platform-form input { border: 1px solid var(--border, #dbe5ef); border-radius: 12px; background: var(--surface, #fff); padding: 14px 16px; color: inherit; font: inherit; width: 100%; box-sizing: border-box; }
+.platform-search input:focus-visible, .platform-form input:focus-visible { outline: 2px solid #00aa9c; outline-offset: 2px; }
+.platform-form { display: grid; gap: 22px; }
+.platform-company-list { border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--surface); }
+.platform-company-row, .platform-company-columns { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1.2fr) minmax(120px, .8fr) minmax(0, 1fr) 92px; align-items: center; gap: 20px; padding: 20px; }
+.platform-company-columns { padding-block: 12px; background: var(--surface-soft); color: var(--muted); font-size: 12px; font-weight: 600; }
+.platform-company-columns > :last-child { width: 92px; }
+.platform-company-row { min-height: 96px; border-top: 1px solid var(--border); }
+.platform-company-row > * { min-width: 0; }
+.platform-company-name h2 { font-size: 15px; line-height: 1.5; margin: 0; overflow-wrap: anywhere; }
+.platform-company-manager strong { display: block; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.platform-company-manager small { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.platform-company-invitation { color: var(--text-soft); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.platform-mobile-label { display: none; }
+.platform-badge { display: inline-block; padding: 7px 12px; font-size: 13px; font-weight: 600; border-radius: 999px; background: #fff1cf; color: #7c5900; }
+.platform-badge.is-active { color: #086e63; background: #daf6f0; }
+.platform-pagination, .platform-form-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+.platform-pagination { justify-content: space-between; color: var(--muted); font-size: 12px; margin-top: 16px; }
+.platform-pagination > div { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.platform-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.platform-definition { display: grid; gap: 20px; }
+.platform-definition dt { color: var(--text-muted, #647991); font-size: 13px; margin-bottom: 5px; }
+.platform-definition dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.platform-history { margin-top: 24px; }
+.platform-history ol { padding-left: 20px; }
+.platform-history li { padding: 12px 0; }
+.platform-history time { display: block; margin-top: 5px; color: var(--text-muted, #647991); font-size: 13px; }
+.platform-feedback { padding: 16px; margin-top: 20px; border-radius: 12px; background: var(--surface, #fff); border: 1px solid var(--border, #dbe5ef); }
+.platform-muted { color: var(--text-muted, #647991); font-size: 14px; }
+.platform-empty { padding: 32px; text-align: center; }
+@media (max-width: 1000px) { .platform-topbar-inner { align-items: flex-start; flex-direction: column; gap: 16px; } .platform-account-actions { width: 100%; justify-content: flex-start; } .platform-company-columns { display: none; } .platform-company-list { display: grid; gap: 12px; border: 0; border-radius: 0; background: transparent; overflow: visible; } .platform-company-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); } .platform-company-name, .platform-company-manager { grid-column: 1 / -1; } .platform-mobile-label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 12px; font-weight: 400; } .platform-company-row > button { grid-column: 1 / -1; justify-self: start; } }
+@media (max-width: 760px) { .platform-brand { gap: 12px; flex-wrap: wrap; } .platform-account-actions > span { width: 100%; } .platform-content { padding-top: 24px; } .platform-detail-grid { grid-template-columns: 1fr; gap: 16px; } .platform-card { padding: 22px; } .platform-search { flex-wrap: wrap; padding: 16px; } .platform-search label { flex-basis: 100%; max-width: none; } .platform-search > button { flex: 1; } .platform-search .platform-toolbar-create { margin-left: 0; } .platform-form-actions > *, .platform-search > button { min-height: 44px; } .platform-pagination { align-items: flex-start; } }

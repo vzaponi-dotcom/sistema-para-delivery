@@ -8,3 +8,5 @@ export { reservationOwnerKey, matchesReservationDetail, reservationMutationNeeds
 export { tableReservationApi, createTableReservationApi } from './infrastructure/tableReservationApi.js'
 export { useTableReservationDetail } from './application/useTableReservationDetail.js'
 export { useTableReservationCommands } from './application/useTableReservationCommands.js'
+
+export { createTableServiceApi } from './infrastructure/tableServiceApi.js'

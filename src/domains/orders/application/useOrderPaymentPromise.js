@@ -1,9 +1,10 @@
+import { useContextApi } from '../../../infrastructure/api/ContextApi.js'
 import { useMutationOwner } from '../../../app/runtime/session/useMutationOwner.js'
 import { useCallback } from 'react'
-import { ordersApi } from '../infrastructure/ordersApi.js'
+import { ordersApi, createOrdersApi } from '../infrastructure/ordersApi.js'
 
 export function useOrderPaymentPromise({
-  api = ordersApi,
+  api: suppliedApi = ordersApi,
   applyOfficialEffects = () => {},
   writesBlocked = false,
   canManagePaymentPromises = false,
@@ -11,6 +12,7 @@ export function useOrderPaymentPromise({
   onSuccess = () => {},
   onError = () => {},
 } = {}) {
+  const api = useContextApi(createOrdersApi, suppliedApi, ordersApi)
   const ownsMutation = useMutationOwner(applyOfficialEffects)
   const updatePaymentPromise = useCallback(async (orderId, promisedPaymentDate) => {
     if (!canManagePaymentPromises || writesBlocked) return false

@@ -5,6 +5,101 @@ import { workspaceHarness, buttonNamed, nodeText } from './test-support/renderWo
 import { comandaDetail } from './test-support/comandaFixtures.js'
 import { fill } from './test-support/accessUi.js'
 
+test('company chooser opens from My Account and Back returns from account to the company list', async t => {
+  for (const initialPath of ['/minha-conta', '/pedidos', '/empresas']) await t.test(initialPath, async t => {
+  const h = await workspaceHarness(t)
+  const session = { ...operationalSession, authMode: 'multi_company', scope: 'business', contextId: 'business-context', account: { id: 'account', displayName: 'Ana', email: 'ana@example.test' } }
+  globalThis.fetch = async path => {
+    const payload = path === '/api/auth/session' ? session
+      : path === '/api/auth/businesses' ? { businesses: [{ businessId: 'b', name: 'Loja', roleName: 'Gerente' }, { businessId: 'other', name: 'Outra empresa', roleName: 'Operador' }] }
+      : path === '/api/bootstrap' ? bootstrap
+      : path === '/api/orders' ? { orders: [] }
+      : path === '/api/printing/stations' ? { stations: [] }
+      : String(path).startsWith('/api/printing/jobs?') ? { jobs: [] }
+      : path === '/api/printing/jobs/summary' ? { summary: {} } : null
+    assert.ok(payload, `Unexpected ${path}`)
+    return { ok: true, json: async () => payload }
+  }
+  const { default: App } = await h.load('/src/App.jsx')
+  const { renderer, router } = await h.renderAdminApp(App, {}, { initialEntries: [initialPath] })
+  if (initialPath !== '/empresas') {
+    await act(async () => buttonNamed(renderer.root, 'Loja, empresa atual').props.onClick())
+    await act(async () => buttonNamed(renderer.root, 'Trocar empresa').props.onClick())
+  }
+  assert.ok(buttonNamed(renderer.root, 'Abrir Outra empresa'), 'Switching from My Account must display the chooser, not the account form')
+  assert.equal(router.state.location.pathname, '/empresas')
+  await act(async () => buttonNamed(renderer.root, 'Minha conta').props.onClick())
+  assert.equal(router.state.location.pathname, '/minha-conta')
+  await act(async () => buttonNamed(renderer.root, 'Voltar').props.onClick())
+  assert.equal(router.state.location.pathname, '/empresas')
+  assert.ok(buttonNamed(renderer.root, 'Abrir Outra empresa'))
+  await act(async () => buttonNamed(renderer.root, 'Voltar à operação').props.onClick())
+  assert.equal(router.state.location.pathname, '/pedidos')
+  assert.ok(buttonNamed(renderer.root, 'Loja, empresa atual'))
+  })
+})
+
+test('platform My Account Back restores the administrative list without selecting a company', async t => {
+  const h = await workspaceHarness(t)
+  const calls = []
+  const session = { authenticated: true, authMode: 'multi_company', scope: 'platform', contextId: 'platform-context', account: { id: 'account', displayName: 'Ana', email: 'ana@example.test' }, platformCapabilities: ['platform.businesses.view'], capabilities: [] }
+  globalThis.fetch = async path => {
+    calls.push(path)
+    const payload = path === '/api/auth/session' ? session : path === '/api/platform/businesses' ? { items: [], nextCursor: null } : null
+    assert.ok(payload, `Unexpected ${path}`)
+    return { ok: true, json: async () => payload }
+  }
+  const { default: App } = await h.load('/src/App.jsx')
+  const { renderer, router } = await h.renderAdminApp(App, {}, { initialEntries: ['/mesiva/empresas'] })
+  await act(async () => buttonNamed(renderer.root, 'Minha conta').props.onClick())
+  assert.equal(router.state.location.pathname, '/minha-conta')
+  await act(async () => buttonNamed(renderer.root, 'Voltar').props.onClick())
+  assert.equal(router.state.location.pathname, '/mesiva/empresas')
+  assert.match(nodeText(renderer.root), /Nenhuma empresa encontrada/)
+  assert.equal(calls.includes('/api/bootstrap'), false)
+})
+
+for (const userAgent of ['Windows NT 10.0', 'Android']) {
+  test(`actual App starts and rediscovers session without browser storage or channels on ${userAgent}`, async t => {
+    const h = await workspaceHarness(t, { userAgent })
+    const globalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage')
+    const windowStorage = Object.getOwnPropertyDescriptor(h.window, 'localStorage')
+    const blocked = { configurable: true, get() { throw new DOMException('Storage disabled', 'SecurityError') } }
+    Object.defineProperty(globalThis, 'localStorage', blocked)
+    Object.defineProperty(h.window, 'localStorage', blocked)
+    h.window.BroadcastChannel = undefined
+    let company = 'a', sessionReads = 0
+    globalThis.fetch = async path => {
+      let payload
+      if (path === '/api/auth/session') {
+        sessionReads++
+        payload = { ...operationalSession, authMode: 'multi_company', scope: 'business', account: { id: 'account' }, businessId: company, contextId: `context-${company}` }
+      } else if (path === '/api/bootstrap') payload = { ...bootstrap, business: { id: company, name: `Empresa ${company}` } }
+      else if (path === '/api/orders') payload = { orders: [] }
+      else if (path === '/api/printing/stations') payload = { stations: [] }
+      else if (String(path).startsWith('/api/printing/jobs?')) payload = { jobs: [] }
+      else if (path === '/api/printing/jobs/summary') payload = { summary: {} }
+      assert.ok(payload, `Unexpected ${path}`)
+      return { ok: true, json: async () => payload }
+    }
+    try {
+      const { default: App } = await h.load('/src/App.jsx')
+      const { renderer } = await h.renderAdminApp(App)
+      assert.ok(buttonNamed(renderer.root, 'Empresa a, empresa atual'))
+      const readsBeforeFocus = sessionReads
+      company = 'b'
+      await act(async () => h.window.dispatchEvent(new Event('focus')))
+      assert.ok(sessionReads > readsBeforeFocus)
+      assert.ok(buttonNamed(renderer.root, 'Empresa b, empresa atual'))
+      assert.equal(buttonNamed(renderer.root, 'Empresa a, empresa atual'), undefined)
+      assert.doesNotMatch(nodeText(renderer.root), /Unexpected Application Error|Storage disabled/)
+    } finally {
+      Object.defineProperty(globalThis, 'localStorage', globalStorage)
+      Object.defineProperty(h.window, 'localStorage', windowStorage)
+    }
+  })
+}
+
 test('actual App blocks switch after account unmount until password response and trusted verification settle', async t => {
   const h = await workspaceHarness(t)
   let finishPassword, finishVerification, writes = 0, logouts = 0, reads = 0
@@ -27,7 +122,7 @@ test('actual App blocks switch after account unmount until password response and
   await act(async () => { renderer.root.findByType('form').props.onSubmit({ preventDefault() {} }) })
   await act(async () => router.navigate('/pedidos'))
   assert.equal(renderer.root.findAllByProps({ name: 'currentPassword' }).length, 0)
-  await act(async () => buttonNamed(renderer.root, 'Loja, operação atual').props.onClick())
+  await act(async () => buttonNamed(renderer.root, 'Loja, empresa atual').props.onClick())
   const exit = buttonNamed(renderer.root, 'Trocar usuário').props.onClick
   await act(async () => exit())
   assert.equal(logouts, 0); assert.match(nodeText(renderer.root), /alteração da senha/)
@@ -37,7 +132,7 @@ test('actual App blocks switch after account unmount until password response and
   assert.equal(logouts, 0)
   await act(async () => finishVerification())
   assert.equal(writes, 1)
-  await act(async () => buttonNamed(renderer.root, 'Loja, operação atual').props.onClick())
+  await act(async () => buttonNamed(renderer.root, 'Loja, empresa atual').props.onClick())
   assert.match(nodeText(renderer.root), /Ana/)
   await act(async () => buttonNamed(renderer.root, 'Trocar usuário').props.onClick())
   assert.equal(logouts, 1); assert.equal(writes, 1)
@@ -79,7 +174,7 @@ async function operation(t, jobs = []) {
   return { h, renderer, revocations: () => revocations }
 }
 const switchUser = async (renderer) => {
-  await act(async () => buttonNamed(renderer.root, 'Loja, operação atual').props.onClick())
+  await act(async () => buttonNamed(renderer.root, 'Loja, empresa atual').props.onClick())
   await act(async () => buttonNamed(renderer.root, 'Trocar usuário').props.onClick())
 }
 
@@ -148,7 +243,7 @@ test('actual App switch cannot revoke while an accepted comanda payment still ne
   await act(async () => renderer.root.findByType(TableServiceExternalActions).props.onPay('tab-42', [{ methodCode: 'pix', amountCents: 12345 }], owner))
   assert.equal(payments, 1)
   assert.ok(renderer.root.findByType(Comandas).props.paymentSync)
-  await act(async () => buttonNamed(renderer.root, 'Loja, operação atual').props.onClick())
+  await act(async () => buttonNamed(renderer.root, 'Loja, empresa atual').props.onClick())
   const action = buttonNamed(renderer.root, 'Trocar usuário')
   assert.equal(action.props.disabled, false)
   await act(async () => action.props.onClick())

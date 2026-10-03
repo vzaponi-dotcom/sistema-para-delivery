@@ -1,9 +1,14 @@
 import { apiRequest, withJson } from '../../../infrastructure/api/httpClient.js'
 
-export const getKitchenTvControl = () => apiRequest('/api/kitchen-tv/control')
-export const getKitchenTvOrderPrintDocument = (orderId) => apiRequest(`/api/orders/${encodeURIComponent(orderId)}/print-document`)
-export const setKitchenTvPage = (page) => apiRequest('/api/kitchen-tv/control/page', withJson('PATCH', { page }))
-export const setKitchenTvModality = (modality) => apiRequest('/api/kitchen-tv/control/modality', withJson('PATCH', { modality }))
+export const createKitchenTvControlApi = ({ request = apiRequest } = {}) => {
+const getKitchenTvControl = () => request('/api/kitchen-tv/control')
+const getKitchenTvOrderPrintDocument = (orderId) => request(`/api/orders/${encodeURIComponent(orderId)}/print-document`)
+const setKitchenTvPage = (page) => request('/api/kitchen-tv/control/page', withJson('PATCH', { page }))
+const setKitchenTvModality = (modality) => request('/api/kitchen-tv/control/modality', withJson('PATCH', { modality }))
 
-export const hideKitchenTvOrder = (orderId) => apiRequest(`/api/kitchen-tv/control/orders/${encodeURIComponent(orderId)}/hidden`, { method: 'PUT' })
-export const restoreKitchenTvOrder = (orderId) => apiRequest(`/api/kitchen-tv/control/orders/${encodeURIComponent(orderId)}/hidden`, { method: 'DELETE' })
+const hideKitchenTvOrder = (orderId) => request(`/api/kitchen-tv/control/orders/${encodeURIComponent(orderId)}/hidden`, { method: 'PUT' })
+const restoreKitchenTvOrder = (orderId) => request(`/api/kitchen-tv/control/orders/${encodeURIComponent(orderId)}/hidden`, { method: 'DELETE' })
+
+return Object.freeze({ getKitchenTvControl, getKitchenTvOrderPrintDocument, setKitchenTvPage, setKitchenTvModality, hideKitchenTvOrder, restoreKitchenTvOrder })
+}
+export const { getKitchenTvControl, getKitchenTvOrderPrintDocument, setKitchenTvPage, setKitchenTvModality, hideKitchenTvOrder, restoreKitchenTvOrder } = createKitchenTvControlApi()

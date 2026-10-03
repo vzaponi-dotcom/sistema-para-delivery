@@ -1,0 +1,26 @@
+.company-entry { min-height: 100dvh; background: var(--bg); color: var(--text); padding: 24px clamp(16px, 5vw, 72px); }
+.company-account-entry { padding-inline: max(16px, calc((100% - 1120px) / 2)); }
+.company-account-entry > .access-page { max-width: 1120px; margin: 24px auto; }
+.company-entry .eyebrow, .company-entry .section-kicker { color: var(--navigation-accent, var(--primary)); }
+.company-entry-header img { object-fit: contain; }
+:root[data-theme='dark'] .company-entry-header img { content: url('/brand/mesiva-logo-dark.svg'); }
+.company-entry-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; max-width: 1040px; margin: auto; }
+.company-selection { max-width: 840px; margin: 64px auto; }
+.company-selection h1 { font-size: clamp(28px, 4vw, 40px); line-height: 1.2; margin: 12px 0; }
+.company-account-email { color: var(--muted); overflow-wrap: anywhere; }
+.company-selection-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 16px; margin: 32px 0; }
+.company-selection-card { display: flex; align-items: center; gap: 18px; min-height: 116px; text-align: left; padding: 24px; color: inherit; background: var(--surface, #fff); border: 1px solid var(--border, #dbe5ef); border-radius: 20px; cursor: pointer; font: inherit; }
+.company-selection-card > span:nth-child(2) { flex: 1; min-width: 0; }
+.company-selection-card strong, .company-selection-card small { display: block; overflow-wrap: anywhere; }
+.company-selection-card strong { font-size: 18px; margin-bottom: 8px; }
+.company-selection-card small { color: var(--muted); }
+.company-selection-card:hover, .company-selection-card:focus-visible { border-color: #00aa9c; outline: 2px solid #00aa9c; outline-offset: 3px; }
+.company-selection-card:disabled { opacity: .6; cursor: wait; }
+.company-selection-icon { display: grid; place-items: center; width: 48px; height: 48px; flex-shrink: 0; border-radius: 14px; background: #daf6f0; color: #078b82; }
+.company-current { margin-top: 8px; font-weight: 700; }
+.company-empty { text-align: center; padding: 40px 24px; border: 1px solid var(--border, #dbe5ef); border-radius: 20px; background: var(--surface, #fff); margin: 32px 0; }
+.company-entry-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+.company-feedback { padding: 16px; border-radius: 14px; background: var(--surface, #fff); }
+.company-invitation-summary { display: grid; gap: 8px; padding: 20px; border: 1px solid var(--border, #dbe5ef); border-radius: 16px; margin: 24px 0; }
+.company-invite-login-note { padding: 24px; text-align: center; background: var(--surface); color: var(--text); }
+@media (max-width: 640px) { .company-entry { padding: 20px 16px; } .company-entry-header img { width: 124px; height: auto; } .company-selection { margin: 40px auto; } .company-selection-card { padding: 20px; min-height: 104px; } .company-entry-actions > * { width: 100%; } }

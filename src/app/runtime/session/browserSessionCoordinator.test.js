@@ -2,6 +2,19 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createBrowserSessionCoordinator } from './browserSessionCoordinator.js'
 
+test('focus rediscovers cookie owner when both browser messaging mechanisms are unavailable', () => {
+  const windowObject = new EventTarget()
+  windowObject.localStorage = { setItem() { throw new Error('disabled') } }
+  let invalidations = 0
+  const coordinator = createBrowserSessionCoordinator({ windowObject, channelFactory: () => { throw new Error('disabled') }, onInvalidate: () => invalidations++ })
+  assert.doesNotThrow(() => coordinator.publish())
+  windowObject.dispatchEvent(new Event('focus'))
+  assert.equal(invalidations, 1)
+  coordinator.close()
+  windowObject.dispatchEvent(new Event('focus'))
+  assert.equal(invalidations, 1)
+})
+
 test('same-browser tabs invalidate through opaque events without sharing any private context', () => {
   const listeners = new Set(), messages = []
   const channelFactory = () => {

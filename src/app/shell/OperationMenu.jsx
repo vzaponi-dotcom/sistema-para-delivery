@@ -31,7 +31,7 @@ function MenuAction({ label, description, icon, onClick, disabled = false, class
   </button>
 }
 
-export default function OperationMenu({ businessName, businessHasLogo = false, businessLogoVersion = null, showLogo = true, user, onSwitchUser, onLogout, logoutDisabled = false }) {
+export default function OperationMenu({ businessName, businessHasLogo = false, businessLogoVersion = null, showLogo = true, user, onSwitchCompany, onPlatform, onSwitchUser, onLogout, logoutDisabled = false }) {
   const { granted, implemented, requestNavigation, authenticated } = useNavigation()
   const operationName = normalizeOperationName(businessName)
   const initials = operationInitials(operationName)
@@ -41,8 +41,8 @@ export default function OperationMenu({ businessName, businessHasLogo = false, b
   const mobile = useMediaQuery('(max-width: 820px)')
   const [open, setOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
-  const identityEntry = resolveNavigationEntry({ id: 'settings-business-profile', label: 'Identidade da operação', icon: 'edit' }, granted, implemented)
   const settingsEntry = resolveNavigationEntry({ area: 'settings', label: 'Configurações', icon: 'settings' }, granted, implemented)
+  const companySettingsEntry = resolveNavigationEntry({ area: 'settings' }, new Set([...(granted || [])].filter(capability => capability !== 'preferences.local')), implemented)
   const deviceEntry = resolveNavigationEntry({ id: 'settings-device', label: 'Preferências deste dispositivo', icon: 'system' }, granted, implemented)
   const accountEntry = resolveNavigationEntry({ id: 'my-account' }, granted, implemented, { authenticated })
   const restoreFocus = useCallback(() => {
@@ -83,25 +83,31 @@ export default function OperationMenu({ businessName, businessHasLogo = false, b
       {accountEntry && <MenuAction label="Minha conta" description="Seus dados e sua senha" icon="client" onClick={() => navigate(accountEntry.id)} />}
       {onSwitchUser && <MenuAction label="Trocar usuário" description="Encerrar a sessão e abrir o login" icon="clients" disabled={logoutDisabled} onClick={() => { close(); onSwitchUser() }} />}
     </section>}
-    <section className="operation-menu-section" aria-label="Operação">
-      <h2>Operação</h2>
+    <section className="operation-menu-section operation-menu-company-section" aria-label="Empresa atual">
+      <h2>Empresa</h2>
       <div className="operation-menu-heading">
         {operationIdentity('operation-menu-logo')}
-        <div className="operation-menu-heading-copy"><strong>{operationName}</strong><span>Operação atual</span>
-          {identityEntry && <button className="operation-menu-identity" type="button" onClick={() => navigate(identityEntry.id)}><Icon name="edit" size={15} />Editar identidade</button>}
+        <div className="operation-menu-heading-copy"><strong>{operationName}</strong>
+          <span>Empresa atual{personName && <> · {profileName}</>}</span>
         </div>
       </div>
-      {settingsEntry && <MenuAction label="Configurações" icon="settings" onClick={() => navigate(settingsEntry.id)} />}
+      {onSwitchCompany && <MenuAction label="Trocar empresa" description="Escolher onde você vai trabalhar" icon="transfer" disabled={logoutDisabled} onClick={() => { close(); onSwitchCompany() }} />}
+      {companySettingsEntry && <MenuAction label="Configurações da empresa" description={`Ajustes de ${operationName}`} icon="settings" onClick={() => navigate(companySettingsEntry.id)} />}
     </section>
+    {onPlatform && <section className="operation-menu-section operation-menu-platform-section" aria-label="Administração Mesiva">
+      <h2>Mesiva</h2>
+      <MenuAction label="Administração Mesiva" icon="settings" disabled={logoutDisabled} onClick={() => { close(); onPlatform() }} />
+    </section>}
     <section className="operation-menu-section" aria-label="Preferências e ajuda">
       <h2>Preferências e ajuda</h2>
+      {!companySettingsEntry && settingsEntry && <MenuAction label="Configurações" icon="settings" onClick={() => navigate(settingsEntry.id)} />}
       {deviceEntry && <MenuAction label="Este dispositivo" description="Tema e som de novos pedidos" icon="system" onClick={() => navigate(deviceEntry.id)} />}
       <MenuAction label="Sobre a Mesiva" icon="details" onClick={openAbout} />
     </section>
     {onLogout && <footer className="operation-menu-footer"><MenuAction label="Sair do sistema" icon="logout" className="operation-menu-logout" disabled={logoutDisabled} onClick={() => { close(); onLogout() }} /></footer>}
   </div>
   return <div className="operation-menu" ref={rootRef}>
-    <button ref={triggerRef} type="button" className="operation-menu-trigger" aria-label={`${operationName}, operação atual`} aria-expanded={open} aria-haspopup="dialog" onClick={() => setOpen((current) => !current)}>
+    <button ref={triggerRef} type="button" className="operation-menu-trigger" aria-label={`${operationName}, empresa atual`} aria-expanded={open} aria-haspopup="dialog" onClick={() => setOpen((current) => !current)}>
       {showLogo
         ? <OperationLogo
             hasLogo={businessHasLogo}
@@ -110,16 +116,16 @@ export default function OperationMenu({ businessName, businessHasLogo = false, b
             fallback={<span className="operation-menu-initials" aria-hidden="true">{initials}</span>}
           />
         : <span className="operation-menu-initials" aria-hidden="true">{initials}</span>}
-      <span className="operation-menu-trigger-copy"><strong>{operationName}</strong><small>Operação atual</small></span>
+      <span className="operation-menu-trigger-copy"><strong>{operationName}</strong><small>Empresa atual</small></span>
       <Icon name="arrow-down" size={14} />
     </button>
     {open && (mobile
-      ? <BottomSheet open title="Conta e operação" onClose={close}>{content}</BottomSheet>
-      : <div ref={panelRef} className="operation-menu-popover" role="dialog" aria-label="Conta e operação" onBlur={(event) => { if (event.relatedTarget && !rootRef.current?.contains?.(event.relatedTarget)) setOpen(false) }}>{content}</div>)}
+      ? <BottomSheet open title="Conta e empresa" onClose={close}>{content}</BottomSheet>
+      : <div ref={panelRef} className="operation-menu-popover" role="dialog" aria-label="Conta e empresa" onBlur={(event) => { if (event.relatedTarget && !rootRef.current?.contains?.(event.relatedTarget)) setOpen(false) }}>{content}</div>)}
     {aboutOpen && <Modal title="Sobre a Mesiva" onClose={() => { setAboutOpen(false); restoreFocus() }}>
       <div className="operation-about-copy">
         <strong>Mesiva</strong>
-        <span>Operação atual: {operationName}</span>
+        <span>Empresa atual: {operationName}</span>
         <span>Atualização atual: {CURRENT_RELEASE.title}</span>
         <span>{formatReleaseDate(CURRENT_RELEASE.publishedAt)}</span>
       </div>

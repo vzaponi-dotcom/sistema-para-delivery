@@ -98,7 +98,7 @@ async function getBusinessLogo(env, context) {
   const current = await loadBusinessProfileStorageState(env.DB, context.businessId)
   if (!current.internalLogo) throw apiError(404, 'BUSINESS_LOGO_NOT_FOUND', 'Esta operação ainda não possui logo.')
 
-  const object = await readBusinessLogo(env.BUSINESS_ASSETS, current.internalLogo.objectKey)
+  const object = await readBusinessLogo(env.BUSINESS_ASSETS, current.internalLogo.objectKey, context.businessId)
   if (!object) {
     throw apiError(503, 'BUSINESS_LOGO_STORAGE_UNAVAILABLE', 'O logo configurado não está disponível no armazenamento.')
   }
@@ -147,7 +147,7 @@ async function saveBusinessProfileMutation(request, env, context) {
     saved = await saveBusinessProfile(env.DB, context.businessId, repositoryInput, resolvedLogo, now)
   } catch (error) {
     if (uploadedLogo && error?.outcome !== 'unconfirmed') {
-      await deleteBusinessLogo(env.BUSINESS_ASSETS, uploadedLogo.objectKey)
+      await deleteBusinessLogo(env.BUSINESS_ASSETS, uploadedLogo.objectKey, context.businessId)
     }
     throw error
   }
@@ -160,15 +160,15 @@ async function saveBusinessProfileMutation(request, env, context) {
     const oldKey = before.internalLogo?.objectKey || null
     if (uploadedLogo) {
       if (after.internalLogo?.objectKey === uploadedLogo.objectKey) {
-        if (oldKey && oldKey !== uploadedLogo.objectKey) await deleteBusinessLogo(env.BUSINESS_ASSETS, oldKey)
+        if (oldKey && oldKey !== uploadedLogo.objectKey) await deleteBusinessLogo(env.BUSINESS_ASSETS, oldKey, context.businessId)
       } else {
-        await deleteBusinessLogo(env.BUSINESS_ASSETS, uploadedLogo.objectKey)
+        await deleteBusinessLogo(env.BUSINESS_ASSETS, uploadedLogo.objectKey, context.businessId)
       }
     } else if (mutation.logoAction === 'remove'
       && after.resource.revision === saved.resource.revision
       && after.internalLogo === null
       && oldKey) {
-      await deleteBusinessLogo(env.BUSINESS_ASSETS, oldKey)
+      await deleteBusinessLogo(env.BUSINESS_ASSETS, oldKey, context.businessId)
     }
   } catch {
     // Confirmed D1 state wins. Cleanup is best-effort by design.

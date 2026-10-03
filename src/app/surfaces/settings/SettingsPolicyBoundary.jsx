@@ -35,6 +35,7 @@ export const createSettingsPolicyTransport = (adapters = createSettingsPolicyAda
 })
 
 export function SettingsPolicyBoundary({
+  client,
   effectiveConfigOwner,
   storage,
   navigationBridge,
@@ -43,7 +44,7 @@ export function SettingsPolicyBoundary({
   onPolicyCommitted,
   children,
 }) {
-  const transport = useMemo(() => createSettingsPolicyTransport(), [])
+  const transport = useMemo(() => createSettingsPolicyTransport(createSettingsPolicyAdapters(client)), [client])
   const context = toPolicyEditingContext(effectiveConfigOwner)
 
   return <PolicyEditingProvider

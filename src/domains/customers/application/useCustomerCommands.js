@@ -1,9 +1,10 @@
+import { useContextApi } from '../../../infrastructure/api/ContextApi.js'
 import { useMutationOwner } from '../../../app/runtime/session/useMutationOwner.js'
 import { useCallback } from 'react'
-import { customersApi } from '../infrastructure/customersApi.js'
+import { customersApi, createCustomersApi } from '../infrastructure/customersApi.js'
 
 export function useCustomerCommands({
-  api = customersApi,
+  api: suppliedApi = customersApi,
   applyOfficialEffects = () => {},
   writesBlocked = false,
   canCreateClients = false,
@@ -13,6 +14,7 @@ export function useCustomerCommands({
   onSuccess = () => {},
   onError = () => {},
 } = {}) {
+  const api = useContextApi(createCustomersApi, suppliedApi, customersApi)
   const ownsMutation = useMutationOwner(applyOfficialEffects)
   const createClient = useCallback(async (payload) => {
     if (!canCreateClients || writesBlocked) return null

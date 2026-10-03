@@ -1,5 +1,6 @@
+import { useContextApi } from '../../../infrastructure/api/ContextApi.js'
 import { useEffect, useRef, useState } from 'react'
-import { reportingApi } from '../infrastructure/reportingApi.js'
+import { reportingApi, createReportingApi } from '../infrastructure/reportingApi.js'
 
 const noop = () => {}
 const emptyState = (view = null) => ({
@@ -15,7 +16,8 @@ const emptyState = (view = null) => ({
   error: null,
 })
 
-export function useReportingData({ query, api = reportingApi, onUnauthorized = noop } = {}) {
+export function useReportingData({ query, api: suppliedApi = reportingApi, onUnauthorized = noop } = {}) {
+  const api = useContextApi(createReportingApi, suppliedApi, reportingApi)
   const generation = useRef(0)
   const [state, setState] = useState(() => emptyState(query?.view))
   useEffect(() => {

@@ -13,14 +13,33 @@ ON CONFLICT(business_id) DO UPDATE SET pin_hash=excluded.pin_hash, updated_at=ex
 
 const ensure = (condition, message) => { if (!condition) throw new Error(message) }
 const anonymous = (body) => body?.authenticated === false
-  && ['legacy', 'enrollment', 'user_only'].includes(body.authMode)
+  && ['legacy', 'enrollment', 'user_only', 'multi_company'].includes(body.authMode)
   && Object.keys(body).every(key => ['authenticated', 'authMode'].includes(key))
 
 export async function verifyStagingAuth({ baseUrl, pin, attempts = 6, fetchImpl = fetch,
+  expectedCommit, expectedAuthMode,
   sleep = ms => new Promise(resolve => setTimeout(resolve, ms)), log = console.log } = {}) {
   const origin = new URL(baseUrl).origin
   ensure(Number.isInteger(attempts) && attempts > 0 && attempts <= 20, 'Invalid staging readiness attempts.')
   const call = (route, options = {}) => fetchImpl(`${origin}${route}`, { cache: 'no-store', redirect: 'manual', ...options })
+  if (expectedCommit !== undefined) {
+    ensure(/^[a-f0-9]{40}$/.test(expectedCommit), 'Invalid expected published commit.')
+    let matched = false
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      try {
+        const release = await call(`/release.json?commit=${expectedCommit}`)
+        if (release.ok && release.headers.get('content-type')?.includes('application/json')) {
+          const body = await release.json()
+          matched = body.commit === expectedCommit && body.environment === 'staging'
+        }
+      } catch { /* Retry only within the propagation window; never log response content. */ }
+      if (matched) break
+      if (attempt < attempts) await sleep(5000)
+    }
+    ensure(matched, 'Staging published commit does not match the GitHub workflow commit.')
+    log(`Staging published commit verified: ${expectedCommit}`)
+  }
+  ensure(expectedAuthMode === undefined || ['legacy','enrollment','user_only','multi_company'].includes(expectedAuthMode), 'Invalid expected auth mode.')
   let session
   let lastReason
   for (let attempt = 1; attempt <= attempts; attempt++) {
@@ -33,11 +52,12 @@ export async function verifyStagingAuth({ baseUrl, pin, attempts = 6, fetchImpl 
         let candidate
         try { candidate = await response.json() } catch { /* Old/malformed wire contract is not ready. */ }
         lastReason = 'Anonymous session must expose only a known auth mode and no identity.'
-        if (anonymous(candidate)) {
+        if (anonymous(candidate) && (!expectedAuthMode || candidate.authMode === expectedAuthMode)) {
           session = candidate
           log(`Staging ready on attempt ${attempt}/${attempts}; auth mode ${session.authMode}`)
           break
         }
+        if (anonymous(candidate) && expectedAuthMode) lastReason = 'Staging does not expose the expected auth mode.'
       }
     }
     log(`Staging readiness attempt ${attempt}/${attempts}: ${lastReason}`)
@@ -53,10 +73,10 @@ export async function verifyStagingAuth({ baseUrl, pin, attempts = 6, fetchImpl 
   const crossOrigin = await post({ origin: 'https://invalid-staging-origin.example' }, {})
   ensure(crossOrigin.status === 403 && uncachedWithoutCookie(crossOrigin) && (await crossOrigin.json()).error?.code === 'ORIGIN_NOT_ALLOWED', 'Login must reject a foreign origin.')
 
-  if (session.authMode !== 'user_only') ensure(pin, 'STAGING_PIN is required for legacy/enrollment smoke.')
+  if (!['user_only', 'multi_company'].includes(session.authMode)) ensure(pin, 'STAGING_PIN is required for legacy/enrollment smoke.')
   const login = await post({ origin }, { pin: pin || 'staging-disabled-pin-probe' })
   const loginBody = await login.json()
-  if (session.authMode === 'user_only') {
+  if (['user_only', 'multi_company'].includes(session.authMode)) {
     const denied = login.status === 401 && loginBody.error?.code === 'INVALID_LOGIN'
       || login.status === 429 && loginBody.error?.code === 'LOGIN_RATE_LIMITED'
     ensure(denied && uncachedWithoutCookie(login) && loginBody.authenticated !== true, 'user_only PIN rejection must not create a session.')
@@ -68,7 +88,7 @@ export async function verifyStagingAuth({ baseUrl, pin, attempts = 6, fetchImpl 
     // GETs and foreign-origin requests cannot consume challenges or send email.
     for (const route of ['/api/auth/password-recovery', '/api/auth/email-challenges/inspect', '/api/auth/email-challenges/complete']) {
       const read = await call(route)
-      ensure(read.status === 401 && uncachedWithoutCookie(read), 'Public email boundary GET must be denied without side effects.')
+      ensure([401, 405].includes(read.status) && uncachedWithoutCookie(read), 'Public email boundary GET must be denied without side effects.')
       const foreign = await postRoute(route, { origin: 'https://invalid-staging-origin.example' }, {})
       ensure(foreign.status === 403 && uncachedWithoutCookie(foreign) && (await foreign.json()).error?.code === 'ORIGIN_NOT_ALLOWED', 'Public email boundary must reject foreign origins without caching or cookies.')
     }
@@ -99,7 +119,8 @@ export async function verifyStagingAuth({ baseUrl, pin, attempts = 6, fetchImpl 
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
   try {
-    await verifyStagingAuth({ baseUrl: process.env.STAGING_URL, pin: process.env.STAGING_PIN, attempts: Number(process.env.STAGING_READY_ATTEMPTS || 6) })
+    await verifyStagingAuth({ baseUrl: process.env.STAGING_URL, pin: process.env.STAGING_PIN, expectedCommit: process.env.STAGING_EXPECTED_COMMIT,
+      expectedAuthMode: process.env.STAGING_EXPECTED_AUTH_MODE, attempts: Number(process.env.STAGING_READY_ATTEMPTS || 6) })
   } catch (error) {
     console.error(`Staging authentication smoke failed: ${error.message}`)
     process.exitCode = 1

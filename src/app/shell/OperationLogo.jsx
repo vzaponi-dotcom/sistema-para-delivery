@@ -1,3 +1,4 @@
+import { useContextBlob } from '../../infrastructure/api/useContextBlob.js'
 import { useEffect, useMemo, useState } from 'react'
 
 export const operationLogoUrl = (hasLogo, version) => {
@@ -11,7 +12,8 @@ export default function OperationLogo({
   className = '',
   fallback = null,
 }) {
-  const src = useMemo(() => operationLogoUrl(hasLogo, version), [hasLogo, version])
+  const path = useMemo(() => operationLogoUrl(hasLogo, version), [hasLogo, version])
+  const src = useContextBlob(path)
   const [failedSrc, setFailedSrc] = useState(null)
 
   useEffect(() => {

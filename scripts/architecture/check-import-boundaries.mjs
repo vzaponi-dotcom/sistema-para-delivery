@@ -614,6 +614,8 @@ export const findArchitectureViolations = async ({ rootDir }) => {
       }
     }
 
+    if (fromDomain === 'platform' && targetDomain && !['platform', 'access', 'companies'].includes(targetDomain)) violations.push(`platform-operational-import: ${edge.from} -> ${edge.resolvedPath}`)
+
     if (edge.from.startsWith('src/shared/') && edge.resolvedPath?.startsWith('src/domains/')) {
       violations.push(`shared-domain: ${edge.from} -> ${edge.resolvedPath}`)
     }

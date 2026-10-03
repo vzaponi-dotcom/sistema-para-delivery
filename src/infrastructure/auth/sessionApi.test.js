@@ -72,3 +72,9 @@ test('trusted discovery rejects an incomplete context when the runtime owns logi
   await api.login('1234', { discover: false })
   await assert.rejects(api.getSession({ requireContext: true }), { code: 'SESSION_CONTEXT_UNAVAILABLE' })
 })
+test('explicit platform login preserves destination without affecting ordinary login', async () => {
+  const bodies = []
+  const api = createSessionApi({ request: async (_, options) => { bodies.push(JSON.parse(options.body)); return {} } })
+  await api.login({ email: 'admin@example.test', password: 'password', destination: 'platform' }, { discover: false })
+  assert.equal(bodies[0].destination, 'platform')
+})

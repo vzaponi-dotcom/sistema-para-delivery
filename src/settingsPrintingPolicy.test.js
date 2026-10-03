@@ -177,7 +177,7 @@ test('auto-print is a station draft and waits for its own save', async () => {
 })
 
 test('existing station bootstrap is read-only unless the station is absent', () => {
-  const bootstrapStart = managerSource.indexOf('const stationPayload = await getPrintStations()')
+  const bootstrapStart = managerSource.indexOf('const stationPayload = await api.getPrintStations()')
   const bootstrapEnd = managerSource.indexOf('await initializeBackgroundPhysicalTransport', bootstrapStart)
   const bootstrap = managerSource.slice(bootstrapStart, bootstrapEnd)
   assert.match(bootstrap, /let station = existingStations\.find/)

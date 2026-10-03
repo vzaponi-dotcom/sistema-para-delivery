@@ -29,3 +29,6 @@ export function routeDefinitionsForImplemented(implemented) {
     .filter(({ id }) => implemented.has(id))
     .map(({ id, path }) => ({ id, path }))
 }
+
+// Public account flows render before the operational route gate.
+export const ACCOUNT_CONTEXT_PATHS = Object.freeze({ companies: '/empresas', invitation: '/aceitar-convite', platform: '/mesiva/empresas' })

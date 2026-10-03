@@ -1,6 +1,8 @@
-import { createPathPolicyAdapter, extractEnvelope, getJson, loadPolicyReceipt, policyClientError, putJson, validatePolicyScope } from '../../../infrastructure/api/policyHttp.js'
+import { apiRequest, withJson } from '../../../infrastructure/api/httpClient.js'
+import { createPathPolicyAdapter, extractEnvelope, loadPolicyReceipt, policyClientError, validatePolicyScope } from '../../../infrastructure/api/policyHttp.js'
 
-export const printingPolicy = createPathPolicyAdapter({
+export const createPrintingPolicy = ({ request = apiRequest } = {}) => createPathPolicyAdapter({
+  request,
   id: 'printingPolicy', path: '/api/printing/settings', envelope: 'settings',
   destinations: Object.freeze(['settings-printing']), capabilities: Object.freeze(['printing.settings.view', 'printing.settings']),
 })
@@ -15,38 +17,44 @@ const normalizeStation = (station, scopeId) => {
   }
 }
 
-export const stationConfigurationPolicy = Object.freeze({
+export const createStationConfigurationPolicy = ({ request = apiRequest } = {}) => Object.freeze({
   id: 'stationConfiguration', ...stationConfigurationMeta,
   load: async (scopeId) => {
     validatePolicyScope(stationConfigurationMeta, scopeId)
-    return normalizeStation((await getJson('/api/printing/stations'))?.stations?.find(({ id }) => id === scopeId), scopeId)
+    return normalizeStation((await request('/api/printing/stations'))?.stations?.find(({ id }) => id === scopeId), scopeId)
   },
   save: async (input, scopeId) => {
     validatePolicyScope(stationConfigurationMeta, scopeId)
-    const payload = await putJson(`/api/printing/stations/${encodeURIComponent(scopeId)}`, input)
+    const payload = await request(`/api/printing/stations/${encodeURIComponent(scopeId)}`, withJson('PUT', input))
     return { resource: extractEnvelope(payload, 'station'), receipt: payload?.receipt }
   },
   loadReceipt: (mutationId, scopeId) => {
     validatePolicyScope(stationConfigurationMeta, scopeId)
-    return loadPolicyReceipt('stationConfiguration', mutationId, scopeId)
+    return loadPolicyReceipt('stationConfiguration', mutationId, scopeId, request)
   },
 })
 
-export const stationPrimaryPolicy = Object.freeze({
+export const createStationPrimaryPolicy = ({ request = apiRequest } = {}) => Object.freeze({
   id: 'stationPrimary', capabilities: Object.freeze(['printing.station.view', 'printing.station.configure']),
   load: async (scopeId) => {
     validatePolicyScope({}, scopeId)
-    return extractEnvelope(await getJson('/api/printing/stations'), 'primary')
+    return extractEnvelope(await request('/api/printing/stations'), 'primary')
   },
   save: async (input, scopeId) => {
     validatePolicyScope({}, scopeId)
     const stationId = input?.data?.primaryStationId
     if (typeof stationId !== 'string' || !stationId.trim()) throw policyClientError('SETTINGS_SCOPE_REQUIRED', 'Informe a esta\u00e7\u00e3o principal.')
-    const payload = await putJson(`/api/printing/stations/${encodeURIComponent(stationId)}/make-primary`, input, 'POST')
+    const payload = await request(`/api/printing/stations/${encodeURIComponent(stationId)}/make-primary`, withJson('POST', input))
     return { resource: extractEnvelope(payload, 'station'), receipt: payload?.receipt }
   },
   loadReceipt: (mutationId, scopeId) => {
     validatePolicyScope({}, scopeId)
-    return loadPolicyReceipt('stationPrimary', mutationId)
+    return loadPolicyReceipt('stationPrimary', mutationId, undefined, request)
   },
 })
+
+export const printingPolicy = createPrintingPolicy()
+
+export const stationConfigurationPolicy = createStationConfigurationPolicy()
+
+export const stationPrimaryPolicy = createStationPrimaryPolicy()

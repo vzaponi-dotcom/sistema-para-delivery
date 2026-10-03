@@ -16,6 +16,10 @@ export function useNavigationController({
   authenticated = false,
   implemented,
   checkoutPending,
+  navigationPending = false,
+  getNavigationPending,
+  getPendingReconciliationPath,
+  contextPaths = [],
   dirtyOrder,
   onDiscardOrder,
   getNavigationDraft,
@@ -62,6 +66,8 @@ export function useNavigationController({
 
   const shouldBlockRouterNavigation = useCallback(({ currentLocation, nextLocation }) => {
     if (currentLocation.pathname === nextLocation.pathname) return false
+    if (getPendingReconciliationPath?.() === nextLocation.pathname) return false
+    if (getNavigationPending ? getNavigationPending() : navigationPending) return true
     if (approvedPathRef.current === nextLocation.pathname) return false
     if (pendingNavigationRef.current) return true
 
@@ -80,7 +86,7 @@ export function useNavigationController({
 
     const draft = resolveNavigationDraft?.(currentDestination)
     return shouldConfirmDraftExit(draft, currentDestination, nextDestination)
-  }, [authenticated, checkoutPending, dirtyOrder, granted, implemented, resolveNavigationDraft])
+  }, [authenticated, checkoutPending, navigationPending, getNavigationPending, getPendingReconciliationPath, dirtyOrder, granted, implemented, resolveNavigationDraft])
 
   const blocker = useBlocker(shouldBlockRouterNavigation)
 
@@ -105,6 +111,14 @@ export function useNavigationController({
     return navigateApprovedPath(path, options)
   }, [navigateApprovedPath, reject])
 
+  // Account surfaces have their own authorized routes, outside the operational registry.
+  // Callers still settle session-exit guards before completing a context transition.
+  const completeContextNavigation = useCallback((path, options) => {
+    if (!contextPaths.includes(path)) return reject('unknown')
+    if (pendingNavigationRef.current || (getNavigationPending ? getNavigationPending() : navigationPending)) return reject('blocked')
+    return navigateApprovedPath(path, options)
+  }, [contextPaths, getNavigationPending, navigationPending, navigateApprovedPath, reject])
+
   useEffect(() => {
     if (blocker.state !== 'blocked') {
       blockerResettingRef.current = false
@@ -112,6 +126,7 @@ export function useNavigationController({
     }
     if (blockerResettingRef.current) return
 
+    if (getNavigationPending ? getNavigationPending() : navigationPending) { resetBlockedNavigation(); onFeedback?.('Aguarde a confirmação do cadastro antes de navegar.'); return }
     const pending = pendingNavigationRef.current
     if (pending) {
       if (pending.source !== 'blocker') blocker.reset()
@@ -159,6 +174,8 @@ export function useNavigationController({
     blocker.proceed()
   }, [
     blocker,
+    navigationPending,
+    getNavigationPending,
     checkoutPending,
     dirtyOrder,
     granted,
@@ -304,11 +321,11 @@ export function useNavigationController({
 
   const openMore = useCallback(() => setMoreOpen(true), [])
   const closeMore = useCallback(() => setMoreOpen(false), [])
-  const resetNavigation = useCallback(() => {
+  const resetNavigation = useCallback(({ preservePath = false } = {}) => {
     setMoreOpen(false)
     pendingNavigationRef.current = null
     setPendingNavigation(null)
-    navigateApprovedPath('/', { replace: true })
+    if (!preservePath) navigateApprovedPath('/', { replace: true })
   }, [navigateApprovedPath])
 
   return {
@@ -323,6 +340,7 @@ export function useNavigationController({
     cancelDiscard,
     resetNavigation,
     completeNavigation,
+    completeContextNavigation,
     requestSessionExit,
   }
 }

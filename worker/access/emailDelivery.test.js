@@ -25,7 +25,7 @@ test('delivery uses trusted origin and retries transient rejection with unchange
   assert.equal(calls.length,2)
   assert.equal(calls[0].url,'https://api.resend.com/emails')
   assert.equal(calls[0].options.method,'POST')
-  assert.equal(calls[0].options.redirect,'error')
+  assert.equal(calls[0].options.redirect,'manual')
   assert.equal(calls[0].options.headers.Authorization,`Bearer ${env.RESEND_API_KEY}`)
   assert.equal(calls[0].options.headers['Idempotency-Key'],calls[1].options.headers['Idempotency-Key'])
   assert.equal(calls[0].options.body,calls[1].options.body)
@@ -83,3 +83,30 @@ test('invalid configuration performs no external request', async () => {
   await assert.rejects(deliverEmailChallenge({},challenge,{fetchImpl:async() => {calls++;return accepted()}}),{code:'EMAIL_CONFIG_UNAVAILABLE'})
   assert.equal(calls,0)
 })
+
+test('email transport uses the redirect mode supported by the pinned edge runtime', async () => {
+  const calls = []
+  const result = await deliverEmailChallenge(env, challenge, { fetchImpl: async (url, options) => {
+    // workerd rejects redirect:error before making any provider request.
+    if (!['follow', 'manual'].includes(options.redirect)) throw new TypeError('Invalid redirect value')
+    calls.push({ url, options })
+    return accepted()
+  } })
+  assert.deepEqual(result, { status: 'accepted', providerId })
+  assert.equal(calls.length, 1)
+  assert.equal(calls[0].options.redirect, 'manual')
+})
+
+for (const status of [301, 302, 303, 307, 308]) {
+  test(`provider redirect ${status} is rejected without forwarding the credential or challenge`, async () => {
+    const calls = []
+    const result = await deliverEmailChallenge(env, challenge, { fetchImpl: async (url, options) => {
+      calls.push({ url, options })
+      return new Response(null, { status, headers: { Location: 'https://other.example.test/collect' } })
+    } })
+    assert.deepEqual(result, { status: 'rejected' })
+    assert.equal(calls.length, 1)
+    assert.equal(calls[0].url, 'https://api.resend.com/emails')
+    assert.equal(calls[0].options.redirect, 'manual')
+  })
+}

@@ -78,7 +78,7 @@ export function useOperationalDataRuntime({
 
   useEffect(() => { effectiveConfigVersionRef.current = effectiveConfigVersion }, [effectiveConfigVersion])
   useEffect(() => { onUnauthorizedRef.current = onUnauthorized }, [onUnauthorized])
-  useEffect(() => { apiRef.current = api }, [api])
+  apiRef.current = api
 
   const commitTables = useCallback((nextTables) => {
     officialTablesRef.current = nextTables
@@ -175,7 +175,7 @@ export function useOperationalDataRuntime({
         return receipt
       } catch (error) {
         if (guard !== syncGuardRef.current || readAccessContext !== accessContextRef.current) return false
-        if (error?.status === 401 || (error?.status === 403 && error?.code === 'ACCESS_CHANGED')) onUnauthorizedRef.current(error)
+        if (error?.code === 'SESSION_CONTEXT_CHANGED' || error?.status === 401 || (error?.status === 403 && error?.code === 'ACCESS_CHANGED')) onUnauthorizedRef.current(error)
         else if (!background) setBootstrapState('error')
         return false
       } finally {
@@ -203,7 +203,7 @@ export function useOperationalDataRuntime({
         setOrders(data.orders)
         return data.orders
       } catch (error) {
-        if (guard === syncGuardRef.current && readAccessContext === accessContextRef.current && (error?.status === 401 || (error?.status === 403 && error?.code === 'ACCESS_CHANGED'))) onUnauthorizedRef.current(error)
+        if (guard === syncGuardRef.current && readAccessContext === accessContextRef.current && (error?.code === 'SESSION_CONTEXT_CHANGED' || error?.status === 401 || (error?.status === 403 && error?.code === 'ACCESS_CHANGED'))) onUnauthorizedRef.current(error)
         return false
       } finally {
         if (guard === syncGuardRef.current) ordersSyncInFlightRef.current = false

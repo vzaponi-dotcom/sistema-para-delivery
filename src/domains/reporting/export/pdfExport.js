@@ -308,7 +308,7 @@ const drawBrandHeader = (pdf) => {
 
 const drawFooter = (pdf, vm, page) => {
   text(pdf, 'Mesiva', 10, 290.3, 7.5, COLORS.navy, { bold: true })
-  text(pdf, '|   PEOPLE  FOOD  PROGRESS', 28, 290.3, 5.25, [89, 116, 157])
+  text(pdf, '|   PESSOAS. SABOR. EVOLUÇÃO.', 28, 290.3, 5.25, [89, 116, 157])
   text(pdf, `Relatório executivo   ·   ${vm.periodLabel}   |   ${page}`, 200, 290.3, 5.05, COLORS.muted, { align: 'right' })
 }
 

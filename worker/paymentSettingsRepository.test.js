@@ -197,7 +197,7 @@ test('saving payment settings never rewrites historical payment or movement valu
 
 test('valid absent aggregate initializes all native methods while partial or missing schema fails closed', async (t) => {
   const { db, sqlite } = setup(t)
-  sqlite.exec("INSERT INTO businesses VALUES ('new', 'new', 'New', '2026-09-12', '2026-09-12')")
+  sqlite.exec("INSERT INTO businesses (id,slug,name,created_at,updated_at) VALUES ('new', 'new', 'New', '2026-09-12', '2026-09-12')")
   const absent = await loadPaymentMethods(db, 'new')
   assert.equal(absent.revision, 0)
   assert.deepEqual(absent.data, DEFAULT_PAYMENT_METHODS)

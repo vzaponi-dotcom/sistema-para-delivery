@@ -1,3 +1,4 @@
+import { useContextApi } from '../../../infrastructure/api/ContextApi.js'
 import { useCallback, useEffect, useState } from 'react'
 import Button from '../../../shared/ui/Button.jsx'
 import ConfirmationDialog from '../../../shared/ui/ConfirmationDialog.jsx'
@@ -16,7 +17,8 @@ const formatCode = (value) => {
   return digits.length > 3 ? `${digits.slice(0, 3)} ${digits.slice(3)}` : digits
 }
 
-function KitchenTvSettings({ granted, onNavigateHome, onNavigateControl, api = defaultApi }) {
+function KitchenTvSettings({ granted, onNavigateHome, onNavigateControl, api: suppliedApi = defaultApi }) {
+  const api = useContextApi(defaultApi.createKitchenTvSettingsApi, suppliedApi, defaultApi)
   const [status, setStatus] = useState(null)
   const [code, setCode] = useState('')
   const [loading, setLoading] = useState(true)

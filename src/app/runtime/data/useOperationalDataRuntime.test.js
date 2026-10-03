@@ -100,6 +100,20 @@ test('access change clears private state and rejects pending bootstrap orders an
   assert.deepEqual(harness.getCurrent().movements, [])
 })
 
+test('first effect of the new session uses its rendered client before passive effects settle', async t => {
+  const requests = []
+  let renderer
+  function Harness({ owner }) {
+    const runtime = useOperationalDataRuntime({ accessContextId: owner, api: { getBootstrap: async () => { requests.push(owner); return bootstrapFixture() } } })
+    React.useLayoutEffect(() => { void runtime.refreshBootstrap() }, [owner])
+    return null
+  }
+  await act(async () => { renderer = create(React.createElement(Harness, { owner: 'A' })) })
+  t.after(() => renderer.unmount())
+  await act(async () => { renderer.update(React.createElement(Harness, { owner: 'B' })) })
+  assert.deepEqual(requests, ['A', 'B'])
+})
+
 test('projected payment effects can update operational state without finance collections', async (t) => {
   const data = bootstrapFixture(); delete data.movements; delete data.financeSettings
   const harness = await mountHarness(t, { api: { getBootstrap: async () => data, getOrders: async () => ({ orders: [] }) } })

@@ -1,3 +1,4 @@
+import { useContextApi } from '../../../infrastructure/api/ContextApi.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import AreaNavigation from '../../navigation/AreaNavigation.jsx'
 import { buildKitchenQueueModel } from '../../../domains/orders/index.js'
@@ -72,11 +73,13 @@ function KitchenTvControlSurface({
   currentTiming,
   granted = new Set(),
   isOnline = true,
-  api = defaultApi,
-  loadPrintDocument = loadDefaultPrintDocument,
+  api: suppliedApi = defaultApi,
+  loadPrintDocument: suppliedPrintDocument = loadDefaultPrintDocument,
   onSelectOrder,
   onFeedback,
 }) {
+  const api = useContextApi(defaultApi.createKitchenTvControlApi, suppliedApi, defaultApi)
+  const loadPrintDocument = suppliedPrintDocument === loadDefaultPrintDocument ? api.getKitchenTvOrderPrintDocument : suppliedPrintDocument
   const [controlState, setControlState] = useState(null)
   const [loading, setLoading] = useState(isOnline)
   const [error, setError] = useState('')

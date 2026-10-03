@@ -16,6 +16,13 @@ const createFixture = async (t) => {
   }
   return { rootDir, write }
 }
+test('platform domain cannot consume operational domains even through public barrels', async t => {
+  const { rootDir, write } = await createFixture(t)
+  await write('src/domains/platform/ui/a.js', "import { x } from '../../orders/index.js'\n")
+  await write('src/domains/orders/index.js', 'export const x = 1\n')
+  const violations = await findArchitectureViolations({ rootDir, allowlist: {} })
+  assert.ok(violations.some(value => value.includes('platform-operational-import')))
+})
 
 test('domain layer cannot import React', async (t) => {
   const { rootDir, write } = await createFixture(t)

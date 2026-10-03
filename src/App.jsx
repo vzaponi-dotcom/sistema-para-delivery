@@ -1,3 +1,12 @@
+import { PlatformRoutes, createProvisioningAttempts } from './domains/platform/index.js'
+import { ACCOUNT_CONTEXT_PATHS } from './app/navigation/routes.js'
+import { CompanySelection, CompanyInvitationAccept, createCompaniesApi } from './domains/companies/index.js'
+import { ContextApi } from './infrastructure/api/ContextApi.js'
+import { createContextHttpClient } from './infrastructure/api/contextHttpClient.js'
+import { createBootstrapApi } from './infrastructure/api/bootstrapApi.js'
+import { createEffectiveConfigApi } from './infrastructure/api/effectiveConfigApi.js'
+import { createPaymentApi } from './app/workflows/payments/paymentApi.js'
+import { createRefundApi } from './app/workflows/refunds/refundApi.js'
 import {
   FinanceWorkspace,
   financeCategoryOptionsFromEffective,
@@ -5,7 +14,7 @@ import {
   paymentDefaultFromEffective,
   paymentOptionsFromEffective,
 } from './domains/finance/index.js'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import './App.css'
 import './central-data.css'
 import AppShell from './app/shell/AppShell.jsx'
@@ -26,7 +35,7 @@ import {
   OrderHistory,
   OrderDetail,
   Orders,
-  ordersApi,
+  createOrdersApi,
   toLocalDateValue,
   useKitchenClock,
   useNewOrderDraft,
@@ -40,8 +49,9 @@ import {
   resolveOpenComanda,
   useComandaSelection,
   useTableServiceCommands,
+  createTableServiceApi,
   getOpenComandaCount,
-  tableReservationApi,
+  createTableReservationApi,
   useTableReservationCommands,
 } from './domains/table-service/index.js'
 import DashboardSurface from './app/surfaces/dashboard/DashboardSurface.jsx'
@@ -70,9 +80,9 @@ import { useOperationalDataRuntime } from './app/runtime/data/useOperationalData
 import { useFeedbackRuntime } from './app/runtime/feedback/useFeedbackRuntime.js'
 import { useOnlineStatus } from './app/runtime/network/useOnlineStatus.js'
 import { useSessionRuntime } from './app/runtime/session/useSessionRuntime.js'
-import { CustomersWorkspace, useQuickCreateCustomerCommand } from './domains/customers/index.js'
+import { CustomersWorkspace, useQuickCreateCustomerCommand, createCustomersApi } from './domains/customers/index.js'
 import { CatalogWorkspace } from './domains/catalog/index.js'
-import { PrintQueue, PrintingOverlays, usePrintingManager } from './domains/printing/index.js'
+import { PrintQueue, PrintingOverlays, usePrintingManager, createPrintingApi } from './domains/printing/index.js'
 import {
   readKitchenSoundPreference,
   readKitchenSoundProfilePreference,
@@ -87,6 +97,17 @@ const IMPLEMENTED_DESTINATIONS = new Set(['orders', 'history', 'kitchen-tv-contr
 const currency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 
 function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <AccessSurface {...props} /> } = {}) {
+  const routeLocation = useLocation()
+  const navigateContext = useNavigate()
+  const platformEntry = routeLocation.pathname === '/mesiva' || routeLocation.pathname.startsWith('/mesiva/')
+  const platformEntryRef = useRef(platformEntry); platformEntryRef.current = platformEntry
+  const [platformActionPending, setPlatformPending] = useState(false)
+  const [provisioningAttempts] = useState(createProvisioningAttempts)
+  const platformPendingRef = useRef(false)
+  const changePlatformPending = useCallback(value => { platformPendingRef.current = value; setPlatformPending(value) }, [])
+  const platformSelectionRef = useRef(null)
+  const [companySelectionOpen, setCompanySelectionOpen] = useState(false)
+  const [companyList, setCompanyList] = useState({ owner: null, items: [], loading: false, error: '' })
   const [requestKey, setRequestKey] = useState(null)
   const [activityDetail, setActivityDetail] = useState(null)
   const [kitchenSoundEnabled, setKitchenSoundEnabled] = useState(readKitchenSoundPreference)
@@ -119,21 +140,10 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     onConflict: async () => {},
   })
   const orderCommandTargetsRef = useRef({ onError: () => {} })
-  const newOrderDraft = useNewOrderDraft({
-    getAccessOwner: () => sessionOwnerRef.current,
-    submitOrder: ordersApi.createOrder,
-    submitReservationEdit: tableReservationApi.updateReservation,
-    refreshReservation: tableReservationApi.getReservation,
-    canSubmit: (payload, context) => newOrderDraftTargetsRef.current.canSubmit(payload, context),
-    commitOfficialEffects: (result) => newOrderDraftTargetsRef.current.commitOfficialEffects(result),
-    onCommitted: (result, context) => newOrderDraftTargetsRef.current.onCommitted(result, context),
-    onSuccess: (order, context) => newOrderDraftTargetsRef.current.onSuccess(order, context),
-    onError: (error) => newOrderDraftTargetsRef.current.onError(error),
-    onConflict: (context, error) => newOrderDraftTargetsRef.current.onConflict(context, error),
-  })
+
 
   const refreshBootstrapForSession = useCallback(
-    (...args) => sessionRuntimeTargetsRef.current.refreshBootstrap(...args),
+    (...args) => platformEntryRef.current ? Promise.resolve() : sessionRuntimeTargetsRef.current.refreshBootstrap(...args),
     [],
   )
   const resetOperationalDataForSession = useCallback(
@@ -151,7 +161,8 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     sessionContext,
     sessionGeneration,
     authMode,
-    operationalAccess,
+    operationalAccess: sessionOperationalAccess,
+    selectBusiness, selectPlatform, listBusinesses, contextChangePending,
     refreshSession,
     runCredentialChange,
     isCredentialChangePending,
@@ -162,11 +173,59 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
   } = useSessionRuntime({
     isOnline,
     requestKey,
+    canChangeContext: target => sessionRuntimeTargetsRef.current.canChangeContext?.(target) !== false,
     setRequestKey,
     resetOperationalData: resetOperationalDataForSession,
     refreshBootstrap: refreshBootstrapForSession,
     onClearApplicationState: clearApplicationStateForSession,
   })
+
+  const provisioningAttempt = useSyncExternalStore(provisioningAttempts.subscribe, () => provisioningAttempts.getSnapshot(sessionContext?.account?.id))
+  const canReconcileProvisioning = ['platform.businesses.view', 'platform.businesses.create'].every(capability => sessionContext?.platformCapabilities?.includes(capability))
+  const platformPending = platformActionPending || (canReconcileProvisioning && ['pending', 'uncertain'].includes(provisioningAttempt?.status))
+  const isPlatformPending = () => platformPendingRef.current || (canReconcileProvisioning && provisioningAttempts.isBlocking(sessionContext?.account?.id))
+  const operationalAccess = sessionOperationalAccess && !platformEntry
+  const contextOwnerRef = useRef(null)
+  contextOwnerRef.current = sessionContext?.contextId
+  const contextClient = useMemo(() => createContextHttpClient({ context: sessionContext, onContextChanged: () => {
+    if (contextOwnerRef.current === sessionContext?.contextId) void refreshSession({ requireContext: true })
+  } }), [sessionContext, refreshSession])
+  const clientsForContext = useMemo(() => ({
+    orders: createOrdersApi(contextClient), reservations: createTableReservationApi(contextClient),
+    tables: createTableServiceApi(contextClient), customers: createCustomersApi(contextClient),
+    companies: createCompaniesApi(contextClient), printing: createPrintingApi(contextClient), bootstrap: createBootstrapApi(contextClient),
+    effective: createEffectiveConfigApi(contextClient), payments: createPaymentApi(contextClient), refunds: createRefundApi(contextClient),
+  }), [contextClient])
+  const newOrderDraft = useNewOrderDraft({
+    getAccessOwner: () => sessionOwnerRef.current,
+    submitOrder: clientsForContext.orders.createOrder,
+    submitReservationEdit: clientsForContext.reservations.updateReservation,
+    refreshReservation: clientsForContext.reservations.getReservation,
+    canSubmit: (payload, context) => newOrderDraftTargetsRef.current.canSubmit(payload, context),
+    commitOfficialEffects: (result) => newOrderDraftTargetsRef.current.commitOfficialEffects(result),
+    onCommitted: (result, context) => newOrderDraftTargetsRef.current.onCommitted(result, context),
+    onSuccess: (order, context) => newOrderDraftTargetsRef.current.onSuccess(order, context),
+    onError: (error) => newOrderDraftTargetsRef.current.onError(error),
+    onConflict: (context, error) => newOrderDraftTargetsRef.current.onConflict(context, error),
+  })
+
+  const globalSession = sessionContext?.authMode === 'multi_company'
+  const choosingCompany = globalSession && !platformEntry && (sessionContext.scope === 'identity' || companySelectionOpen || routeLocation.pathname === ACCOUNT_CONTEXT_PATHS.companies)
+  useEffect(() => {
+    if (!platformEntry || !globalSession || sessionContext.scope === 'platform' || !sessionContext.platformCapabilities?.includes('platform.businesses.view') || platformSelectionRef.current === sessionContext.contextId) return
+    platformSelectionRef.current = sessionContext.contextId
+    void selectPlatform()
+  }, [platformEntry, globalSession, sessionContext, selectPlatform])
+  const loadCompanies = useCallback(async () => {
+    if (!globalSession || !sessionContext?.contextId) return
+    const owner = sessionContext.contextId
+    setCompanyList({ owner, items: [], loading: true, error: '' })
+    try {
+      const result = await clientsForContext.companies.listBusinesses()
+      if (contextOwnerRef.current === owner) setCompanyList({ owner, items: result?.businesses || [], loading: false, error: '' })
+    } catch (error) { if (contextOwnerRef.current === owner) setCompanyList({ owner, items: [], loading: false, error: error?.message || 'Não foi possível carregar suas empresas.' }) }
+  }, [clientsForContext, globalSession, sessionContext])
+  useEffect(() => { if (choosingCompany) void loadCompanies() }, [choosingCompany, loadCompanies])
 
   const trustedGrants = useMemo(
     () => capabilities === undefined
@@ -179,7 +238,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
   const granted = useMemo(() => !operationalAccess && sessionContext?.user?.id
     ? new Set([...trustedGrants].filter(capability => capability.startsWith('access.')))
     : trustedGrants, [operationalAccess, sessionContext, trustedGrants])
-  const accessContextId = useMemo(() => authState === 'authenticated' ? JSON.stringify([sessionContext?.businessId, sessionContext?.user?.id || 'legacy', sessionContext?.settingsContextId, [...granted].sort(), sessionGeneration]) : null, [authState, sessionContext, granted, sessionGeneration])
+  const accessContextId = useMemo(() => authState === 'authenticated' ? JSON.stringify([sessionContext?.contextId, sessionContext?.scope, sessionContext?.account?.id, sessionContext?.businessId, sessionContext?.user?.id || 'legacy', sessionContext?.settingsContextId, [...granted].sort(), sessionGeneration]) : null, [authState, sessionContext, granted, sessionGeneration])
   sessionOwnerRef.current = accessContextId
   const { query, patchQuery, resetQueries } = useQueryContext()
   const policyNavigationBridge = useMemo(() => createPolicyNavigationBridge(), [])
@@ -195,11 +254,16 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     cancelDiscard,
     resetNavigation,
     completeNavigation,
+    completeContextNavigation,
     requestSessionExit,
   } = useNavigationController({
     granted,
     authenticated: authState === 'authenticated' && Boolean(sessionContext?.user?.id),
     implemented: IMPLEMENTED_DESTINATIONS,
+    navigationPending: platformPending,
+    getNavigationPending: isPlatformPending,
+    getPendingReconciliationPath: () => sessionRuntimeTargetsRef.current.getProvisioningResumePath?.(),
+    contextPaths: globalSession ? [ACCOUNT_CONTEXT_PATHS.companies, '/minha-conta', ...(sessionContext.platformCapabilities?.includes('platform.businesses.view') ? [ACCOUNT_CONTEXT_PATHS.platform] : [])] : [],
     checkoutPending: newOrderDraft.checkoutPending,
     dirtyOrder: newOrderDraft.dirty,
     onDiscardOrder: newOrderDraft.discard,
@@ -208,9 +272,9 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     onFeedback: setToastMessage,
   })
   useNewOrderUnloadGuard({
-    active: activeTab === 'new-order',
+    active: activeTab === 'new-order' || platformPending || provisioningAttempts.hasUnresolved(),
     dirty: newOrderDraft.dirty,
-    checkoutPending: newOrderDraft.checkoutPending,
+    checkoutPending: newOrderDraft.checkoutPending || platformPending || provisioningAttempts.hasUnresolved(),
   })
   const handleOperationalUnauthorized = useCallback((error) => operationalRuntimeTargetsRef.current.onUnauthorized?.(error), [])
   const getEffectiveConfigVersion = useCallback(() => effectiveConfigVersionRef.current, [])
@@ -233,6 +297,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     getOfficialRevision,
     getOfficialTables,
   } = useOperationalDataRuntime({
+    api: { ...clientsForContext.bootstrap, getOrders: clientsForContext.orders.getOrders },
     onUnauthorized: handleOperationalUnauthorized,
     globalSyncEnabled: operationalAccess && isOnline && authState === 'authenticated',
     ordersSyncEnabled: operationalAccess && (activeTab === 'orders' || activeTab === 'kitchen-tv-control') && isOnline && authState === 'authenticated',
@@ -240,7 +305,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     accessContextId,
   })
   useRouteGate({
-    ready: authState === 'authenticated' && (!operationalAccess || bootstrapState === 'ready'),
+    ready: authState === 'authenticated' && !choosingCompany && !platformEntry && sessionContext?.scope !== 'platform' && (!operationalAccess || bootstrapState === 'ready'),
     authenticated: authState === 'authenticated' && Boolean(sessionContext?.user?.id),
     granted,
     implemented: IMPLEMENTED_DESTINATIONS,
@@ -276,7 +341,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
         capabilities: [...granted],
       }
     : null, [authState, granted, operationalAccess, sessionContext, sessionGeneration])
-  const effectiveConfig = useEffectiveBusinessConfig({ owner: effectiveConfigOwner, bootstrapConfig: bootstrapEffectiveConfig })
+  const effectiveConfig = useEffectiveBusinessConfig({ owner: effectiveConfigOwner, bootstrapConfig: bootstrapEffectiveConfig, load: clientsForContext.effective.getEffectiveConfig })
   // Mount operational consumers only after the supplied config initializes their confirmed defaults.
   const operationalBootstrapState = bootstrapState === 'ready' && bootstrapEffectiveConfig && effectiveConfig.status === 'loading'
     ? 'loading' : bootstrapState
@@ -332,7 +397,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
   const writesBlockedWithoutOrderCommands = !isOnline || requestKey !== null || newOrderDraft.checkoutPending
   const orderCommands = useOrderCommands({
     orders,
-    api: ordersApi,
+    api: clientsForContext.orders,
     canFinalizeOrders,
     canCancelOrders,
     canRefundPayments,
@@ -343,12 +408,13 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
   })
   const writesBlocked = writesBlockedWithoutOrderCommands || orderCommands.pending
   const reservationCommands = useTableReservationCommands({
+    api: clientsForContext.reservations,
     writesBlocked,
     canCreateOrders,
     canCancelOrders,
     canDiscountOrders: canAdjustOrders,
     applyOfficialEffects,
-    refreshReservation: tableReservationApi.getReservation,
+    refreshReservation: clientsForContext.reservations.getReservation,
     setRequestKey,
     onSuccess: showSuccessMessage,
     onError: showApiError,
@@ -364,6 +430,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     },
   })
   const quickCreateCustomer = useQuickCreateCustomerCommand({
+    api: clientsForContext.customers,
     writesBlocked,
     canCreateClients,
     applyOfficialEffects,
@@ -371,6 +438,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     onError: showApiError,
   })
   const orderPayment = useOrderPaymentWorkflow({
+    api: clientsForContext.payments,
     orders,
     granted,
     canReceivePayments,
@@ -385,6 +453,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     onError: showApiError,
   })
   const clientOrdersPayment = useClientOrdersPaymentWorkflow({
+    api: clientsForContext.payments,
     orders,
     canReceivePayments,
     writesBlocked,
@@ -398,6 +467,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     onError: showApiError,
   })
   const tableTabPayment = useTableTabPaymentWorkflow({
+    api: clientsForContext.payments,
     writesBlocked,
     selectionGeneration: selectedComandaGeneration,
     resetKey: sessionGeneration,
@@ -413,6 +483,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     onError: showApiError,
   })
   const refund = useRefundWorkflow({
+    api: clientsForContext.refunds,
     canRefundPayments,
     writesBlocked,
     applyOfficialEffects,
@@ -427,7 +498,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     cancelDiscard()
     window.requestAnimationFrame(() => document.querySelector?.('.app-content')?.focus?.())
   }, [cancelDiscard])
-  const printing = usePrintingManager({ authenticated: operationalAccess && authState === 'authenticated' && bootstrapState === 'ready', accessContextId, isOnline, onPhysicalJobFailure: handlePhysicalJobFailure })
+  const printing = usePrintingManager({ api: clientsForContext.printing, businessId: sessionContext?.authMode === 'multi_company' ? sessionContext.businessId : undefined, authenticated: operationalAccess && authState === 'authenticated' && bootstrapState === 'ready', accessContextId, isOnline, onPhysicalJobFailure: handlePhysicalJobFailure })
   const kitchenNow = useKitchenClock(orders, { active: activeTab === 'orders' || activeTab === 'kitchen-tv-control', currentTiming })
   const operationalNow = activeTab === 'orders' ? kitchenNow : new Date()
   const operationalOrderCount = getOperationalOrderCount(orders, operationalNow, currentTiming)
@@ -445,7 +516,8 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
   sessionRuntimeTargetsRef.current.resetSyncState = resetSyncState
 
   const clearBusinessData = () => {
-    resetNavigation()
+    setCompanySelectionOpen(false)
+    resetNavigation({ preservePath: platformEntryRef.current || provisioningAttempts.hasUnresolved() })
     resetQueries()
     resetComandaSelection()
     resetSyncState()
@@ -501,12 +573,13 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
   function showApiError(error) {
     if (sessionOwnerRef.current !== accessContextId || errorOwnerGuard !== getSyncGuard()) return
     if (error?.status === 401) return expireSession()
-    if (error?.status === 403 && error?.code === 'ACCESS_CHANGED') return void refreshSession()
+    if (error?.code === 'SESSION_CONTEXT_CHANGED' || (error?.status === 403 && error?.code === 'ACCESS_CHANGED')) return void refreshSession()
     setToastMessage(error?.message || 'Não foi possível concluir a operação.')
   }
   newOrderDraftTargetsRef.current.onError = showApiError
   orderCommandTargetsRef.current.onError = showApiError
   const tableServiceCommands = useTableServiceCommands({
+    api: clientsForContext.tables,
     getOfficialTables,
     applyOfficialEffects,
     refreshOfficialData: refreshBootstrapSilently,
@@ -523,9 +596,26 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     paymentPending: Boolean(tableTabPayment.busy || tableTabPayment.syncState || orderPayment.dialog?.submitting || clientOrdersPayment.dialog?.submitting),
     printPending: Boolean(printing.busyJobId || printing.jobs.some((job) => ['unknown', 'awaiting_confirmation', 'waiting_confirmation', 'printing'].includes(job.status) || job.physicalOutcome === 'unknown')),
   }
-  const getPendingSessionEffects = () => ({ ...pendingSessionEffectsRef.current, credentialChangePending: isCredentialChangePending() })
+  const getPendingSessionEffects = () => ({ ...pendingSessionEffectsRef.current, contextChangePending: contextChangePending || isPlatformPending(), checkoutPending: newOrderDraft.checkoutPending, credentialChangePending: isCredentialChangePending() })
+  sessionRuntimeTargetsRef.current.getProvisioningResumePath = () => {
+    const effects = getPendingSessionEffects()
+    return canReconcileProvisioning && provisioningAttempts.getSnapshot(sessionContext?.account?.id)?.status === 'uncertain'
+      && !platformPendingRef.current && !effects.credentialChangePending && !effects.checkoutPending && !effects.paymentPending && !effects.printPending && !newOrderDraft.dirty && !policyNavigationBridge.getNavigationDraft()?.dirty
+      ? '/mesiva/empresas/nova' : null
+  }
+  useEffect(() => {
+    const path = sessionRuntimeTargetsRef.current.getProvisioningResumePath?.()
+    if (authState === 'authenticated' && path && routeLocation.pathname !== path) navigateContext(path, { replace: true })
+  }, [authState, sessionContext, provisioningAttempt?.status, routeLocation.pathname, navigateContext])
+  sessionRuntimeTargetsRef.current.canChangeContext = target => {
+    const effects = getPendingSessionEffects()
+    const resumeAuthor = target?.scope === 'platform' && platformEntryRef.current && !platformPendingRef.current && provisioningAttempts.getSnapshot(sessionContext?.account?.id)?.status === 'uncertain'
+    return (!isPlatformPending() || resumeAuthor) && !effects.credentialChangePending && !effects.checkoutPending && !effects.paymentPending && !effects.printPending && !newOrderDraft.dirty && !policyNavigationBridge.getNavigationDraft()?.dirty
+  }
   const handleLogout = () => requestSessionExit(handleSessionLogout, getPendingSessionEffects)
   const handleSwitchUser = () => requestSessionExit(handleSessionLogout, getPendingSessionEffects)
+  const handleSwitchCompany = () => requestSessionExit(() => { setCompanySelectionOpen(true); return completeContextNavigation(ACCOUNT_CONTEXT_PATHS.companies) }, getPendingSessionEffects)
+  const handlePlatform = () => requestSessionExit(async () => { if (await selectPlatform()) navigateContext(ACCOUNT_CONTEXT_PATHS.platform); return true }, getPendingSessionEffects)
 
   const handleKitchenSoundEnabledChange = (enabled) => {
     if (!canUseLocalPreferences) return false
@@ -598,7 +688,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     if (!canCreateOrders || writesBlocked || !order?.tableReservationId) return false
     try {
       const owner = sessionOwnerRef.current
-      const detail = await tableReservationApi.getReservation(order.tableReservationId)
+      const detail = await clientsForContext.reservations.getReservation(order.tableReservationId)
       if (owner !== sessionOwnerRef.current) return false
       const opened = newOrderDraft.openReservationEdit(detail, { returnDestination: 'orders' })
       if (!opened) return false
@@ -635,15 +725,25 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
   const activityOrder = activityDetail?.owner === accessContextId && activeTab === 'access-activity'
     ? resolveActivityOrder({ resourceType: 'order', resourceId: activityDetail.orderId }) : null
 
+  const listedCompanies = companyList.owner === sessionContext?.contextId ? companyList : { items: [], loading: true, error: '' }
+  const inPlatform = globalSession && sessionContext.scope === 'platform'
+  const contextSurface = (choosingCompany || inPlatform) && routeLocation.pathname === '/minha-conta'
+    ? <main className="company-entry company-account-entry"><Button variant="secondary" disabled={writesBlocked || contextChangePending} onClick={() => completeContextNavigation(inPlatform ? ACCOUNT_CONTEXT_PATHS.platform : ACCOUNT_CONTEXT_PATHS.companies, { replace: true })}>Voltar</Button>{renderAccessSurface({ ...accessProps, section: 'my-account' })}</main>
+    : choosingCompany
+      ? <CompanySelection account={sessionContext.account} items={listedCompanies.items} currentBusinessId={sessionContext.businessId} loading={listedCompanies.loading} pending={contextChangePending} error={listedCompanies.error || loginError} onRetry={loadCompanies} onLogout={handleLogout} onAccount={() => { setCompanySelectionOpen(true); completeContextNavigation('/minha-conta') }} onSelect={async id => { if (await selectBusiness(id)) { setCompanySelectionOpen(false); if (routeLocation.pathname === ACCOUNT_CONTEXT_PATHS.companies) navigateContext('/', { replace: true }) } }} onCancel={sessionContext.scope === 'business' ? () => { setCompanySelectionOpen(false); navigateContext('/', { replace: true }) } : undefined} onPlatform={sessionContext.platformCapabilities?.includes('platform.businesses.view') ? handlePlatform : undefined} />
+      : inPlatform
+        ? <PlatformRoutes attempts={provisioningAttempts} session={sessionContext} path={routeLocation.pathname} pending={platformPending || contextChangePending} onPendingChange={changePlatformPending} onNavigate={path => { if (!isPlatformPending()) navigateContext(path) }} onLogout={handleLogout} onAccount={() => { if (!isPlatformPending()) navigateContext('/minha-conta') }} onSelectBusiness={() => { if (!isPlatformPending()) { setCompanySelectionOpen(true); navigateContext(ACCOUNT_CONTEXT_PATHS.companies) } }} />
+        : platformEntry ? <main className="company-entry"><p role="alert">{globalSession && sessionContext.platformCapabilities?.includes('platform.businesses.view') ? loginError || 'Confirmando acesso ao painel Mesiva…' : 'Você não tem acesso ao painel Mesiva.'}</p></main> : null
   return (
-    <AppRoot
+    <ContextApi.Provider value={contextClient}><AppRoot
+      contextSurface={contextSurface}
       isOnline={isOnline}
       authState={authState}
       authMode={authMode}
       operationalAccess={operationalAccess}
       loginLoading={requestKey === 'auth:login'}
       loginError={loginError}
-      onLogin={handleLogin}
+      onLogin={credentials => handleLogin(platformEntry && typeof credentials === 'object' ? { ...credentials, destination: 'platform' } : credentials)}
       bootstrapState={operationalBootstrapState}
       onRetryBootstrap={() => void refreshBootstrap()}
       retryDisabled={!isOnline || requestKey !== null}
@@ -659,7 +759,8 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
               : <section><h1>{activeTab === 'access-team' ? 'Equipe e acessos' : 'Minha conta'}</h1><p>Sua conta está ativa; o acesso operacional aguarda liberação.</p></section>}
           </AppShell>
         </NavigationProvider>
-      ) : <SettingsPolicyBoundary
+      ) : <SettingsPolicyBoundary key={accessContextId}
+        client={contextClient}
         effectiveConfigOwner={effectiveConfigOwner}
         storage={getSessionStorage()}
         navigationBridge={policyNavigationBridge}
@@ -674,7 +775,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
         }}
       >
       <NavigationProvider authenticated={authState === 'authenticated' && Boolean(sessionContext?.user?.id)} activeTab={activeTab} activeMobileEntry={activeMobileEntry} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} moreOpen={moreOpen} requestNavigation={requestNavigation} openMore={openMore} closeMore={closeMore}>
-      <AppShell user={sessionContext?.user} onSwitchUser={handleSwitchUser} businessId={sessionContext?.businessId} businessName={business?.name} businessHasLogo={business?.hasLogo} businessLogoVersion={business?.logoVersion} navigationBadges={{ orders: operationalOrderCount, comandas: openComandaCount, 'print-queue': printing.activeJobCount }} onLogout={handleLogout} logoutDisabled={writesBlocked}>
+      <AppShell user={sessionContext?.user} onSwitchUser={handleSwitchUser} onSwitchCompany={globalSession ? handleSwitchCompany : undefined} onPlatform={globalSession && sessionContext.platformCapabilities?.includes('platform.businesses.view') ? handlePlatform : undefined} businessId={sessionContext?.businessId} businessName={business?.name} businessHasLogo={business?.hasLogo} businessLogoVersion={business?.logoVersion} navigationBadges={{ orders: operationalOrderCount, comandas: openComandaCount, 'print-queue': printing.activeJobCount }} onLogout={handleLogout} logoutDisabled={writesBlocked}>
         {['my-account', 'access-team', 'access-activity'].includes(activeTab) && renderAccessSurface(accessProps)}
         {activityOrder && <OrderDetail order={activityOrder} currency={currency} onClose={() => setActivityDetail(null)} canExecutePrinting={false} canCancelOrders={false} />}
         {activeTab === 'dashboard' && <DashboardSurface orders={orders} movements={movements} currency={currency} queryState={query.dashboard} onQueryChange={(patch) => patchQuery('dashboard', patch)} />}
@@ -771,13 +872,19 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
         onError={showApiError}
         onSuccess={showSuccessMessage}
       />
-    </AppRoot>
+    </AppRoot></ContextApi.Provider>
   )
+}
+
+function CompanyInvitationRoute({ location, navigate }) {
+  const runtime = useSessionRuntime()
+  return <CompanyInvitationAccept location={location} session={runtime.sessionContext} sessionChecking={runtime.authState === 'checking'} loginError={runtime.loginError} onLogin={runtime.handleLogin} onLogout={runtime.handleLogout} onAccepted={() => navigate('/', { replace: true })} />
 }
 
 export default function App(props) {
   const location = useLocation()
   const navigate = useNavigate()
+  if (location.pathname === ACCOUNT_CONTEXT_PATHS.invitation) return <CompanyInvitationRoute location={location} navigate={navigate} />
   if (location.pathname === '/recuperar-senha') return <PasswordRecovery onLogin={() => navigate('/', { replace: true })} />
   if (['/ativar-conta','/redefinir-senha'].includes(location.pathname)) return <InvitationAccept key={location.key} location={location} expectedPurpose={location.pathname==='/redefinir-senha'?'password_reset':'activation'} onLogin={() => navigate('/', { replace: true })} />
   return <ApplicationRuntime {...props} />

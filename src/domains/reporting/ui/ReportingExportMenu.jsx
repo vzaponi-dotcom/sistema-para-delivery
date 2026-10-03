@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react'
-import { reportingApi } from '../infrastructure/reportingApi.js'
+import { useContextApi } from '../../../infrastructure/api/ContextApi.js'
+import { useEffect, useRef, useState } from 'react'
+import { reportingApi, createReportingApi } from '../infrastructure/reportingApi.js'
 
 const EXPORT_OPTIONS = Object.freeze([
   {
@@ -32,20 +33,32 @@ const filenameFor = (format, query) => format === 'pdf'
   ? `resumo-relatorio-${query.from}-${query.to}.pdf`
   : `pedidos-${query.from}-${query.to}.${format}`
 
-export function ReportingExportMenu({ query, granted, api = reportingApi, onDownload = download }) {
+export function ReportingExportMenu({ query, granted, api: suppliedApi = reportingApi, onDownload = download }) {
+  const api = useContextApi(createReportingApi, suppliedApi, reportingApi)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const detailsRef = useRef(null)
+  const allowed = granted instanceof Set && granted.has('reports.export')
+  const ownerRef = useRef(null), operationRef = useRef(null), mounted = useRef(false)
+  ownerRef.current = { api, allowed }
+  useEffect(() => {
+    mounted.current = true; setBusy(false); setError(null)
+    return () => { mounted.current = false; operationRef.current?.abort(); operationRef.current = null }
+  }, [api, allowed])
 
-  if (!(granted instanceof Set && granted.has('reports.export'))) return null
+  if (!allowed) return null
 
   const run = async (format) => {
+    if (!mounted.current || operationRef.current || ownerRef.current.api !== api || !ownerRef.current.allowed) return
+    const operation = new AbortController(); operationRef.current = operation
+    const current = () => mounted.current && operationRef.current === operation && ownerRef.current.api === api && ownerRef.current.allowed
     setBusy(true)
     setError(null)
     try {
       // Excel e CSV sempre recebem a base detalhada completa do recorte.
       // O PDF solicita também o modelo executivo multi-visão para compor as duas páginas.
-      const response = await api.exportModel(query, null, { format })
+      const response = await api.exportModel(query, null, { format, signal: operation.signal })
+      if (!current()) return
       const model = response.data
       let blob
 
@@ -64,12 +77,13 @@ export function ReportingExportMenu({ query, granted, api = reportingApi, onDown
         blob = (await createPdfSummary(model)).output('blob')
       }
 
+      if (!current()) return
       onDownload({ blob, filename: filenameFor(format, query), format, model })
       if (detailsRef.current) detailsRef.current.open = false
     } catch (cause) {
-      setError(cause)
+      if (current()) setError(cause)
     } finally {
-      setBusy(false)
+      if (current()) { operationRef.current = null; setBusy(false) }
     }
   }
 

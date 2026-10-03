@@ -6,6 +6,7 @@ test('table-service public contract exposes only real external consumers', () =>
   assert.deepEqual(
     Object.keys(tableService).sort(),
     [
+    'createTableServiceApi',
       'Comandas',
       'LocalTableSelector',
       'Tables',

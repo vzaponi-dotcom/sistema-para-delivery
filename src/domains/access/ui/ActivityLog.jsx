@@ -1,3 +1,4 @@
+import { useContextApi } from '../../../infrastructure/api/ContextApi.js'
 import { useEffect, useState } from 'react'
 import { actionLabel, outcomeLabel } from './accessLabels.js'
 import { AUDIT_ACTIONS } from '../../../../shared/auditActions.js'
@@ -6,12 +7,13 @@ import Button from '../../../shared/ui/Button'
 import PageHeader from '../../../shared/ui/PageHeader'
 import AccessSelectField from './AccessSelectField'
 import Icon from '../../../shared/ui/Icon'
-import { accessApi } from '../infrastructure/accessApi.js'
+import { accessApi, createAccessApi } from '../infrastructure/accessApi.js'
 import { useAccessRequest } from './useAccessRequest.js'
 import './access.css'
 
 const emptyFilters = { userId: '', from: '', to: '', type: '' }
-export default function ActivityLog({ sessionContext, api = accessApi, onApiError, canOpenResource, onOpenResource }) {
+export default function ActivityLog({ sessionContext, api: suppliedApi = accessApi, onApiError, canOpenResource, onOpenResource }) {
+  const api = useContextApi(createAccessApi, suppliedApi, accessApi)
   const canView = sessionContext?.capabilities?.includes('access.audit.view')
   const canListUsers = sessionContext?.capabilities?.includes('access.users.view')
   const { state, patch, run, owns } = useAccessRequest(sessionContext, onApiError)

@@ -122,7 +122,7 @@ test('editing keeps the server-loaded inactive reference but rejects a different
   })
   assert.equal(sqlite.prepare('SELECT category FROM movements WHERE id = ?').get(created.id).category, 'marketing')
 
-  sqlite.exec("INSERT INTO businesses VALUES ('second', 'second', 'Second', '2026-09-12', '2026-09-12')")
+  sqlite.exec("INSERT INTO businesses (id,slug,name,created_at,updated_at) VALUES ('second', 'second', 'Second', '2026-09-12', '2026-09-12')")
   sqlite.prepare(`INSERT INTO movements (id, business_id, type, category, description, value_cents, source,
     movement_date, created_at, updated_at) VALUES ('other-business-movement', 'second', 'saida', 'supplies',
     'Privado', 1000, 'manual', '2026-09-12', ?, ?)`).run(NOW.toISOString(), NOW.toISOString())
