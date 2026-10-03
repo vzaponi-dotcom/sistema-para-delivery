@@ -126,6 +126,16 @@ test('Task 4 RED: a route becoming denied is corrected with replace semantics', 
   assert.equal(fixture.router.state.location.pathname, '/pedidos')
 })
 
+test('operator station visibility cannot deep-link into printing configuration', async (t) => {
+  const fixture = await mountGate(t, {
+    initialPath: '/configuracoes/impressao',
+    ready: true,
+    granted: new Set(['printing.station.view', 'printing.queue', 'printing.execute', 'preferences.local']),
+  })
+  assert.equal(fixture.router.state.location.pathname, '/configuracoes')
+  assert.equal(fixture.feedback.at(-1), 'Você não tem acesso a este destino.')
+})
+
 test('Task 4 RED: session navigation reset targets root instead of resurrecting the previous home', async (t) => {
   const h = await workspaceHarness(t)
   const [{ createAdminMemoryRouter }, { useNavigationController }] = await Promise.all([
