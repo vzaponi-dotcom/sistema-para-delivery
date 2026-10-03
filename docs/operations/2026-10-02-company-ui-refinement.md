@@ -50,3 +50,5 @@ A primeira suíte desta rodada encontrou uma falha real no teste `registration p
 - Tema original, viewport normal e tela Minha conta restaurados. Sem merge, envio de e-mails, alteração de contas ou publicação em produção.
 
 O usuário solicitou também esboços dos e-mails de convite e recuperação. As prévias usam o logo oficial e dados ilustrativos; foram conferidas em desktop/celular, mas os templates de envio ainda aguardam aprovação desse desenho.
+
+Atualização posterior: o desenho foi aprovado e aplicado. Ver [Identidade visual dos e-mails de acesso](2026-10-02-access-email-branding.md) para os testes e a versão publicada em staging. O aviso de teste é exclusivo de staging e não aparece nos modelos de produção.

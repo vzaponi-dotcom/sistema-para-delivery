@@ -21,3 +21,11 @@ O usuário aprovou os esboços de convite e recuperação com o logo oficial da 
 - Repetição completa: `npm test`, **3451/3451**, zero falhas, skips ou cancelamentos, 180416.7181 ms.
 
 Não foi enviado e-mail real nesta verificação. A renderização observada é a prévia no navegador; não equivale a uma validação em todos os clientes de e-mail, incluindo modos escuros automáticos.
+
+## Publicação e evidência
+
+Código `d2dd9e57`, versão do Worker de staging `163bc814-b52f-41a2-87cc-e2328d24686d`. Deploy preservou multiempresa true e preparo false. O asset PNG foi publicado no mesmo domínio de acesso, em `/brand/mesiva-email-logo.png`.
+
+Depois da publicação, as prévias renderizaram esse URL público sem substituição local: logo carregado com largura natural de 729 px. O convite em desktop foi inspecionado com a configuração visual de produção, sem aviso; a recuperação em 375 px foi inspecionada com staging identificado e sem overflow. Capturas privadas `email-branded-invitation-desktop.png` e `email-branded-recovery-mobile.png` no arquivo local de evidências da homologação; contêm somente dados ilustrativos e token sintético. A prévia temporária foi fechada e o viewport normal restaurado.
+
+PR 88 continua empilhada sobre a branch de feature. Não se declara nova CI aprovada. Sem merge, migração ou deploy em produção.
