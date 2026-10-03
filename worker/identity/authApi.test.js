@@ -108,6 +108,42 @@ test('session discovery, company listing, selection and bodyless logout enforce 
   assert.equal((await (await send(f, '/api/auth/session', undefined, { headers: { cookie: currentCookie } })).json()).authenticated, false)
 })
 
+
+test('company chooser metadata and logo endpoint expose only eligible company identity', async (t) => {
+  const f = await createTenancyFixture(t)
+  const key = `businesses/${encodeURIComponent(f.businesses.A)}/logo/selection.webp`
+  f.sqlite.prepare(`UPDATE business_profiles SET logo_object_key = ?,logo_content_type = 'image/webp',logo_updated_at = ? WHERE business_id = ?`)
+    .run(key, '2026-10-03T18:30:00.000Z', f.businesses.A)
+
+  const login = await send(f, '/api/auth/login', { email: 'alice@example.test', password: 'Fixture password 2026!' })
+  const session = await login.json()
+  const cookie = login.headers.get('set-cookie').split(';')[0]
+  const listed = await send(f, '/api/auth/businesses', undefined, { headers: { cookie, 'X-Mesiva-Context': session.contextId } })
+  const businesses = (await listed.json()).businesses
+  assert.deepEqual(businesses.find(item => item.businessId === f.businesses.A), {
+    businessId: f.businesses.A,
+    name: 'Company A',
+    roleName: 'Gerente',
+    hasLogo: true,
+    logoVersion: '2026-10-03T18:30:00.000Z',
+  })
+
+  const reads = []
+  const env = { DB: f.db, ...config, BUSINESS_ASSETS: { get: async objectKey => {
+    reads.push(objectKey)
+    return { body: new Uint8Array([1, 2, 3]), httpMetadata: { contentType: 'image/webp' }, etag: 'chooser-logo' }
+  } } }
+  const logo = await handleGlobalAuthApi(req(`/api/auth/business-logo?businessId=${encodeURIComponent(f.businesses.A)}&v=ignored`, undefined, { cookie }), env, { now: f.now })
+  assert.equal(logo.status, 200)
+  assert.equal(logo.headers.get('content-type'), 'image/webp')
+  assert.equal(logo.headers.get('cache-control'), 'private')
+  assert.deepEqual(reads, [key])
+
+  const denied = await handleGlobalAuthApi(req('/api/auth/business-logo?businessId=not-eligible', undefined, { cookie }), env, { now: f.now })
+  assert.equal(denied.status, 404)
+  assert.deepEqual(reads, [key])
+})
+
 test('recovery without Worker lifetime fails uniformly and never sends', async (t) => {
   const f = await createTenancyFixture(t)
   for (const email of ['alice@example.test', 'missing@example.test']) assert.equal((await send(f, '/api/auth/password-recovery', { email })).status, 503)
