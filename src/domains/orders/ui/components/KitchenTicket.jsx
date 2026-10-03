@@ -13,6 +13,10 @@ function KitchenTicket({ entry, now, currentTiming, disabled = false, highlighte
   const scheduled = entry.phase === 'scheduled'
   const status = scheduled ? 'Agendado' : 'Em preparo'
   const statusLabel = entry.isLate ? 'Fora do prazo' : (scheduled ? 'Agendado para preparo' : 'Em preparo')
+  const activeReservation = order.type === 'Local'
+    && Boolean(order.tableReservationId)
+    && order.tableReservationStatus === 'reserved'
+  const cancelLabel = activeReservation ? 'Cancelar reserva' : 'Cancelar pedido'
 
   return <article className={`kitchen-ticket${highlighted ? ' kitchen-ticket-highlighted' : ''}`} aria-label={formatOrderDisplayNumber(order)}>
     <header className="kitchen-ticket-header">
@@ -25,9 +29,8 @@ function KitchenTicket({ entry, now, currentTiming, disabled = false, highlighte
     <div className="kitchen-ticket-timing"><strong>{timing.primary}</strong>{timing.secondary && <span>{timing.secondary}</span>}</div>
     <footer className="kitchen-ticket-actions">
       <Button type="button" variant="secondary" icon="note" onClick={() => onDetails?.(order)} disabled={disabled}>Exibir detalhes</Button>
-      {scheduled
-        ? <Button type="button" variant="secondary" onClick={() => onCancel?.(order)} disabled={disabled}>Cancelar</Button>
-        : <Button type="button" icon={order.type === 'Entrega' ? 'delivery' : 'check'} onClick={() => onFinalize?.(order)} disabled={disabled}>{getFinalActionLabel(order)}</Button>}
+      {!scheduled && onFinalize && <Button type="button" icon={order.type === 'Entrega' ? 'delivery' : 'check'} onClick={() => onFinalize(order)} disabled={disabled}>{getFinalActionLabel(order)}</Button>}
+      {onCancel && <button type="button" className="kitchen-ticket-cancel-action" onClick={() => onCancel(order)} disabled={disabled}>{cancelLabel}</button>}
     </footer>
   </article>
 }
