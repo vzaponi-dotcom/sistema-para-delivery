@@ -176,3 +176,49 @@
   .kitchen-page .kitchen-queue-help { font-size: .59rem; }
   .kitchen-page .kitchen-schedule-rail { grid-template-columns: minmax(0, 1fr); }
 }
+
+
+/* Cancelamento discreto — ação destrutiva secundária */
+.kitchen-page .kitchen-ticket-cancel-action {
+  flex: 0 0 100%;
+  min-height: 44px;
+  margin: 0;
+  padding: 8px 10px 2px;
+  border: 0;
+  background: transparent;
+  color: var(--danger);
+  font: inherit;
+  font-size: .72rem;
+  font-weight: 650;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+}
+.kitchen-page .kitchen-ticket-cancel-action:hover {
+  background: transparent;
+  color: color-mix(in srgb, var(--danger) 86%, var(--text));
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.kitchen-page .kitchen-ticket-cancel-action:focus-visible {
+  outline: 2px solid var(--danger);
+  outline-offset: -2px;
+  border-radius: 8px;
+}
+.kitchen-page .kitchen-ticket-cancel-action:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+  text-decoration: none;
+}
+.kitchen-page .kitchen-schedule-rail .kitchen-ticket-actions {
+  gap: 8px;
+}
+@media (max-width: 820px) {
+  .kitchen-page .kitchen-ticket-cancel-action {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-height: 44px;
+    padding-top: 7px;
+    justify-self: stretch;
+  }
+}
