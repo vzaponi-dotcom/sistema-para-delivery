@@ -73,17 +73,20 @@ test('order details keep their semantic sections, item notes, and printing in th
   assert.match(timing, /<dd>\{row\.value\}<\/dd>/)
 })
 
-test('active order cancellation is available in details while scheduled tickets retain direct cancellation', () => {
+test('active and scheduled cards expose discreet cancellation while preserving their primary action', () => {
   const orders = source('./Orders.jsx')
   const detail = source('./components/OrderDetail.jsx')
   const ticket = source('./components/KitchenTicket.jsx')
+  const css = source('../../../kitchen-refined.css')
 
   assert.match(detail, /onRequestCancel/)
   assert.match(detail, />Cancelar pedido</)
   assert.match(orders, /onRequestCancel=\{canCancelOrders \? \(\) => \{ if \(!canCancelOrders\) return; setDetailOrderId\(null\); setCancelOrder\(detailOrder\) \} : undefined\}/s)
-  assert.doesNotMatch(orders, /isScheduledWaiting\(detailOrder, now\)/)
-  assert.match(ticket, /scheduled\s*\?\s*<Button[^>]*onClick=\{\(\) => onCancel\?\.\(order\)\}/s)
-  assert.match(ticket, /:\s*<Button[^>]*onClick=\{\(\) => onFinalize\?\.\(order\)\}[^>]*>\{getFinalActionLabel\(order\)\}/s)
+  assert.match(orders, /onCancel=\{canCancelOrders \? \(order\) => \{ setCancelOrder\(order\); return true \} : undefined\}/)
+  assert.match(ticket, /!scheduled && onFinalize/)
+  assert.match(ticket, /className="kitchen-ticket-cancel-action"/)
+  assert.match(ticket, /cancelLabel/)
+  assert.match(css, /\.kitchen-page \.kitchen-ticket-cancel-action\s*\{[^}]*flex:\s*0 0 100%[^}]*color:\s*var\(--danger\)[^}]*text-align:\s*center/s)
 })
 
 test('order details retain contact snapshots while kitchen tickets omit them', () => {
