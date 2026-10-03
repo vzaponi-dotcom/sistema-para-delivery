@@ -12,6 +12,16 @@ on:
           - legacy
           - prepare
           - multi_company
+      backup_confirmed:
+        description: Confirm a current production D1 restore point exists before account-phase changes
+        required: true
+        default: false
+        type: boolean
+      readiness_confirmed:
+        description: Confirm production admin/manager readiness before enabling multi-company login
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -116,6 +126,43 @@ jobs:
           latest="$(git ls-remote origin refs/heads/master | cut -f1)"
           if [ "$latest" != "$GITHUB_SHA" ]; then
             echo "This master commit has been superseded; production publishing is blocked."
+            exit 1
+          fi
+
+      - name: Require cutover checkpoints
+        shell: bash
+        env:
+          BACKUP_CONFIRMED: ${{ inputs.backup_confirmed }}
+          READINESS_CONFIRMED: ${{ inputs.readiness_confirmed }}
+        run: |
+          set -euo pipefail
+          if [ "$PRODUCTION_AUTH_PHASE" != "legacy" ] && [ "$BACKUP_CONFIRMED" != "true" ]; then
+            echo "prepare/multi_company requires a confirmed current production D1 restore point."
+            exit 1
+          fi
+          if [ "$PRODUCTION_AUTH_PHASE" = "multi_company" ] && [ "$READINESS_CONFIRMED" != "true" ]; then
+            echo "multi_company requires an explicit successful production readiness check."
+            exit 1
+          fi
+
+      - name: Guard requested phase against current production auth state
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4.128.0 d1 execute amor-e-sabor-delivery --remote --yes --json             --command "SELECT mode FROM business_auth_state WHERE business_id = 'amor-e-sabor' LIMIT 1;" > /tmp/production-auth-state.json
+          current_mode="$(node --input-type=module <<'NODE'
+          import fs from 'node:fs'
+          const payload = JSON.parse(fs.readFileSync('/tmp/production-auth-state.json', 'utf8'))
+          const rows = Array.isArray(payload) ? payload.flatMap(item => item?.results || []) : (payload?.results || [])
+          const mode = rows[0]?.mode || ''
+          if (!['legacy', 'enrollment', 'user_only'].includes(mode)) throw new Error('Unable to resolve production auth state.')
+          process.stdout.write(mode)
+          NODE
+          )"
+          rm -f /tmp/production-auth-state.json
+          echo "Current production auth state: $current_mode"
+          if [ "$current_mode" = "user_only" ] && [ "$PRODUCTION_AUTH_PHASE" != "multi_company" ]; then
+            echo "Production is already user_only; legacy/prepare deployment is blocked."
             exit 1
           fi
 
