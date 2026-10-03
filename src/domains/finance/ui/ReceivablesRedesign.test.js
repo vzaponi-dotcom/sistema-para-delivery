@@ -132,6 +132,21 @@ test('large client groups disclose the 100-order payment limit and preserve read
 })
 
 
+test('grouped order amount stays inside the checkbox label so the full primary card selects the order', async () => {
+  for (const path of ['./ReceivableClientGroup.jsx', './ReceivableClientPanel.jsx']) {
+    const source = await read(path)
+    const hitbox = source.indexOf('<label className="receivable-client-order-selection-hitbox"')
+    const amount = source.indexOf('className="receivable-client-order-amount"', hitbox)
+    const close = source.indexOf('</label>', amount)
+    const promise = source.indexOf('className="receivable-client-promise-action"', hitbox)
+    assert.ok(hitbox >= 0, `${path}: selection hitbox label missing`)
+    assert.ok(amount > hitbox && amount < close, `${path}: amount must be inside selection hitbox`)
+    assert.ok(promise > close, `${path}: payment-promise action must stay outside the selection label`)
+  }
+  const css = await read('../../../receivables.css')
+  assert.match(css, /\.receivable-client-order-selection-hitbox\s*\{[^}]*grid-template-columns:\s*auto minmax\(0, 1fr\) auto[^}]*cursor:\s*pointer/s)
+})
+
 test('client group uses supported expand-collapse icons instead of the Icon fallback glyph', async () => {
   const group = await read('./ReceivableClientGroup.jsx')
   assert.match(group, /expanded \? 'arrow-up' : 'arrow-down'/)
