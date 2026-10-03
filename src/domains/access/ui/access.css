@@ -117,3 +117,121 @@
 .access-activation { width: min(100%, 32rem); box-sizing: border-box; }
 .access-section :focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
 @media (max-width: 600px) { .access-section { padding: 1rem; } .access-actions { display: grid; } }
+
+
+/* Minha conta — hierarquia aprovada */
+.access-account-grid {
+  width: min(760px, 100%);
+  max-width: 100%;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+}
+.access-identity-summary {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+}
+.access-identity-summary .access-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 18px;
+  font-size: 1.15rem;
+  background: color-mix(in srgb, var(--primary) 20%, var(--surface-soft));
+  color: var(--text);
+}
+.access-identity-summary-copy {
+  min-width: 0;
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+}
+.access-identity-summary-copy h2 {
+  margin: 0;
+  font-size: 1.28rem;
+  overflow-wrap: anywhere;
+}
+.access-identity-email {
+  margin: 0;
+  color: var(--muted);
+  font-size: .9rem;
+  overflow-wrap: anywhere;
+}
+.access-role-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 10px;
+  border: 1px solid color-mix(in srgb, var(--success) 36%, transparent);
+  border-radius: 999px;
+  background: var(--success-soft);
+  color: var(--success);
+  font-size: .76rem;
+  font-weight: 750;
+}
+.access-security-card {
+  display: grid;
+  gap: 18px;
+}
+.access-security-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.access-security-heading > div {
+  min-width: 0;
+}
+.access-security-heading h2 {
+  margin: 0 0 3px;
+}
+.access-security-heading .access-muted {
+  margin: 0;
+}
+.access-security-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  border-radius: 14px;
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+.access-security-card .access-form {
+  max-width: none;
+  margin-top: 0;
+  gap: 18px;
+}
+.access-security-card .access-password-input {
+  gap: 7px;
+}
+.access-callout {
+  align-items: center;
+  padding: 16px;
+}
+.access-callout > span {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+.access-callout strong {
+  color: var(--text);
+  font-size: .84rem;
+}
+.access-callout small {
+  color: var(--muted);
+  font-size: .78rem;
+  line-height: 1.55;
+}
+.access-password-submit {
+  width: 100%;
+  min-height: 50px;
+}
+@media (max-width: 600px) {
+  .access-account-grid { gap: 14px; }
+  .access-identity-summary { grid-template-columns: 62px minmax(0, 1fr); gap: 14px; }
+  .access-identity-summary .access-avatar { width: 62px; height: 62px; border-radius: 16px; }
+  .access-identity-summary-copy h2 { font-size: 1.1rem; }
+  .access-security-heading { align-items: flex-start; }
+  .access-security-icon { width: 42px; height: 42px; flex-basis: 42px; border-radius: 12px; }
+}
