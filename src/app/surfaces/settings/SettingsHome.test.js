@@ -104,7 +104,7 @@ test('printing configuration Home card requires an administrative printing capab
   const operator = new Set(['printing.station.view', 'printing.queue', 'printing.execute', 'preferences.local'])
   const screen = await h.render(SettingsHome, { granted: operator, implemented, onNavigate() {} })
   assert.equal(buttonNamed(screen.root, 'Impressão'), undefined)
-  assert.deepEqual(resolveDestination('settings-printing', operator, implemented), { status: 'denied', id: 'settings-printing' })
+  assert.deepEqual(resolveDestination('settings-printing', operator, implemented), { status: 'denied' })
 })
 
 test('settings home style uses existing theme tokens and a mobile one-column grid', async () => {
