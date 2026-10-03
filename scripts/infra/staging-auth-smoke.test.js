@@ -25,6 +25,38 @@ async function setup(t, mode) {
 }
 const smoke = async options => (await import('./staging-auth-smoke.mjs')).verifyStagingAuth({ baseUrl, attempts: 1, log() {}, ...options })
 
+test('release verification rejects an older deployed commit before probing credentials', async t => {
+  const { createTenancyFixture } = await import('../../worker/test-support/tenancyDb.js')
+  const f = await createTenancyFixture(t)
+  const routes = []
+  await assert.rejects(smoke({ expectedCommit: 'a'.repeat(40), expectedAuthMode: 'multi_company', fetchImpl: async (url, options) => {
+    const route = new URL(url).pathname; routes.push(route)
+    if (route === '/release.json') return Response.json({ commit: 'b'.repeat(40), environment: 'staging' })
+    return handleRequest(new Request(url, options), { DB: f.db, AUTH_MULTI_COMPANY_ENABLED: 'true' })
+  } }), /published commit/)
+  assert.equal(routes.includes('/api/auth/login'), false)
+})
+
+test('release verification refuses a successful but obsolete auth mode', async t => {
+  const f = await setup(t, 'user_only')
+  await assert.rejects(smoke({ expectedAuthMode: 'multi_company', fetchImpl: f.fetchImpl }), /expected auth mode/)
+})
+
+test('release verification waits for the exact GitHub commit then verifies real multi-company boundaries', async t => {
+  const { createTenancyFixture } = await import('../../worker/test-support/tenancyDb.js')
+  const f = await createTenancyFixture(t), delays = []
+  let reads = 0
+  const result = await smoke({ attempts: 2, expectedCommit: 'a'.repeat(40), expectedAuthMode: 'multi_company', sleep: async ms => delays.push(ms),
+    fetchImpl: async (url, options) => {
+      if (new URL(url).pathname === '/release.json') return Response.json({ commit: ++reads === 1 ? 'b'.repeat(40) : 'a'.repeat(40), environment: 'staging' })
+      return handleRequest(new Request(url, options), { DB: f.db, AUTH_MULTI_COMPANY_ENABLED: 'true' })
+    } })
+  assert.equal(result.authMode, 'multi_company')
+  assert.equal(reads, 2)
+  assert.deepEqual(delays, [5000])
+  assert.equal(f.sqlite.prepare('SELECT count(*) n FROM identity_email_deliveries').get().n, 0)
+})
+
 for (const mode of ['legacy', 'enrollment', 'user_only']) test(`staging smoke accepts real ${mode} contract and leaves no authenticated session`, async t => {
   const fixture = await setup(t, mode)
   const result = await smoke({ pin, fetchImpl: fixture.fetchImpl })

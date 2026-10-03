@@ -17,10 +17,29 @@ const anonymous = (body) => body?.authenticated === false
   && Object.keys(body).every(key => ['authenticated', 'authMode'].includes(key))
 
 export async function verifyStagingAuth({ baseUrl, pin, attempts = 6, fetchImpl = fetch,
+  expectedCommit, expectedAuthMode,
   sleep = ms => new Promise(resolve => setTimeout(resolve, ms)), log = console.log } = {}) {
   const origin = new URL(baseUrl).origin
   ensure(Number.isInteger(attempts) && attempts > 0 && attempts <= 20, 'Invalid staging readiness attempts.')
   const call = (route, options = {}) => fetchImpl(`${origin}${route}`, { cache: 'no-store', redirect: 'manual', ...options })
+  if (expectedCommit !== undefined) {
+    ensure(/^[a-f0-9]{40}$/.test(expectedCommit), 'Invalid expected published commit.')
+    let matched = false
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      try {
+        const release = await call(`/release.json?commit=${expectedCommit}`)
+        if (release.ok && release.headers.get('content-type')?.includes('application/json')) {
+          const body = await release.json()
+          matched = body.commit === expectedCommit && body.environment === 'staging'
+        }
+      } catch { /* Retry only within the propagation window; never log response content. */ }
+      if (matched) break
+      if (attempt < attempts) await sleep(5000)
+    }
+    ensure(matched, 'Staging published commit does not match the GitHub workflow commit.')
+    log(`Staging published commit verified: ${expectedCommit}`)
+  }
+  ensure(expectedAuthMode === undefined || ['legacy','enrollment','user_only','multi_company'].includes(expectedAuthMode), 'Invalid expected auth mode.')
   let session
   let lastReason
   for (let attempt = 1; attempt <= attempts; attempt++) {
@@ -33,11 +52,12 @@ export async function verifyStagingAuth({ baseUrl, pin, attempts = 6, fetchImpl 
         let candidate
         try { candidate = await response.json() } catch { /* Old/malformed wire contract is not ready. */ }
         lastReason = 'Anonymous session must expose only a known auth mode and no identity.'
-        if (anonymous(candidate)) {
+        if (anonymous(candidate) && (!expectedAuthMode || candidate.authMode === expectedAuthMode)) {
           session = candidate
           log(`Staging ready on attempt ${attempt}/${attempts}; auth mode ${session.authMode}`)
           break
         }
+        if (anonymous(candidate) && expectedAuthMode) lastReason = 'Staging does not expose the expected auth mode.'
       }
     }
     log(`Staging readiness attempt ${attempt}/${attempts}: ${lastReason}`)
@@ -99,7 +119,8 @@ export async function verifyStagingAuth({ baseUrl, pin, attempts = 6, fetchImpl 
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
   try {
-    await verifyStagingAuth({ baseUrl: process.env.STAGING_URL, pin: process.env.STAGING_PIN, attempts: Number(process.env.STAGING_READY_ATTEMPTS || 6) })
+    await verifyStagingAuth({ baseUrl: process.env.STAGING_URL, pin: process.env.STAGING_PIN, expectedCommit: process.env.STAGING_EXPECTED_COMMIT,
+      expectedAuthMode: process.env.STAGING_EXPECTED_AUTH_MODE, attempts: Number(process.env.STAGING_READY_ATTEMPTS || 6) })
   } catch (error) {
     console.error(`Staging authentication smoke failed: ${error.message}`)
     process.exitCode = 1

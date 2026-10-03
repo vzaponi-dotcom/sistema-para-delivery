@@ -69,7 +69,7 @@ test('staging workflow targets only staging resources', () => {
   assert.match(workflow, /workflow_dispatch:/)
   assert.match(workflow, /environment: staging/)
   assert.match(workflow, /npm run d1:migrate:staging/)
-  assert.match(workflow, /npm run deploy:staging/)
+  assert.match(workflow, /wrangler@4\.128\.0 deploy --env staging/)
   assert.match(workflow, /STAGING_PIN/)
   assert.match(workflow, /STAGING_URL:\s*https:\/\/staging\.mesiva\.com\.br/)
   assert.doesNotMatch(workflow, /sistema-para-delivery-staging\.vzaponi\.workers\.dev/)
@@ -93,7 +93,7 @@ test('staging smoke stops after its configured propagation window', async () => 
 test('production deploy is manual, master-only, and validates locally before remote writes', () => {
   assert.match(productionWorkflow, /workflow_dispatch:/)
   assert.match(productionWorkflow, /github\.ref == 'refs\/heads\/master'/)
-  assert.match(productionWorkflow, /ref: master/)
+  assert.match(productionWorkflow, /ref: \$\{\{ github\.sha \}\}/)
   assert.match(productionWorkflow, /npm run d1:migrate:local/)
   assert.match(productionWorkflow, /npm run d1:migrate:production/)
   assert.match(productionWorkflow, /npm run deploy:production/)

@@ -3,19 +3,13 @@ name: Deploy staging
 on:
   push:
     branches:
-      - feature/mesiva-visual-theme
-      - feature/operation-identity-settings
-      - feature/kitchen-alert-sound-profiles
-      - feature/kitchen-tv-adaptive-card-layout
-      - feature/issue-34-reporting-center
-      - feature/release-reporting-center
-      - feature/kitchen-tv-best-fit-layout
-      - feature/kitchen-tv-control-center
-      - feature/issue-82-multiday-reservations
+      - master
+      - feature/issue-87-multi-company-onboarding
   workflow_dispatch:
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: staging-deploy
@@ -24,6 +18,7 @@ concurrency:
 jobs:
   deploy:
     name: Deploy staging Worker
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/feature/issue-87-multi-company-onboarding'
     runs-on: ubuntu-latest
     environment: staging
     env:
@@ -33,10 +28,14 @@ jobs:
       STAGING_R2_BUCKET: mesiva-business-assets-staging
       STAGING_READY_ATTEMPTS: 6
       STAGING_URL: https://staging.mesiva.com.br
+      STAGING_EXPECTED_COMMIT: ${{ github.sha }}
+      STAGING_EXPECTED_AUTH_MODE: multi_company
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -59,6 +58,15 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Record GitHub release identity
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs'
+          const { GITHUB_SHA: commit, GITHUB_REF: ref, GITHUB_REPOSITORY: repository, GITHUB_RUN_ID: runId, GITHUB_SERVER_URL: server } = process.env
+          if (!/^[a-f0-9]{40}$/.test(commit || '')) throw new Error('GitHub commit is required.')
+          fs.writeFileSync('dist/release.json', JSON.stringify({ environment: 'staging', commit, ref, runUrl: `${server}/${repository}/actions/runs/${runId}` }) + '\n')
+          NODE
+
       - name: Apply migrations to local D1
         run: npm run d1:migrate:local
 
@@ -70,6 +78,25 @@ jobs:
         run: |
           test -n "$CLOUDFLARE_API_TOKEN"
           test -n "$CLOUDFLARE_ACCOUNT_ID"
+
+      - name: Require the latest branch commit
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_REF" != 'refs/heads/master' ]; then
+            open_prs="$(gh api --method GET "repos/$GITHUB_REPOSITORY/pulls" -f state=open -f head="$GITHUB_REPOSITORY_OWNER:$GITHUB_REF_NAME" --jq 'length')"
+            if [ "$open_prs" -eq 0 ]; then
+              echo "Feature staging is allowed only while its pull request is open; publish master after integration."
+              exit 1
+            fi
+          fi
+          latest="$(git ls-remote origin "$GITHUB_REF" | cut -f1)"
+          if [ "$latest" != "$GITHUB_SHA" ]; then
+            echo "This commit has been superseded on GitHub; publishing is blocked."
+            exit 1
+          fi
 
       - name: Ensure staging R2 bucket
         shell: bash
@@ -111,7 +138,11 @@ jobs:
           unset VERIFIER
 
       - name: Deploy staging
-        run: npm run deploy:staging
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git ls-remote origin "$GITHUB_REF" | cut -f1)" = "$GITHUB_SHA"
+          npx --yes wrangler@4.128.0 deploy --env staging
 
       - name: Verify staging login
         run: node scripts/infra/staging-auth-smoke.mjs
@@ -207,3 +238,5 @@ jobs:
       - name: Summarize staging URL
         run: |
           echo "Staging URL: $STAGING_URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "Published commit: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo "Release identity: $STAGING_URL/release.json" >> "$GITHUB_STEP_SUMMARY"
