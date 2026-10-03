@@ -57,10 +57,49 @@ test('production bootstrap uses its own environment record', async t => {
   const readiness = await readMultiCompanyReadiness(f.db, { adminAccountId: admin.accountId, businessId: 'amor-e-sabor', managerAccountId: admin.accountId })
   assert.equal(readiness.ready, true)
   const record = f.sqlite.prepare("SELECT * FROM platform_bootstraps WHERE environment='production'").get()
-  const result = await finalizeMultiCompanyEnvironment(f.db, JSON.parse(record.legacy_inventory_json), { ...readiness, loginVerified: true }, { environment: 'production', now: f.now })
+  await assert.rejects(
+    finalizeMultiCompanyEnvironment(f.db, JSON.parse(record.legacy_inventory_json), { ...readiness, loginVerified: true }, { environment: 'production', now: f.now }),
+  )
+  const result = await finalizeMultiCompanyEnvironment(
+    f.db,
+    JSON.parse(record.legacy_inventory_json),
+    { ...readiness, loginVerified: true },
+    { environment: 'production', inventoryReviewed: true, now: f.now },
+  )
   assert.equal(result.changed, true)
   assert.ok(f.sqlite.prepare("SELECT finalized_at FROM platform_bootstraps WHERE environment='production'").get().finalized_at)
   assert.equal(f.sqlite.prepare("SELECT finalized_at FROM platform_bootstraps WHERE environment='staging'").get().finalized_at, null)
+})
+
+test('production manager preparation never rewrites a conflicting inventoried legacy login', async t => {
+  const f = await createTenancyFixture(t)
+  f.sqlite.prepare("UPDATE users SET login_normalized='collision@example.test' WHERE business_id='amor-e-sabor' AND account_id IS NULL LIMIT 1").run()
+  const admin = await preparePlatformAdministrator(f.db, {
+    name: 'Prod Owner',
+    email: 'prod-owner-2@example.test',
+    ownershipVerified: true,
+    now: f.now,
+    environment: 'production',
+  })
+  await completeIdentityChallenge(f.db, {
+    token: admin.challenge.token,
+    password: 'Production owner password 2026!',
+    now: f.now,
+  })
+  const before = f.sqlite.prepare("SELECT id,login_normalized,active FROM users WHERE business_id='amor-e-sabor' AND account_id IS NULL AND login_normalized='collision@example.test'").get()
+  await assert.rejects(prepareExistingBusinessManager(f.db, {
+    businessId: 'amor-e-sabor',
+    name: 'Existing person',
+    email: 'collision@example.test',
+    ownershipVerified: true,
+    now: f.now,
+    environment: 'production',
+  }))
+  assert.deepEqual(
+    f.sqlite.prepare('SELECT id,login_normalized,active FROM users WHERE business_id=? AND id=?').get('amor-e-sabor', before.id),
+    before,
+  )
+  assert.equal(f.sqlite.prepare("SELECT count(*) n FROM accounts WHERE email_normalized='collision@example.test'").get().n, 0)
 })
 
 test('private recovery stores only a hash and changes no credential/session before consumption', async t => {
