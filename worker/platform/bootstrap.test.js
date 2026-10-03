@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createTenancyFixture } from '../test-support/tenancyDb.js'
-import { preparePlatformAdministrator, prepareExistingBusinessManager, readMultiCompanyReadiness, finalizeMultiCompanyStaging, issueVerifiedAccountRecovery } from './bootstrap.js'
+import { preparePlatformAdministrator, prepareExistingBusinessManager, readMultiCompanyReadiness, finalizeMultiCompanyEnvironment, finalizeMultiCompanyStaging, issueVerifiedAccountRecovery } from './bootstrap.js'
 import { completeIdentityChallenge } from '../identity/challenges.js'
 import { acceptCompanyInvitation } from '../tenancy/companyInvitations.js'
 import { handleRequest } from '../index.js'
@@ -47,6 +47,22 @@ test('new bootstrap activates admin and manager; readiness/finalization preserve
   f.sqlite.prepare('DELETE FROM platform_grants WHERE account_id=?').run(admin.accountId)
   await assert.rejects(finalizeMultiCompanyStaging(f.db, inventory, { ...readiness, loginVerified: true }))
 })
+test('production bootstrap uses its own environment record', async t => {
+  const f = await createTenancyFixture(t)
+  f.sqlite.prepare("INSERT INTO platform_bootstraps(environment,account_id,created_at,legacy_inventory_json) VALUES('staging',?,?,?)").run(f.accounts.admin, f.now.toISOString(), '[]')
+  const admin = await preparePlatformAdministrator(f.db, { name: 'Prod Owner', email: 'prod-owner@example.test', ownershipVerified: true, now: f.now, environment: 'production' })
+  await completeIdentityChallenge(f.db, { token: admin.challenge.token, password: 'Production owner password 2026!', now: f.now })
+  const manager = await prepareExistingBusinessManager(f.db, { businessId: 'amor-e-sabor', name: 'Prod Owner', email: 'prod-owner@example.test', ownershipVerified: true, now: f.now, environment: 'production' })
+  assert.equal(manager.activated, true)
+  const readiness = await readMultiCompanyReadiness(f.db, { adminAccountId: admin.accountId, businessId: 'amor-e-sabor', managerAccountId: admin.accountId })
+  assert.equal(readiness.ready, true)
+  const record = f.sqlite.prepare("SELECT * FROM platform_bootstraps WHERE environment='production'").get()
+  const result = await finalizeMultiCompanyEnvironment(f.db, JSON.parse(record.legacy_inventory_json), { ...readiness, loginVerified: true }, { environment: 'production', now: f.now })
+  assert.equal(result.changed, true)
+  assert.ok(f.sqlite.prepare("SELECT finalized_at FROM platform_bootstraps WHERE environment='production'").get().finalized_at)
+  assert.equal(f.sqlite.prepare("SELECT finalized_at FROM platform_bootstraps WHERE environment='staging'").get().finalized_at, null)
+})
+
 test('private recovery stores only a hash and changes no credential/session before consumption', async t => {
   const f = await createTenancyFixture(t)
   await assert.rejects(issueVerifiedAccountRecovery(f.db, { accountId: f.accounts.alice, now: f.now }))
