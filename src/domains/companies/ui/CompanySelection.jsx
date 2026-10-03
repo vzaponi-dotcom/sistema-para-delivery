@@ -53,12 +53,11 @@ export default function CompanySelection({ account, items = [], currentBusinessI
 
       {error && <div role="alert" className="company-feedback"><p>{error}</p>{onRetry && <Button variant="secondary" onClick={onRetry} disabled={pending}>Tentar novamente</Button>}</div>}
       {loading ? <p role="status">Carregando suas empresas…</p> : items.length ? <div className="company-selection-grid">
-        {items.map(item => <button type="button" key={item.businessId} className="company-selection-card" aria-label={`Abrir ${item.name}`} disabled={pending} onClick={() => onSelect?.(item.businessId)}>
+        {items.map(item => <button type="button" key={item.businessId} className={`company-selection-card${item.businessId === currentBusinessId ? ' is-current' : ''}`} aria-label={`Abrir ${item.name}`} aria-current={item.businessId === currentBusinessId ? 'true' : undefined} disabled={pending} onClick={() => onSelect?.(item.businessId)}>
           <CompanyMark item={item} />
           <span className="company-selection-card-copy">
             <strong>{item.name}</strong>
             <small className="company-role">{item.roleName}</small>
-            {item.businessId === currentBusinessId && <small className="company-current">Empresa atual</small>}
           </span>
           <span className="company-selection-open" aria-hidden="true"><Icon name="arrow-right" size={20} /></span>
         </button>)}
