@@ -166,15 +166,15 @@
 
   .kitchen-ticket {
     min-width: 0;
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "identity"
-                         "customer"
-                         "summary"
-                         "notes"
-                         "timing"
-                         "actions";
-    gap: 6px;
-    padding: 10px 11px 9px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "identity identity"
+                         "customer timing"
+                         "summary summary"
+                         "notes notes"
+                         "actions actions";
+    gap: 7px 10px;
+    padding: 12px;
+    border-radius: 14px;
   }
 
   .kitchen-ticket-header {
@@ -190,10 +190,11 @@
   }
 
   .kitchen-ticket-timing {
-    align-items: flex-start;
-    padding-top: 5px;
-    border-top: 1px dashed color-mix(in srgb, var(--kitchen-ticket-text) 14%, transparent);
-    text-align: left;
+    align-items: flex-end;
+    justify-content: flex-start;
+    padding-top: 0;
+    border-top: 0;
+    text-align: right;
     overflow-wrap: anywhere;
   }
 
@@ -201,6 +202,9 @@
     display: grid;
     grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
     gap: 6px;
+    margin-top: 2px;
+    padding-top: 9px;
+    border-top: 1px solid color-mix(in srgb, var(--kitchen-ticket-text) 12%, transparent);
   }
 
   .kitchen-ticket-actions .button {
