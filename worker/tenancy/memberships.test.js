@@ -23,7 +23,10 @@ test('membership edits that outlive the original session roll back the member an
 
 test('eligible businesses belong only to the account and show its own role', async (t) => {
   const f = await createTenancyFixture(t)
-  assert.deepEqual(await listEligibleBusinesses(f.db, f.accounts.alice), [{ businessId: f.businesses.A, name: 'Company A', roleName: 'Gerente' }, { businessId: f.businesses.B, name: 'Company B', roleName: 'Operador' }])
+  assert.deepEqual(await listEligibleBusinesses(f.db, f.accounts.alice), [
+    { businessId: f.businesses.A, name: 'Company A', roleName: 'Gerente', hasLogo: false, logoVersion: null },
+    { businessId: f.businesses.B, name: 'Company B', roleName: 'Operador', hasLogo: false, logoVersion: null },
+  ])
   assert.deepEqual(await listEligibleBusinesses(f.db, f.accounts.admin), [])
 })
 
