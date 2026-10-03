@@ -45,7 +45,7 @@ test('operational component preserves calculateOperationalMetrics results for th
   assert.equal(new Set(bandChart.findAllByType('rect').map((node) => node.props.height)).size, 1)
 })
 
-test('history list filter does not change the official collection used by operational analysis', async (t) => {
+test('history list remains filterable without rendering operational analysis', async (t) => {
   const h = await workspaceHarness(t)
   const { default: OrderHistory } = await h.load('/src/domains/orders/ui/OrderHistory.jsx')
   const changes = []
@@ -57,7 +57,7 @@ test('history list filter does not change the official collection used by operat
     now,
   })
   assert.match(nodeText(renderer.root), /1 registro\(s\)/)
-  assert.match(nodeText(renderer.root), /Tempo médio32,5 min/)
+  assert.doesNotMatch(nodeText(renderer.root), /Tempo médio|Tempo operacional|Por faixa de tempo|Por tipo de atendimento/)
   const finalized = renderer.root.findAllByType('button').find((button) => nodeText(button) === 'Finalizados')
   await act(async () => finalized.props.onClick())
   assert.deepEqual(changes, [{ filter: 'finalized' }])
