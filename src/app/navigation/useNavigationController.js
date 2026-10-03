@@ -9,9 +9,11 @@ import {
 import { shouldConfirmDraftExit } from './draftExitGuard.js'
 import { destinationForPath, pathForDestination } from './routes.js'
 import { useMatchedDestination } from './routeMatch.js'
+import { decideSessionExit } from '../runtime/session/sessionExitGuard.js'
 
 export function useNavigationController({
   granted,
+  authenticated = false,
   implemented,
   checkoutPending,
   dirtyOrder,
@@ -31,9 +33,9 @@ export function useNavigationController({
   const blockerResettingRef = useRef(false)
   const pendingDestination = pendingNavigation?.destination || null
   const resolvedActiveTab = matchedDestination
-    && resolveDestination(matchedDestination, granted, implemented).status === 'allowed'
+    && resolveDestination(matchedDestination, granted, implemented, { authenticated }).status === 'allowed'
     ? matchedDestination
-    : resolveHome(granted, implemented)
+    : resolveHome(granted, implemented, { authenticated })
 
   useEffect(() => {
     setMoreOpen(false)
@@ -41,11 +43,11 @@ export function useNavigationController({
 
   const resolveTarget = useCallback((target) => {
     if (target && typeof target === 'object') {
-      const id = resolveArea(target.area, granted, implemented)
+      const id = resolveArea(target.area, granted, implemented, { authenticated })
       return id ? { status: 'allowed', id } : { status: 'denied' }
     }
-    return resolveDestination(target, granted, implemented)
-  }, [granted, implemented])
+    return resolveDestination(target, granted, implemented, { authenticated })
+  }, [authenticated, granted, implemented])
 
   const reject = useCallback((status) => {
     const messages = {
@@ -65,12 +67,12 @@ export function useNavigationController({
 
     const currentDestination = destinationForPath(currentLocation.pathname)
     if (!currentDestination) return false
-    if (resolveDestination(currentDestination, granted, implemented).status !== 'allowed') return false
+    if (resolveDestination(currentDestination, granted, implemented, { authenticated }).status !== 'allowed') return false
 
     const nextDestination = destinationForPath(nextLocation.pathname)
     if (!nextDestination) return true
 
-    const nextResolution = resolveDestination(nextDestination, granted, implemented)
+    const nextResolution = resolveDestination(nextDestination, granted, implemented, { authenticated })
     if (nextResolution.status !== 'allowed') return true
 
     const leavingOrder = currentDestination === 'new-order' && nextDestination !== 'new-order'
@@ -78,7 +80,7 @@ export function useNavigationController({
 
     const draft = resolveNavigationDraft?.(currentDestination)
     return shouldConfirmDraftExit(draft, currentDestination, nextDestination)
-  }, [checkoutPending, dirtyOrder, granted, implemented, resolveNavigationDraft])
+  }, [authenticated, checkoutPending, dirtyOrder, granted, implemented, resolveNavigationDraft])
 
   const blocker = useBlocker(shouldBlockRouterNavigation)
 
@@ -124,7 +126,7 @@ export function useNavigationController({
       return
     }
 
-    const resolution = resolveDestination(nextDestination, granted, implemented)
+    const resolution = resolveDestination(nextDestination, granted, implemented, { authenticated })
     if (resolution.status !== 'allowed') {
       resetBlockedNavigation()
       reject(resolution.status)
@@ -160,6 +162,7 @@ export function useNavigationController({
     checkoutPending,
     dirtyOrder,
     granted,
+    authenticated,
     implemented,
     matchedDestination,
     reject,
@@ -201,23 +204,48 @@ export function useNavigationController({
     if (leavingOrder) onDiscardOrder?.()
     if (resolution.id === resolvedActiveTab) return true
     return navigateToDestination(resolution.id)
-  }, [checkoutPending, dirtyOrder, navigateToDestination, onDiscardOrder, reject, resolveNavigationDraft, resolveTarget, resolvedActiveTab])
+  }, [authenticated, checkoutPending, dirtyOrder, navigateToDestination, onDiscardOrder, reject, resolveNavigationDraft, resolveTarget, resolvedActiveTab])
 
   const completeNavigation = useCallback((id) => {
-    const resolution = resolveDestination(id, granted, implemented)
+    const resolution = resolveDestination(id, granted, implemented, { authenticated })
     if (resolution.status !== 'allowed') return reject(resolution.status)
     pendingNavigationRef.current = null
     setPendingNavigation(null)
     setMoreOpen(false)
     if (resolution.id === resolvedActiveTab) return true
     return navigateToDestination(resolution.id)
-  }, [granted, implemented, navigateToDestination, reject, resolvedActiveTab])
+  }, [authenticated, granted, implemented, navigateToDestination, reject, resolvedActiveTab])
+
+  const requestSessionExit = useCallback((exit, getPendingEffects = () => ({})) => {
+    if (pendingNavigationRef.current) return false
+    const draft = resolveNavigationDraft?.(resolvedActiveTab)
+    const pendingEffects = getPendingEffects()
+    const decision = decideSessionExit({ checkoutPending, dirtyOrder, policyDraft: draft, ...pendingEffects })
+    if (decision === 'blocked') { onFeedback?.(pendingEffects.credentialChangePending ? 'Aguarde a confirmação da alteração da senha antes de sair.' : 'Conclua a reconciliação do pagamento ou da impressão antes de sair.'); return false }
+    if (decision === 'exit') { void exit(); return true }
+    const pending = { kind: decision === 'confirm-order' ? 'order' : 'policy', destination: 'session-exit', exit, getPendingEffects, draft }
+    pendingNavigationRef.current = pending
+    setPendingNavigation(pending)
+    return false
+  }, [checkoutPending, dirtyOrder, onFeedback, resolveNavigationDraft, resolvedActiveTab])
 
   const confirmDiscard = useCallback(() => {
     const pending = pendingNavigationRef.current
     if (!pending) return false
 
-    const resolution = resolveDestination(pending.destination, granted, implemented)
+    if (pending.exit) {
+      const pendingEffects = pending.getPendingEffects()
+      const decision = decideSessionExit({ checkoutPending, ...pendingEffects })
+      if (decision === 'blocked') { onFeedback?.(pendingEffects.credentialChangePending ? 'Aguarde a confirmação da alteração da senha antes de sair.' : 'Conclua a reconciliação do pagamento ou da impressão antes de sair.'); return false }
+      if (pending.kind === 'order') onDiscardOrder?.()
+      else if (discardDraft?.(pending.draft.resourceKey, pending.draft) === false) return false
+      pendingNavigationRef.current = null
+      setPendingNavigation(null)
+      void pending.exit()
+      return true
+    }
+
+    const resolution = resolveDestination(pending.destination, granted, implemented, { authenticated })
     if (resolution.status !== 'allowed') {
       if (pending.source === 'blocker') resetBlockedNavigation()
       pendingNavigationRef.current = null
@@ -256,9 +284,11 @@ export function useNavigationController({
     checkoutPending,
     discardDraft,
     granted,
+    authenticated,
     implemented,
     navigateToDestination,
     onDiscardOrder,
+    onFeedback,
     reject,
     resetBlockedNavigation,
     resolveNavigationDraft,
@@ -293,5 +323,6 @@ export function useNavigationController({
     cancelDiscard,
     resetNavigation,
     completeNavigation,
+    requestSessionExit,
   }
 }

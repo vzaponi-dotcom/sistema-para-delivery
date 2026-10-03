@@ -7,40 +7,40 @@ import {
   destinationById,
 } from './registry.js'
 
-const canAccess = (destination, granted) => destination.capability
+const canAccess = (destination, granted, { authenticated = false } = {}) => destination.authenticatedOnly ? authenticated : destination.capability
   ? hasCapability(granted, destination.capability)
   : destination.anyCapability.some((key) => hasCapability(granted, key))
 
-export function resolveDestination(id, granted, implemented) {
+export function resolveDestination(id, granted, implemented, session = {}) {
   const destination = destinationById.get(id)
   if (!destination) return { status: 'unknown' }
-  if (!canAccess(destination, granted)) return { status: 'denied' }
+  if (!canAccess(destination, granted, session)) return { status: 'denied' }
   if (!(implemented instanceof Set) || !implemented.has(id)) return { status: 'unavailable' }
   return { status: 'allowed', id }
 }
 
-export function resolveArea(area, granted, implemented) {
+export function resolveArea(area, granted, implemented, session) {
   for (const id of AREA_DESTINATION_IDS[area] || []) {
-    if (resolveDestination(id, granted, implemented).status === 'allowed') return id
+    if (resolveDestination(id, granted, implemented, session).status === 'allowed') return id
   }
   return null
 }
 
-export function resolveHome(granted, implemented) {
+export function resolveHome(granted, implemented, session = {}) {
   for (const area of HOME_AREA_ORDER) {
-    const id = resolveArea(area, granted, implemented)
+    const id = resolveArea(area, granted, implemented, session)
     if (id) return id
   }
   for (const { id } of NAVIGATION_DESTINATIONS) {
-    if (id !== 'new-order' && resolveDestination(id, granted, implemented).status === 'allowed') return id
+    if (id !== 'new-order' && resolveDestination(id, granted, implemented, session).status === 'allowed') return id
   }
   return null
 }
 
-export function resolveNavigationEntry(entry, granted, implemented) {
+export function resolveNavigationEntry(entry, granted, implemented, session = {}) {
   const id = entry.area
-    ? resolveArea(entry.area, granted, implemented)
-    : resolveDestination(entry.id, granted, implemented).status === 'allowed'
+    ? resolveArea(entry.area, granted, implemented, session)
+    : resolveDestination(entry.id, granted, implemented, session).status === 'allowed'
       ? entry.id
       : null
   return id ? { ...entry, id, label: entry.label || destinationById.get(id)?.label } : null

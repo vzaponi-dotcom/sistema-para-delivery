@@ -1,3 +1,4 @@
+import { authenticatedSession } from './test-support/appSessionFixtures.js'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import React from 'react'
@@ -94,8 +95,9 @@ test('theme and sound stay local and synchronized with their existing applicatio
   const { ThemeProvider } = await h.load('/src/app/shell/theme/ThemeProvider.jsx')
   const { default: App } = await h.load('/src/App.jsx')
   globalThis.fetch = async (path) => {
+    if (String(path).startsWith('/api/bootstrap?')) path = '/api/bootstrap'
     const url = String(path)
-    if (url === '/api/auth/session') return response({ authenticated: true })
+    if (url === '/api/auth/session') return response(authenticatedSession)
     if (url === '/api/bootstrap') return response({ tables: [], tableTabs: [], orders: [], clients: [], products: [], movements: [], financeSettings: null })
     if (url === '/api/printing/stations') return response({ stations: [{ id: 'test-station', platform: 'other', autoPrintEnabled: false }] })
     if (url.startsWith('/api/printing/jobs?')) return response({ jobs: [] })

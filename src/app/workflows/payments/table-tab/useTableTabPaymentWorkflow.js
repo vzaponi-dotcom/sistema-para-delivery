@@ -1,3 +1,4 @@
+import { useMutationOwner } from '../../../runtime/session/useMutationOwner.js'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { formatTableIdentifierLabel } from '../../../../domains/finance/index.js'
 import { paymentApi } from '../paymentApi.js'
@@ -19,6 +20,7 @@ export function useTableTabPaymentWorkflow({
   onSuccess = () => {},
   onError = () => {},
 } = {}) {
+  const ownsMutation = useMutationOwner(applyOfficialEffects)
   const activeOwnerRef = useRef(null)
   const acceptedOwnersRef = useRef(new Set())
   const [syncState, setSyncState] = useState(null)
@@ -32,9 +34,10 @@ export function useTableTabPaymentWorkflow({
 
   const isLive = useCallback((owner) => Boolean(
     owner
+    && ownsMutation()
     && owner.guard === getSyncGuard()
     && acceptedOwnersRef.current.has(owner)
-  ), [getSyncGuard])
+  ), [getSyncGuard, ownsMutation])
 
   const trySettle = useCallback((owner, receipt) => {
     if (!isLive(owner)) return false
@@ -112,11 +115,11 @@ export function useTableTabPaymentWorkflow({
     setRequestBusy(true)
     setRequestKey(owner.requestKey)
 
-    const ownsRequest = () => getSyncGuard() === guard && activeOwnerRef.current === owner
+    const ownsRequest = () => ownsMutation() && getSyncGuard() === guard && activeOwnerRef.current === owner
 
     try {
       const result = await api.registerTableTabPayment(tableTabId, owner.allocations)
-      if (getSyncGuard() !== guard) return false
+      if (!ownsMutation() || getSyncGuard() !== guard) return false
 
       owner.paid = true
       owner.result = result
@@ -126,12 +129,7 @@ export function useTableTabPaymentWorkflow({
       publish()
 
       if (revision === getOfficialRevision()) {
-        const receipt = applyOfficialEffects({
-          orders: result.orders,
-          movements: result.movements,
-          tableTab: result.tableTab,
-          tables: result.tables,
-        })
+        const receipt = applyOfficialEffects(result)
         trySettle(owner, receipt)
       }
 
@@ -146,13 +144,14 @@ export function useTableTabPaymentWorkflow({
       }
       return false
     } finally {
-      if (activeOwnerRef.current === owner) {
+      if (ownsMutation() && activeOwnerRef.current === owner) {
         activeOwnerRef.current = null
         setRequestBusy(false)
         setRequestKey((current) => current === owner.requestKey ? null : current)
       }
     }
   }, [
+    ownsMutation,
     api,
     applyOfficialEffects,
     getOfficialRevision,

@@ -6,15 +6,14 @@ const hex = (bytes) => Array.from(bytes, (byte) => byte.toString(16).padStart(2,
 
 export async function resolveSettingsAccess(session, trustedGrants) {
   if (!session?.businessId || !session?.sessionId) throw apiError(401, 'UNAUTHENTICATED', 'Sua sess\u00e3o expirou. Entre novamente.')
-  const legacy = arguments.length < 2
-  const source = legacy ? APPLICATION_CAPABILITIES : trustedGrants instanceof Set ? [...trustedGrants] : []
-  const granted = new Set(source.filter((capability) => known.has(capability)))
+  const legacy = session.legacy === true && ['legacy', 'enrollment'].includes(session.authMode)
+  const source = legacy && arguments.length < 2 ? APPLICATION_CAPABILITIES : trustedGrants instanceof Set ? [...trustedGrants] : []
+  const granted = new Set(source.filter((capability) => known.has(capability) && (!legacy || !capability.startsWith('access.'))))
   for (const [manage, view] of Object.entries(SETTINGS_MANAGE_TO_VIEW)) if (granted.has(manage)) granted.add(view)
   const ordered = [...granted].sort()
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${session.sessionId}\n${ordered.join('\n')}`))
   return Object.freeze({
-    businessId: session.businessId,
-    sessionId: session.sessionId,
+    ...session,
     settingsContextId: hex(new Uint8Array(digest)).slice(0, 24),
     granted: new Set(ordered),
     legacy,

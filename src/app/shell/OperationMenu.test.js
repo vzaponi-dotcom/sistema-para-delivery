@@ -4,16 +4,16 @@ import React from 'react'
 import { act } from 'react-test-renderer'
 import { workspaceHarness, buttonNamed, nodeText } from '../../test-support/renderWorkspace.js'
 
-const implemented = new Set(['orders', 'settings-home', 'settings-business-profile', 'settings-device'])
-const renderMenu = async (t, { granted = new Set(['operations.settings.view', 'preferences.local']), onLogout = () => {}, logoutDisabled = false, businessName = 'Pizzaria Bella', businessHasLogo = false, businessLogoVersion = null } = {}) => {
-  const h = await workspaceHarness(t)
+const implemented = new Set(['orders', 'settings-home', 'settings-business-profile', 'settings-device', 'my-account'])
+const renderMenu = async (t, { granted = new Set(['operations.settings.view', 'preferences.local']), authenticated = false, user, onSwitchUser, onLogout = () => {}, logoutDisabled = false, businessName = 'Pizzaria Bella', businessHasLogo = false, businessLogoVersion = null, mobile = false } = {}) => {
+  const h = await workspaceHarness(t, { mobile })
   const { NavigationProvider } = await h.load('/src/app/navigation/NavigationContext.jsx')
   const { default: OperationMenu } = await h.load('/src/app/shell/OperationMenu.jsx')
   const navigations = []
   const renderer = await h.render(NavigationProvider, {
-    activeTab: 'orders', granted, implemented, moreOpen: false,
+    activeTab: 'orders', granted, authenticated, implemented, moreOpen: false,
     requestNavigation: (id) => navigations.push(id), openMore() {}, closeMore() {},
-    children: React.createElement(OperationMenu, { businessName, businessHasLogo, businessLogoVersion, onLogout, logoutDisabled }),
+    children: React.createElement(OperationMenu, { businessName, businessHasLogo, businessLogoVersion, user, onSwitchUser, onLogout, logoutDisabled }),
   }, { createNodeMock: (element) => element.props?.className === 'operation-menu-trigger'
     ? { focus: h.recordFocus }
     : element.props?.role === 'dialog' ? { querySelectorAll: () => [], querySelector: () => null } : {} })
@@ -25,17 +25,29 @@ test('operation shortcuts respect official navigation and close after navigation
   assert.ok(buttonNamed(renderer.root, 'Pizzaria Bella, operação atual'))
   await act(async () => buttonNamed(renderer.root, 'Pizzaria Bella, operação atual').props.onClick())
   assert.ok(buttonNamed(renderer.root, 'Configurações'))
-  assert.ok(buttonNamed(renderer.root, 'Preferências deste dispositivo'))
-  await act(async () => buttonNamed(renderer.root, 'Preferências deste dispositivo').props.onClick())
+  assert.ok(buttonNamed(renderer.root, 'Este dispositivo'))
+  await act(async () => buttonNamed(renderer.root, 'Este dispositivo').props.onClick())
   assert.deepEqual(navigations, ['settings-device'])
   assert.equal(buttonNamed(renderer.root, 'Configurações'), undefined)
+})
+
+test('individual user menu exposes account and switch independently of role name', async (t) => {
+  let switches = 0
+  const { renderer, navigations } = await renderMenu(t, { granted: new Set(), authenticated: true, user: { id: 'u', displayName: 'Ana', roleName: 'unknown-profile' }, onSwitchUser: () => switches++ })
+  await act(async () => buttonNamed(renderer.root, 'Pizzaria Bella, operação atual').props.onClick())
+  assert.match(nodeText(renderer.root), /Ana/)
+  await act(async () => buttonNamed(renderer.root, 'Minha conta').props.onClick())
+  assert.deepEqual(navigations, ['my-account'])
+  await act(async () => buttonNamed(renderer.root, 'Pizzaria Bella, operação atual').props.onClick())
+  await act(async () => buttonNamed(renderer.root, 'Trocar usuário').props.onClick())
+  assert.equal(switches, 1)
 })
 
 test('restricted operation has no settings shortcuts', async (t) => {
   const { renderer } = await renderMenu(t, { granted: new Set(['orders.view']) })
   await act(async () => buttonNamed(renderer.root, 'Pizzaria Bella, operação atual').props.onClick())
   assert.equal(buttonNamed(renderer.root, 'Configurações'), undefined)
-  assert.equal(buttonNamed(renderer.root, 'Preferências deste dispositivo'), undefined)
+  assert.equal(buttonNamed(renderer.root, 'Este dispositivo'), undefined)
   assert.ok(buttonNamed(renderer.root, 'Sobre a Mesiva'))
 })
 
@@ -103,7 +115,7 @@ test('operation menu uses confirmed logo when available and preserves operation 
   assert.equal(renderer.root.findAllByProps({ className: 'operation-menu-initials' }).length, 0)
 
   await act(async () => buttonNamed(renderer.root, 'Sabor da Vila, operação atual').props.onClick())
-  assert.match(nodeText(renderer.root.findByProps({ className: 'operation-menu-heading' })), /Sabor da Vila/)
+  assert.match(nodeText(renderer.root.findByProps({ className: 'operation-menu-heading-copy' })), /Sabor da Vila/)
 })
 
 
@@ -113,7 +125,7 @@ test('operation heading links directly to Identity settings when business profil
   })
 
   await act(async () => buttonNamed(renderer.root, 'Pizzaria Bella, operação atual').props.onClick())
-  const identityShortcut = buttonNamed(renderer.root, 'Abrir identidade da operação de Pizzaria Bella')
+  const identityShortcut = buttonNamed(renderer.root, 'Editar identidade')
   assert.ok(identityShortcut)
   await act(async () => identityShortcut.props.onClick())
 
@@ -127,6 +139,56 @@ test('operation heading stays non-interactive without business profile view capa
   })
 
   await act(async () => buttonNamed(renderer.root, 'Pizzaria Bella, operação atual').props.onClick())
-  assert.equal(buttonNamed(renderer.root, 'Abrir identidade da operação de Pizzaria Bella'), undefined)
-  assert.match(nodeText(renderer.root.findByProps({ className: 'operation-menu-heading' })), /Pizzaria Bella/)
+  assert.equal(buttonNamed(renderer.root, 'Editar identidade'), undefined)
+  assert.match(nodeText(renderer.root.findByProps({ className: 'operation-menu-heading-copy' })), /Pizzaria Bella/)
+})
+
+test('mobile account panel keeps operator device navigation without granting identity editing', async (t) => {
+  const { h, renderer, navigations } = await renderMenu(t, {
+    mobile: true, authenticated: true, user: { displayName: 'Ana', roleId: 'operator' },
+    granted: new Set(['preferences.local']),
+  })
+  await act(async () => buttonNamed(renderer.root, 'Pizzaria Bella, operação atual').props.onClick())
+  assert.equal(renderer.root.findByProps({ role: 'dialog' }).props['aria-label'], 'Conta e operação')
+  assert.equal(h.document.body.style.overflow, 'hidden')
+  assert.equal(buttonNamed(renderer.root, 'Editar identidade'), undefined)
+  assert.ok(buttonNamed(renderer.root, 'Configurações'))
+  await act(async () => buttonNamed(renderer.root, 'Este dispositivo').props.onClick())
+  assert.deepEqual(navigations, ['settings-device'])
+  assert.equal(renderer.root.findAllByProps({ role: 'dialog' }).length, 0)
+  assert.notEqual(h.document.body.style.overflow, 'hidden')
+})
+
+test('resizing an open mobile panel leaves one desktop dialog and releases background scrolling', async (t) => {
+  const { h, renderer } = await renderMenu(t, { mobile: true })
+  await act(async () => buttonNamed(renderer.root, 'Pizzaria Bella, operação atual').props.onClick())
+  assert.equal(renderer.root.findByProps({ role: 'dialog' }).props['aria-modal'], 'true')
+  await act(async () => h.setMobile(false))
+  const dialogs = renderer.root.findAllByProps({ role: 'dialog' })
+  assert.equal(dialogs.length, 1)
+  assert.notEqual(dialogs[0].props['aria-modal'], 'true')
+  assert.notEqual(h.document.body.style.overflow, 'hidden')
+  await act(async () => h.document.dispatchEvent(Object.assign(new Event('keydown'), { key: 'Escape' })))
+  assert.equal(renderer.root.findAllByProps({ role: 'dialog' }).length, 0)
+})
+
+test('About replaces the mobile account panel and closing restores the operation trigger', async (t) => {
+  const { h, renderer } = await renderMenu(t, { mobile: true })
+  await act(async () => buttonNamed(renderer.root, 'Pizzaria Bella, operação atual').props.onClick())
+  assert.ok(renderer.root.findByProps({ 'aria-label': 'Conta e operação' }))
+  await act(async () => buttonNamed(renderer.root, 'Sobre a Mesiva').props.onClick())
+  assert.equal(renderer.root.findAllByProps({ role: 'dialog' }).length, 1)
+  assert.equal(renderer.root.findByProps({ role: 'dialog' }).props['aria-label'], 'Sobre a Mesiva')
+  const before = h.activitySnapshot().focus
+  await act(async () => buttonNamed(renderer.root, 'Fechar').props.onClick())
+  assert.ok(h.activitySnapshot().focus > before)
+  assert.equal(renderer.root.findAllByProps({ role: 'dialog' }).length, 0)
+})
+
+test('unknown personal profile uses its supplied name without claiming manager access', async (t) => {
+  const { renderer } = await renderMenu(t, { authenticated: true, granted: new Set(), user: { displayName: 'Ana', roleName: 'Equipe externa' } })
+  await act(async () => buttonNamed(renderer.root, 'Pizzaria Bella, operação atual').props.onClick())
+  assert.match(nodeText(renderer.root), /Equipe externa/)
+  assert.doesNotMatch(nodeText(renderer.root), /Gerente/)
+  assert.equal(buttonNamed(renderer.root, 'Editar identidade'), undefined)
 })

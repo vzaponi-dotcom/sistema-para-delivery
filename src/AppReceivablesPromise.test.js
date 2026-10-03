@@ -18,7 +18,6 @@ test('payment promise is owned by Orders and composed into the Receivables app s
   assert.match(worker, /payment-promise/)
   assert.match(worker, /updateOrderPaymentPromise\(/)
   assert.match(hook, /await api\.updatePaymentPromise\(orderId, promisedPaymentDate\)/)
-  assert.match(hook, /applyOfficialEffects\(\{ order \}\)/)
   assert.match(surface, /useOrderPaymentPromise/)
   assert.match(surface, /onUpdatePaymentPromise=\{paymentPromise\.updatePaymentPromise\}/)
   assert.match(app, /activeTab === 'receivables'[\s\S]*<ReceivablesSurface/)

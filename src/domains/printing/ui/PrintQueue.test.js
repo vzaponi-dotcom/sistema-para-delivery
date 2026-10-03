@@ -12,6 +12,27 @@ import { nodeText, workspaceHarness } from '../../../test-support/renderWorkspac
 
 const readSource = (path) => readFile(new URL(path, import.meta.url), 'utf8')
 
+test('priority and force require management while skipping the second copy is routine execution', async (t) => {
+  const harness = await workspaceHarness(t)
+  const {default: PrintQueue} = await harness.load('/src/domains/printing/ui/PrintQueue.jsx')
+  for (const [job,label,disabled] of [
+    [{status:'pending',priority:0},'Imprimir agora',true],
+    [{status:'requires_attention',attentionReason:'ORDER_FINALIZED_BEFORE_PRINT'},'Imprimir mesmo assim',true],
+    [{status:'awaiting_second_copy',copiesRequested:2,copiesPrinted:1},'Não imprimir 2ª via',false],
+  ]) {
+    globalThis.fetch = async path => ({ok:true,json:async()=>String(path).includes('/summary')?{summary:{}}:{jobs:[{id:'job1',type:'order',orderId:'o1',...job}],pageInfo:{page:1,pageSize:10,totalItems:1,totalPages:1}}})
+    const renderer = await harness.render(PrintQueue,{canExecutePrinting:true,canDiscardPrinting:false,canForcePrinting:false,orders:[{id:'o1',status:'Em preparo'}],printing:{stations:[]},queryState:{...DEFAULT_PRINT_QUEUE_QUERY},onQueryChange(){}})
+    await act(async()=>{await Promise.resolve(); await Promise.resolve()})
+    const row = renderer.root.findAllByType('tr').find(node=>typeof node.props.onClick==='function')
+    assert.ok(row)
+    await act(async()=>row.props.onClick())
+    const button = renderer.root.findAllByType('button').find(node=>nodeText(node)===label)
+    assert.ok(button,label)
+    assert.equal(button.props.disabled,disabled,label)
+    await act(async()=>renderer.unmount())
+  }
+})
+
 test('print queue page provides the initial structural heading', async () => {
   const page = await readSource('./PrintQueue.jsx')
 
@@ -285,7 +306,7 @@ test('print job details include available timestamps, attention, error, reprint 
     processingStartedAt: '2026-09-08T10:02:00.000Z',
     processedAt: null,
     discardedAt: null,
-    actionActorLabel: 'Victor',
+    actionActorLabel: 'Untrusted old label', attribution: { requestedBy: { type: 'user', displayName: 'Victor' }, lastActionBy: { type: 'user', displayName: 'Victor' } },
     actionAt: '2026-09-08T10:03:00.000Z',
     document: { customer: { name: 'Ana' }, tableIdentifier: 'Mesa 3' },
   }, { order: { id: 'order-1', orderNumber: 42 }, stationReady: true })
@@ -320,7 +341,7 @@ test('print queue opens details from desktop rows and mobile cards, with actions
   assert.match(page, /onClick=\{\(\) => setSelectedJob\(operationalJobs\[index\]\)\}/)
   assert.match(page, /<Modal[\s\S]*selectedDetails\.title/)
   assert.match(page, /Fechar/)
-  assert.match(page, /\['discard', 'skipSecondCopy'\]\.includes\(action\.key\)/)
+  assert.match(page, /DISCARD_ACTIONS\.has\(action\.key\)/)
   const tableRows = page.slice(page.indexOf('<tbody>'), page.indexOf('</tbody>') + '</tbody>'.length)
   assert.doesNotMatch(tableRows, /<Button/)
 })
@@ -331,8 +352,8 @@ test('print queue modal orders actions by primary, destructive, ticket, close on
     readSource('./print-queue.css'),
   ])
 
-  assert.match(page, /\['discard', 'skipSecondCopy'\]\.includes\(action\.key\)/)
-  assert.match(page, /!\['discard', 'skipSecondCopy'\]\.includes\(action\.key\)/)
+  assert.match(page, /DISCARD_ACTIONS\.has\(action\.key\)/)
+  assert.match(page, /!DISCARD_ACTIONS\.has\(action\.key\)/)
   assert.match(styles, /\.print-queue-detail-actions[\s\S]*\.print-queue-detail-close/)
   assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.print-queue-detail-primary[\s\S]*order: 1[\s\S]*\.print-queue-detail-destructive[\s\S]*order: 2[\s\S]*\.print-queue-detail-ticket[\s\S]*order: 3[\s\S]*\.print-queue-detail-close[\s\S]*order: 4/)
 })

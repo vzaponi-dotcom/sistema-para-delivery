@@ -1,3 +1,4 @@
+import { useMutationOwner } from '../../../app/runtime/session/useMutationOwner.js'
 import { useCallback, useState } from 'react'
 import { financeApi } from '../infrastructure/financeApi.js'
 
@@ -12,6 +13,7 @@ export function useFinanceCommands({
   onSuccess = () => {},
   onError = () => {},
 } = {}) {
+  const ownsMutation = useMutationOwner(applyOfficialEffects)
   const [movementDialog, setMovementDialog] = useState(initialMovementDialog)
   const [openingBalanceOpen, setOpeningBalanceOpen] = useState(false)
 
@@ -39,32 +41,38 @@ export function useFinanceCommands({
       const { movement } = movementId
         ? await api.updateMovement(movementId, payload)
         : await api.createMovement(payload)
-      applyOfficialEffects({ movement })
+      if (!ownsMutation()) return false
+
+      if (applyOfficialEffects({ movement }) === false) return false
       onSuccess(movementId ? 'Movimentação atualizada com sucesso' : 'Movimentação registrada com sucesso')
       return true
     } catch (error) {
+      if (!ownsMutation()) return false
       onError(error)
       return false
     } finally {
-      setRequestKey(null)
+      if (ownsMutation()) setRequestKey(null)
     }
-  }, [api, applyOfficialEffects, canManageMovements, movementDialog.movement, onError, onSuccess, setRequestKey, writesBlocked])
+  }, [ownsMutation, api, applyOfficialEffects, canManageMovements, movementDialog.movement, onError, onSuccess, setRequestKey, writesBlocked])
 
   const deleteMovement = useCallback(async (movementId) => {
     if (!canManageMovements || writesBlocked) return false
     setRequestKey(`movement:delete:${movementId}`)
     try {
       const { deletedMovementId } = await api.deleteMovement(movementId)
-      applyOfficialEffects({ deletedMovementId })
+      if (!ownsMutation()) return false
+
+      if (applyOfficialEffects({ deletedMovementId }) === false) return false
       onSuccess('Movimentação excluída com sucesso')
       return true
     } catch (error) {
+      if (!ownsMutation()) return false
       onError(error)
       return false
     } finally {
-      setRequestKey(null)
+      if (ownsMutation()) setRequestKey(null)
     }
-  }, [api, applyOfficialEffects, canManageMovements, onError, onSuccess, setRequestKey, writesBlocked])
+  }, [ownsMutation, api, applyOfficialEffects, canManageMovements, onError, onSuccess, setRequestKey, writesBlocked])
 
   const openOpeningBalance = useCallback(() => {
     if (!canManageMovements || writesBlocked) return false
@@ -81,16 +89,19 @@ export function useFinanceCommands({
     setRequestKey('finance-settings:save')
     try {
       const { financeSettings } = await api.saveFinanceSettings(payload)
-      applyOfficialEffects({ financeSettings })
+      if (!ownsMutation()) return false
+
+      if (applyOfficialEffects({ financeSettings }) === false) return false
       onSuccess('Saldo inicial atualizado com sucesso')
       return true
     } catch (error) {
+      if (!ownsMutation()) return false
       onError(error)
       return false
     } finally {
-      setRequestKey(null)
+      if (ownsMutation()) setRequestKey(null)
     }
-  }, [api, applyOfficialEffects, canManageMovements, onError, onSuccess, setRequestKey, writesBlocked])
+  }, [ownsMutation, api, applyOfficialEffects, canManageMovements, onError, onSuccess, setRequestKey, writesBlocked])
 
   return {
     movementDialog,

@@ -4,6 +4,9 @@ import assert from 'node:assert/strict'
 import { NAVIGATION_DESTINATIONS } from './registry.js'
 
 const EXPECTED_PATHS = Object.freeze({
+  'my-account': '/minha-conta',
+  'access-team': '/configuracoes/equipe',
+  'access-activity': '/configuracoes/atividades',
   'settings-home': '/configuracoes',
   'settings-business-profile': '/configuracoes/identidade',
   'settings-operations': '/configuracoes/operacao',

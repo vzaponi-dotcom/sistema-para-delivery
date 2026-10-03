@@ -20,7 +20,7 @@ const mountProbe = async (props) => {
   }
 }
 
-test('payment promise applies only the authoritative order and preserves request key/messages', async () => {
+test('payment promise preserves all authoritative effects and request key/messages', async () => {
   const calls = []
   const effects = []
   const keys = []
@@ -29,7 +29,7 @@ test('payment promise applies only the authoritative order and preserves request
   const api = {
     updatePaymentPromise: async (...args) => {
       calls.push(args)
-      return { order: officialOrder }
+      return { order: officialOrder, deletedOrderIds: ['hidden-order'] }
     },
   }
   const probe = await mountProbe({
@@ -47,7 +47,7 @@ test('payment promise applies only the authoritative order and preserves request
   })
 
   assert.deepEqual(calls, [['o1', '2026-09-20']])
-  assert.deepEqual(effects, [{ order: officialOrder }])
+  assert.deepEqual(effects, [{ order: officialOrder, deletedOrderIds: ['hidden-order'] }])
   assert.deepEqual(keys, ['payment-promise:o1', null])
   assert.deepEqual(successes, ['Data prometida atualizada'])
 

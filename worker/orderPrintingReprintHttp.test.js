@@ -1,3 +1,5 @@
+import { d1Adapter } from './test-support/settingsDb.js'
+import { installAuditSchema } from './test-support/auditSchema.js'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { DatabaseSync } from 'node:sqlite'
@@ -12,8 +14,10 @@ class D1Sqlite {
       CREATE TABLE auth_credentials (business_id TEXT PRIMARY KEY, pin_hash TEXT NOT NULL);
       CREATE TABLE sessions (
         id TEXT PRIMARY KEY, business_id TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE,
-        created_at TEXT NOT NULL, expires_at TEXT NOT NULL, last_seen_at TEXT NOT NULL, revoked_at TEXT
+        created_at TEXT NOT NULL, expires_at TEXT NOT NULL, last_seen_at TEXT NOT NULL, revoked_at TEXT, user_id TEXT, device_mode TEXT
       );
+      CREATE TABLE business_auth_state (business_id TEXT PRIMARY KEY, mode TEXT);
+      INSERT INTO business_auth_state VALUES ('amor-e-sabor','legacy');
       CREATE TABLE businesses (id TEXT PRIMARY KEY, name TEXT NOT NULL);
       CREATE TABLE business_print_settings (
         business_id TEXT PRIMARY KEY, default_copies INTEGER NOT NULL DEFAULT 2,
@@ -71,32 +75,12 @@ class D1Sqlite {
         UNIQUE (job_id, copy_number, attempt_number)
       );
     `)
+    installAuditSchema(this.sqlite)
+    Object.assign(this,d1Adapter(this.sqlite))
+    this.exec = sql => this.sqlite.exec(sql)
   }
 
-  prepare(sql) {
-    const database = this.sqlite
-    return { bind(...values) { return {
-      async first() { return database.prepare(sql).get(...values) ?? null },
-      async all() { return { results: database.prepare(sql).all(...values) } },
-      async run() {
-        const result = database.prepare(sql).run(...values)
-        return { success: true, meta: { changes: Number(result.changes || 0) } }
-      },
-    } } }
-  }
 
-  async batch(statements) {
-    this.sqlite.exec('BEGIN')
-    try {
-      const results = []
-      for (const statement of statements) results.push(await statement.run())
-      this.sqlite.exec('COMMIT')
-      return results
-    } catch (error) {
-      this.sqlite.exec('ROLLBACK')
-      throw error
-    }
-  }
 }
 
 const makeEnv = async () => {

@@ -3,11 +3,11 @@ import test from 'node:test'
 import { act } from 'react-test-renderer'
 import { buttonNamed, nodeText, workspaceHarness as createWorkspaceHarness } from './test-support/renderWorkspace.js'
 import { comandaDetail, deferred } from './test-support/comandaFixtures.js'
-import { effectivePaymentConfig } from './test-support/appSessionFixtures.js'
+import { authenticatedSession, effectivePaymentConfig, markSystemNotificationsRead } from './test-support/appSessionFixtures.js'
 
 const workspaceHarness = async (...args) => {
   const harness = await createWorkspaceHarness(...args)
-  harness.localStorage.setItem('delivery-notifications:v1:amor-e-sabor', JSON.stringify({ version: 1, knownIds: ['release-2026-09-operation-shell'], presentedIds: ['release-2026-09-operation-shell'], readIds: ['release-2026-09-operation-shell'] }))
+  markSystemNotificationsRead(harness)
   return harness
 }
 
@@ -27,7 +27,8 @@ function detailFor(table, tab) {
 async function appWorkspace(h, App, { capabilities, tables = [sourceWithA(), destinationFree()] } = {}) {
   const state = { tables, tableTabs: [], orders: [], movements: [], bootstrapCalls: 0, transferCalls: [], transferResponse: null, paymentRequest: null }
   globalThis.fetch = async (path, options = {}) => {
-    if (path === '/api/auth/session') return response({ authenticated: true })
+    if (String(path).startsWith('/api/bootstrap?')) path = '/api/bootstrap'
+    if (path === '/api/auth/session') return response(authenticatedSession)
     if (path === '/api/bootstrap') {
       state.bootstrapCalls += 1
       return response({ tables: state.tables, tableTabs: state.tableTabs, orders: state.orders, movements: state.movements, clients: [], products: [], financeSettings: null, effectiveBusinessConfig: effectivePaymentConfig })

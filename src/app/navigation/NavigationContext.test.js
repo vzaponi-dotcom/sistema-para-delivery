@@ -15,15 +15,16 @@ test('NavigationProvider expõe só navegação e possui um listener app:navigat
   }
   const before = h.activitySnapshot({ ignoreFocus: true }).listeners
   const renderer = await h.render(NavigationProvider, {
-    activeTab: 'orders', activeMobileEntry: undefined,
+    activeTab: 'orders', activeMobileEntry: undefined, authenticated: true,
     granted: new Set(['orders.view']), implemented: new Set(['orders']),
     moreOpen: false, requestNavigation: (id) => calls.push(id), openMore() {}, closeMore() {},
     children: React.createElement(Probe),
   })
   assert.deepEqual(Object.keys(seen.current).sort(), [
-    'activeMobileEntry', 'activeTab', 'closeMore', 'granted', 'implemented',
+    'activeMobileEntry', 'activeTab', 'authenticated', 'closeMore', 'granted', 'implemented',
     'moreOpen', 'openMore', 'requestNavigation',
   ].sort())
+  assert.equal(seen.current.authenticated, true)
   assert.equal(h.activitySnapshot({ ignoreFocus: true }).listeners, before + 1)
   await act(async () => h.window.dispatchEvent(Object.assign(new Event('app:navigate'), { detail: 'clients' })))
   await act(async () => h.window.dispatchEvent(Object.assign(new Event('app:navigate'), { detail: { id: 'clients' } })))

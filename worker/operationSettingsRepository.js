@@ -1,3 +1,4 @@
+import { businessEvent } from './access/audit.js'
 import { DEFAULT_OPERATIONS, parseOperations } from '../shared/businessPolicies.js'
 import { clearSettingsAssertions, hashSettingsPayload, prepareSettingsAssertion, readSettingsReceipt, settingsError } from './settingsTransactions.js'
 
@@ -107,8 +108,8 @@ export async function saveOperations(db, businessId, input, now = new Date()) {
     VALUES (?, 'operations', ?, ?, ?, ?, ?, ?)`).bind(businessId, mutationId, payloadHash, committedRevision, committedAt, createdAt, updatedAt))
   statements.push(clearSettingsAssertions(db, txId), db.prepare(SELECT_OPERATIONS).bind(businessId))
   try {
-    const results = await db.batch(statements)
-    return { resource: decode(results.at(-1).results[0]), receipt: { mutationId, committedRevision, committedAt, replayed: false } }
+    const results = await db.batch([...statements,businessEvent(db,businessId,{action:'settings.operations.updated',resourceType:'settings',resourceId:'operations',now})])
+    return { resource: decode(results[statements.length - 1].results[0]), receipt: { mutationId, committedRevision, committedAt, replayed: false } }
   } catch (cause) {
     // A duplicate receipt/revision race or lost batch response is reconciled by reads only.
     // Never resubmit a mutation batch, even when no receipt has appeared yet.

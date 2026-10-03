@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useMutationOwner } from '../../../app/runtime/session/useMutationOwner.js'
+import { useLayoutEffect, useState } from 'react'
 
 export function useOrderCommands({
   orders,
@@ -11,7 +12,9 @@ export function useOrderCommands({
   onSuccess,
   onError,
 }) {
+  const ownsMutation = useMutationOwner(applyOfficialEffects)
   const [actionKey, setActionKey] = useState(null)
+  useLayoutEffect(() => { setActionKey(null) }, [applyOfficialEffects])
 
   const finalizeOrder = async (orderId) => {
     if (!canFinalizeOrders || writesBlocked || actionKey) return false
@@ -19,15 +22,18 @@ export function useOrderCommands({
     if (!currentOrder) return false
     setActionKey(`order:status:${orderId}`)
     try {
-      const { order } = await api.updateOrderStatus(orderId, 'Finalizado')
-      applyOfficialEffects({ order })
+      const effects = await api.updateOrderStatus(orderId, 'Finalizado')
+      if (!ownsMutation()) return false
+
+      if (applyOfficialEffects(effects) === false) return false
       onSuccess(currentOrder.type === 'Entrega' ? 'Pedido saiu para entrega' : 'Pedido finalizado')
       return true
     } catch (error) {
+      if (!ownsMutation()) return false
       onError(error)
       return false
     } finally {
-      setActionKey(null)
+      if (ownsMutation()) setActionKey(null)
     }
   }
 
@@ -36,14 +42,17 @@ export function useOrderCommands({
     setActionKey(`order:cancel:${orderId}`)
     try {
       const result = await api.cancelOrder(orderId, payload)
-      applyOfficialEffects(result)
+      if (!ownsMutation()) return false
+
+      if (applyOfficialEffects(result) === false) return false
       onSuccess(payload?.refundNow ? 'Pedido cancelado e estorno registrado' : 'Pedido cancelado com sucesso')
       return true
     } catch (error) {
+      if (!ownsMutation()) return false
       onError(error)
       return false
     } finally {
-      setActionKey(null)
+      if (ownsMutation()) setActionKey(null)
     }
   }
 

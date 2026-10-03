@@ -1,3 +1,4 @@
+import { createSettingsDb } from './test-support/settingsDb.js'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mapMovementRow } from './financeRepository.js'
@@ -202,64 +203,6 @@ test('loadBootstrap scopes every business-owned query and attaches order items a
   }
 })
 
-class CrudDb {
-  constructor() {
-    this.clients = new Map()
-    this.products = new Map()
-    this.calls = []
-  }
-
-  prepare(sql) {
-    const db = this
-    return {
-      bind(...values) {
-        db.calls.push({ sql, values })
-        return {
-          async first() {
-            if (sql.includes('FROM clients')) {
-              const [id, businessId] = values
-              const row = db.clients.get(id)
-              return row?.business_id === businessId ? row : null
-            }
-            if (sql.includes('FROM products')) {
-              const [id, businessId] = values
-              const row = db.products.get(id)
-              return row?.business_id === businessId ? row : null
-            }
-            return null
-          },
-          async run() {
-            if (sql.includes('INSERT INTO clients')) {
-              const [id, businessId, name, phone, address, createdAt, updatedAt] = values
-              db.clients.set(id, { id, business_id: businessId, name, phone, address, created_at: createdAt, updated_at: updatedAt })
-            } else if (sql.includes('UPDATE clients SET')) {
-              const [name, phone, address, updatedAt, id, businessId] = values
-              const row = db.clients.get(id)
-              if (row?.business_id === businessId) Object.assign(row, { name, phone, address, updated_at: updatedAt })
-            } else if (sql.includes('DELETE FROM clients')) {
-              const [id, businessId] = values
-              const row = db.clients.get(id)
-              if (row?.business_id === businessId) db.clients.delete(id)
-            } else if (sql.includes('INSERT INTO products')) {
-              const [id, businessId, category, size, name, priceCents, createdAt, updatedAt] = values
-              db.products.set(id, { id, business_id: businessId, category, size, name, price_cents: priceCents, active: 1, created_at: createdAt, updated_at: updatedAt })
-            } else if (sql.includes('UPDATE products SET category')) {
-              const [category, size, name, priceCents, updatedAt, id, businessId] = values
-              const row = db.products.get(id)
-              if (row?.business_id === businessId) Object.assign(row, { category, size, name, price_cents: priceCents, updated_at: updatedAt })
-            } else if (sql.includes('UPDATE products SET active = 0')) {
-              const [updatedAt, id, businessId] = values
-              const row = db.products.get(id)
-              if (row?.business_id === businessId) Object.assign(row, { active: 0, updated_at: updatedAt })
-            }
-            return { success: true }
-          },
-        }
-      },
-    }
-  }
-}
-
 test('bootstrap exposes only safe operation identity fields and keeps logo/name state isolated by business', async () => {
   const db = new BootstrapDb()
 
@@ -300,14 +243,13 @@ test('bootstrap exposes only safe operation identity fields and keeps logo/name 
   }
 })
 
-test('client CRUD scopes lookup/update/delete by business id', async () => {
-  const db = new CrudDb()
+test('client CRUD scopes lookup/update/delete by business id', async t => {
+  const {db,sqlite,close}=createSettingsDb();t.after(close)
   const now = new Date('2026-09-01T20:00:00.000Z')
   const client = await createClient(db, 'amor-e-sabor', { name: 'Maria', phone: '11', address: 'Centro' }, now)
   assert.equal(client.name, 'Maria')
 
-  const other = { ...db.clients.get(client.id), business_id: 'outra-empresa' }
-  db.clients.set('c-other', other)
+  sqlite.exec("INSERT INTO businesses(id,slug,name,created_at,updated_at) VALUES('outra-empresa','outra','Outra','2026-09-30','2026-09-30'); INSERT INTO clients(id,business_id,name,created_at,updated_at) VALUES('c-other','outra-empresa','Other','2026-09-30','2026-09-30')")
   assert.equal(await updateClient(db, 'amor-e-sabor', 'c-other', { name: 'X', phone: '', address: '' }, now), null)
 
   const updated = await updateClient(db, 'amor-e-sabor', client.id, { name: 'Maria Silva', phone: '22', address: 'Bairro' }, now)
@@ -315,21 +257,23 @@ test('client CRUD scopes lookup/update/delete by business id', async () => {
   assert.equal(await deleteClient(db, 'amor-e-sabor', client.id), true)
   assert.equal(await deleteClient(db, 'amor-e-sabor', client.id), false)
 
-  const writeCalls = db.calls.filter(({ sql }) => /UPDATE clients|DELETE FROM clients/.test(sql))
-  for (const call of writeCalls) assert.match(call.sql, /business_id = \?/)
+  assert.equal(sqlite.prepare("SELECT name FROM clients WHERE id='c-other'").get().name,'Other')
+  assert.equal(sqlite.prepare("SELECT count(*) n FROM audit_events WHERE action IN ('client.created','client.updated','client.deleted') AND business_id='amor-e-sabor'").get().n,3)
 })
 
-test('product delete is soft and all product writes are business scoped', async () => {
-  const db = new CrudDb()
+test('product delete is soft and all product writes are business scoped', async t => {
+  const {db,sqlite,close}=createSettingsDb();t.after(close)
   const now = new Date('2026-09-01T20:00:00.000Z')
-  const product = await createProduct(db, 'amor-e-sabor', { category: 'Bebida', size: '350ml', name: 'Coca', priceCents: 850 }, now)
+  const product = await createProduct(db, 'amor-e-sabor', { presentationType:'unit',presentationValue:'',presentationUnit:'',category: 'Bebida', size: '350ml', name: 'Coca', priceCents: 850 }, now)
   assert.equal(product.price, 8.5)
 
-  const updated = await updateProduct(db, 'amor-e-sabor', product.id, { category: 'Bebida', size: 'Lata', name: 'Coca Cola', priceCents: 900 }, now)
+  const updated = await updateProduct(db, 'amor-e-sabor', product.id, { presentationType:'unit',presentationValue:'',presentationUnit:'',category: 'Bebida', size: 'Lata', name: 'Coca Cola', priceCents: 900 }, now)
   assert.equal(updated.price, 9)
-  assert.equal(await deleteProduct(db, 'amor-e-sabor', product.id, now), true)
-  assert.equal(db.products.get(product.id).active, 0)
 
-  const writes = db.calls.filter(({ sql }) => /UPDATE products/.test(sql))
-  for (const call of writes) assert.match(call.sql, /business_id = \?/)
+  assert.equal(await updateProduct(db,'outside',product.id,{category:'Bebida',size:'Lata',name:'Wrong tenant',priceCents:1},now),null)
+  assert.equal(await deleteProduct(db,'outside',product.id,now),false)
+  assert.equal(sqlite.prepare('SELECT name FROM products WHERE id=?').get(product.id).name,'Coca Cola')
+  assert.equal(await deleteProduct(db, 'amor-e-sabor', product.id, now), true)
+  assert.equal(sqlite.prepare('SELECT active FROM products WHERE id=?').get(product.id).active, 0)
+  assert.equal(sqlite.prepare("SELECT count(*) n FROM audit_events WHERE resource_id=?").get(product.id).n,3)
 })

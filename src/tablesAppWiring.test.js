@@ -12,6 +12,7 @@ async function tablesWorkspace(t) {
   const h = await workspaceHarness(t)
   const state = { tables: workspaceTables, expired: false, writes: [], pending: deferred() }
   globalThis.fetch = async (path, options = {}) => {
+    if (String(path).startsWith('/api/bootstrap?')) path = '/api/bootstrap'
     if (path === '/api/tables' && options.method === 'POST') { state.writes.push(JSON.parse(options.body)); return state.pending.promise }
     if (path === '/api/bootstrap' && state.expired) return { ok: false, status: 401, json: async () => ({ error: { message: 'Sessão expirada' } }) }
     const responses = {
@@ -19,6 +20,7 @@ async function tablesWorkspace(t) {
       '/api/bootstrap': { tables: state.tables, orders: [], movements: [], products: [], clients: [], tableTabs: [], financeSettings: null },
       '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
       '/api/printing/jobs?limit=100': { jobs: [] },
+      '/api/printing/jobs/summary': { summary: {} },
     }
     assert.ok(Object.hasOwn(responses, path), path)
     return { ok: true, json: async () => structuredClone(responses[path]) }

@@ -1,3 +1,5 @@
+import { businessEvent, auditedMutation, withAuditContext, auditContext } from './access/audit.js'
+import { printingActor } from './access/printingAuthorization.js'
 const repositoryError = (status, code, message) => Object.assign(new Error(message), { status, code })
 const timestamp = (value = new Date()) => value instanceof Date ? value.toISOString() : String(value)
 const rows = (result) => Array.isArray(result?.results) ? result.results : []
@@ -103,6 +105,7 @@ export const createPrintJobAttempt = async (db, businessId, input, now = new Dat
   const job = await loadJob(db, businessId, jobId)
   if (!job) throw repositoryError(404, 'PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
   await requireStation(db, businessId, stationId)
+  db = withAuditContext(db,printingActor(auditContext(db,businessId),{automatic:true,stationId}))
   const expectedCopy = Number(job.copies_printed) + 1
   if (copyNumber !== expectedCopy || copyNumber > Number(job.copies_requested)) {
     throw repositoryError(409, 'PRINT_ATTEMPT_COPY_NOT_EXPECTED', 'A tentativa não corresponde à próxima via esperada.')
@@ -122,7 +125,7 @@ export const createPrintJobAttempt = async (db, businessId, input, now = new Dat
 
   const id = crypto.randomUUID()
   const at = timestamp(now)
-  const created = await db.prepare(`INSERT INTO print_job_attempts (
+  const created = await auditedMutation(db,businessId,db.prepare(`INSERT INTO print_job_attempts (
     id, business_id, job_id, copy_number, attempt_number, station_id, spool_job_name,
     status, created_at, updated_at
   ) SELECT ?, ?, ?, ?,
@@ -135,7 +138,7 @@ export const createPrintJobAttempt = async (db, businessId, input, now = new Dat
     WHERE job_id = ? AND copy_number = ? AND resolution IS NULL
   )`)
     .bind(id, businessId, jobId, copyNumber, jobId, copyNumber, stationId, jobId, copyNumber,
-      jobId, copyNumber, at, at, jobId, copyNumber).run()
+      jobId, copyNumber, at, at, jobId, copyNumber),{action:'printing.attempt.prepared',resourceType:'print-job',resourceId:jobId,now}).run()
   if (Number(created?.meta?.changes || 0) !== 1) {
     throw repositoryError(409, 'PRINT_ATTEMPT_ACTIVE', 'Já existe uma tentativa física sem resolução para esta via.')
   }
@@ -150,6 +153,7 @@ export const markPrintAttemptSubmitting = async (db, businessId, attemptId, stat
     throw repositoryError(409, 'PRINT_ATTEMPT_NOT_PREPARED', 'A tentativa não pode iniciar uma nova submissão.')
   }
 
+  db = withAuditContext(db,printingActor(auditContext(db,businessId),{automatic:true,stationId}))
   const at = timestamp(now)
   await db.batch([
     db.prepare(`UPDATE print_job_attempts SET
@@ -159,6 +163,7 @@ export const markPrintAttemptSubmitting = async (db, businessId, attemptId, stat
     db.prepare(`UPDATE print_jobs SET status = 'awaiting_confirmation'
       WHERE id = ? AND business_id = ? AND station_id = ? AND status = 'processing'`)
       .bind(attempt.jobId, businessId, stationId),
+    businessEvent(db,businessId,{action:'printing.submission.intent',resourceType:'print-job',resourceId:attempt.jobId,outcome:'intent',now,onlyIfChanged:true}),
   ])
   return requireAttempt(db, businessId, attemptId)
 }
@@ -168,6 +173,7 @@ const markComplete = async (db, businessId, attempt, stationId, details, now) =>
   if (!attempt.submissionStartedAt) {
     throw repositoryError(409, 'PRINT_ATTEMPT_NOT_SUBMITTED', 'A confirmação exige uma submissão persistida.')
   }
+  db = withAuditContext(db,printingActor(auditContext(db,businessId),{automatic:true,stationId}))
   const at = timestamp(now)
   await db.batch([
     db.prepare(`UPDATE print_job_attempts SET
@@ -189,6 +195,7 @@ const markComplete = async (db, businessId, attempt, stationId, details, now) =>
             AND completed_at = ? AND resolution IS NULL
         )`)
       .bind(at, attempt.jobId, businessId, stationId, attempt.id, businessId, at),
+    businessEvent(db,businessId,{action:'printing.outcome.observed',resourceType:'print-job',resourceId:attempt.jobId,outcome:'spooler_complete',now,onlyIfChanged:true}),
     db.prepare(`UPDATE print_stations SET recovery_job_id = NULL, updated_at = ?
       WHERE id = ? AND business_id = ? AND recovery_job_id = ?
         AND EXISTS (SELECT 1 FROM print_jobs WHERE id = ? AND business_id = ? AND status IN ('printed', 'discarded'))`)
@@ -200,11 +207,12 @@ const markComplete = async (db, businessId, attempt, stationId, details, now) =>
 export const markPrintAttemptUnknown = async (db, businessId, attemptId, stationId, _reason, now = new Date()) => {
   const attempt = await requireAttemptStation(db, businessId, attemptId, stationId)
   await requireSubmittingJob(db, businessId, attempt, stationId)
-  if (attempt.status === 'complete' || attempt.resolution) return attempt
+  if (attempt.status === 'complete' || attempt.status === 'unknown' || attempt.resolution) return attempt
   if (!attempt.submissionStartedAt) {
     throw repositoryError(409, 'PRINT_ATTEMPT_NOT_SUBMITTED', 'O resultado só pode ficar incerto depois da submissão.')
   }
 
+  db = withAuditContext(db,printingActor(auditContext(db,businessId),{automatic:true,stationId}))
   const at = timestamp(now)
   const code = 'PRINT_OUTCOME_UNKNOWN'
   const message = 'O resultado físico da impressão não foi confirmado.'
@@ -217,6 +225,7 @@ export const markPrintAttemptUnknown = async (db, businessId, attemptId, station
       status = 'requires_attention', processed_at = ?, last_error_code = ?, last_error_message = ?
       WHERE id = ? AND business_id = ? AND station_id = ? AND status IN ('awaiting_confirmation', 'processing')`)
       .bind(at, code, message, attempt.jobId, businessId, stationId),
+    businessEvent(db,businessId,{action:'printing.outcome.observed',resourceType:'print-job',resourceId:attempt.jobId,outcome:'unknown',now,onlyIfChanged:true}),
   ])
   return requireAttempt(db, businessId, attemptId)
 }
@@ -239,13 +248,14 @@ export const recordPrintAttemptEvent = async (db, businessId, attemptId, station
   await requireSubmittingJob(db, businessId, attempt, stationId)
   if (attempt.status === 'complete' || attempt.resolution) return attempt
 
+  db = withAuditContext(db,printingActor(auditContext(db,businessId),{automatic:true,stationId}))
   const at = timestamp(now)
   const status = ['SCHEDULED', 'SENT', 'SPOOLING'].includes(name) ? 'spooling' : 'printing'
-  await db.prepare(`UPDATE print_job_attempts SET
+  await auditedMutation(db,businessId,db.prepare(`UPDATE print_job_attempts SET
     status = ?, spool_job_id = COALESCE(?, spool_job_id),
     submitted_at = COALESCE(submitted_at, ?), last_event_at = ?, updated_at = ?
-    WHERE id = ? AND business_id = ? AND station_id = ? AND status <> 'complete' AND resolution IS NULL`)
-    .bind(status, details.spoolJobId, at, at, at, attemptId, businessId, stationId).run()
+    WHERE id = ? AND business_id = ? AND station_id = ? AND status <> 'complete' AND resolution IS NULL AND (status <> ? OR spool_job_id IS NOT COALESCE(?, spool_job_id))`)
+    .bind(status, details.spoolJobId, at, at, at, attemptId, businessId, stationId,status,details.spoolJobId),{action:'printing.outcome.observed',resourceType:'print-job',resourceId:attempt.jobId,outcome:status,now}).run()
   return requireAttempt(db, businessId, attemptId)
 }
 
@@ -285,13 +295,14 @@ export const resolveUnknownPrintAttempt = async (db, businessId, jobId, attemptI
       processing_started_at = CASE WHEN ? = 'manual_not_printed' THEN NULL ELSE processing_started_at END,
       processed_at = ?, available_at = CASE WHEN ? = 'manual_not_printed' THEN ? ELSE available_at END,
       last_error_code = NULL, last_error_message = NULL, action_actor_label = ?, action_at = ?
-      WHERE id = ? AND business_id = ? AND status = 'requires_attention'
+      WHERE changes() = 1 AND id = ? AND business_id = ? AND status = 'requires_attention'
         AND EXISTS (
           SELECT 1 FROM print_job_attempts
           WHERE id = ? AND business_id = ? AND resolution = ? AND resolved_at = ?
         )`)
       .bind(nextStatus, nextCopies, resolution, resolution, at, resolution, at, actor, at,
         jobId, businessId, attemptId, businessId, resolution, at),
+    businessEvent(db,businessId,{action:'printing.outcome.resolved',resourceType:'print-job',resourceId:jobId,outcome:resolution,now,onlyIfChanged:true}),
     db.prepare(`UPDATE print_stations SET recovery_job_id = NULL, updated_at = ?
       WHERE business_id = ? AND recovery_job_id = ?
         AND EXISTS (SELECT 1 FROM print_jobs WHERE id = ? AND business_id = ? AND status IN ('printed', 'discarded'))`)

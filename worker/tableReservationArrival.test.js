@@ -131,7 +131,7 @@ test('confirm-arrival API requires orders.create, same origin and returns recalc
   const context = {
     businessId: BUSINESS,
     sessionId: 'arrival-api',
-    granted: new Set(['orders.create']),
+    granted: new Set(['orders.create', 'orders.view', 'comandas.view', 'tables.view']),
   }
   const response = await handleTableReservationApi(request, { DB: db, now: ARRIVAL }, context, new URL(request.url))
   assert.equal(response.status, 200)

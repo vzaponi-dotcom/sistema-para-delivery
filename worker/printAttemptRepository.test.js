@@ -1,3 +1,4 @@
+import { installAuditSchema } from './test-support/auditSchema.js'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { DatabaseSync } from 'node:sqlite'
@@ -74,6 +75,7 @@ class D1Sqlite {
         UNIQUE (job_id, copy_number, attempt_number)
       );
     `)
+    installAuditSchema(this.sqlite)
   }
 
   prepare(sql) {
@@ -83,9 +85,9 @@ class D1Sqlite {
         return {
           async first() { return database.prepare(sql).get(...values) ?? null },
           async all() { return { results: database.prepare(sql).all(...values) } },
-          async run() {
-            const result = database.prepare(sql).run(...values)
-            return { success: true, meta: { changes: Number(result.changes || 0) } }
+          run() {
+            const results = database.prepare(sql).all(...values)
+            return { success: true, results, meta: { changes: /^\s*(INSERT|UPDATE|DELETE)\b/i.test(sql) ? Number(database.prepare('SELECT changes() n').get().n) : 0 } }
           },
         }
       },
@@ -96,7 +98,7 @@ class D1Sqlite {
     this.sqlite.exec('BEGIN')
     try {
       const results = []
-      for (const statement of statements) results.push(await statement.run())
+      for (const statement of statements) results.push(statement.run())
       this.sqlite.exec('COMMIT')
       return results
     } catch (error) {
@@ -316,4 +318,23 @@ test('a retry reuses the same prepared attempt after submission failed before ph
   assert.equal(resumed.id, prepared.id)
   assert.equal(resumed.status, 'prepared')
   assert.equal((await listPrintJobAttempts(db, businessId, 'job-1')).length, 1)
+})
+
+test('spool observation replay preserves known ID and timestamps while real progress is audited', async () => {
+  const db=setup()
+  const attempt=await createPrintJobAttempt(db,businessId,{jobId:'job-1',stationId:'kitchen',copyNumber:1},now)
+  await markPrintAttemptSubmitting(db,businessId,attempt.id,'kitchen',now)
+  const observe=(extra,at)=>recordPrintAttemptEvent(db,businessId,attempt.id,'kitchen',qzEvent(attempt,'SPOOLING',extra),at)
+  await observe({},now)
+  const knownAt=new Date(now.getTime()+1000)
+  await observe({spoolJobId:7},knownAt)
+  await observe({},new Date(now.getTime()+2000))
+  await observe({spoolJobId:null},new Date(now.getTime()+3000))
+  const stored=db.sqlite.prepare('SELECT * FROM print_job_attempts WHERE id=?').get(attempt.id)
+  assert.equal(stored.spool_job_id,7)
+  assert.equal(stored.last_event_at,knownAt.toISOString())
+  assert.equal(db.sqlite.prepare("SELECT count(*) n FROM audit_events WHERE result='spooling'").get().n,2)
+  await recordPrintAttemptEvent(db,businessId,attempt.id,'kitchen',qzEvent(attempt,'PRINTING'),new Date(now.getTime()+4000))
+  assert.equal(db.sqlite.prepare("SELECT count(*) n FROM audit_events WHERE result='printing'").get().n,1)
+  await assert.rejects(observe({spoolJobId:8},now),{code:'PRINT_ATTEMPT_SPOOL_ID_MISMATCH'})
 })

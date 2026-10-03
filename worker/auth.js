@@ -1,3 +1,4 @@
+import { auditedMutation } from './access/audit.js'
 const encoder = new TextEncoder()
 const PIN_ALGORITHM = 'pbkdf2-sha256'
 // Cloudflare Workers Web Crypto rejects PBKDF2 iteration counts above 100,000.
@@ -26,7 +27,7 @@ const bytesToBase64Url = (bytes) => bytesToBase64(bytes).replace(/\+/g, '-').rep
 
 const bytesToHex = (bytes) => Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
 
-const sha256Hex = async (value) => {
+export const sha256Hex = async (value) => {
   const digest = await crypto.subtle.digest('SHA-256', encoder.encode(value))
   return bytesToHex(new Uint8Array(digest))
 }
@@ -48,7 +49,7 @@ const constantTimeEqual = (left, right) => {
   return mismatch === 0
 }
 
-const cookieValue = (request, name) => {
+export const cookieValue = (request, name) => {
   const header = request.headers.get('cookie') || ''
   for (const part of header.split(';')) {
     const [rawName, ...rawValue] = part.trim().split('=')
@@ -133,9 +134,11 @@ export const revokeSession = async (request, env, now = new Date()) => {
   if (!token) return
 
   const tokenHash = await sha256Hex(token)
-  await env.DB.prepare(
+  const statement = env.DB.prepare(
     `UPDATE sessions SET revoked_at = ? WHERE token_hash = ? AND revoked_at IS NULL`,
-  ).bind(now.toISOString(), tokenHash).run()
+  ).bind(now.toISOString(), tokenHash)
+  if (env.DB.auditContext) await auditedMutation(env.DB,env.DB.auditContext.businessId,statement,{action:'session.revoked',resourceType:'user',resourceId:env.DB.auditContext.userId||null,now}).run()
+  else await statement.run()
 }
 
 export const SESSION_MAX_AGE = SESSION_MAX_AGE_SECONDS

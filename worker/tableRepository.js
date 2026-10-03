@@ -1,3 +1,4 @@
+import { businessEvent, auditedMutation } from './access/audit.js'
 import { listNextTableReservations, loadNextTableReservationForTable } from './tableReservationRepository.js'
 
 const TABLE_NAME_MAX_LENGTH = 60
@@ -280,7 +281,7 @@ export const transferOpenTableTab = async (
 
   let result
   try {
-    result = await db.prepare(`UPDATE table_tabs
+    result = await auditedMutation(db, businessId, db.prepare(`UPDATE table_tabs
       SET table_id = ?,
         table_identifier = (
           SELECT name FROM tables
@@ -310,7 +311,7 @@ export const transferOpenTableTab = async (
       destination.id,
       businessId,
       destination.id,
-    ).run()
+    ), {action:'table-tab.transferred',resourceType:'table-tab',resourceId:sourceTab.id,now}).run()
   } catch (error) {
     if (isOpenTableTabCollision(error)) throw tableDestinationOccupiedError()
     throw error
@@ -362,7 +363,7 @@ export const createTable = async (db, businessId, input, now = new Date()) => {
   const timestamp = now.toISOString()
   const sortOrder = Number(orderRow?.max_sort_order || 0) + 1
 
-  await runWithTableNameCollision(() => db.prepare(`INSERT INTO tables (
+  await runWithTableNameCollision(() => auditedMutation(db, businessId, db.prepare(`INSERT INTO tables (
     id, business_id, name, name_key, sort_order, is_active, created_at, updated_at
   ) VALUES (?, ?, ?, ?, ?, 1, ?, ?)`).bind(
     id,
@@ -372,7 +373,7 @@ export const createTable = async (db, businessId, input, now = new Date()) => {
     sortOrder,
     timestamp,
     timestamp,
-  ).run())
+  ), {action:'table.created',resourceType:'table',resourceId:id,now}).run())
 
   return loadTableById(db, businessId, id)
 }
@@ -384,7 +385,7 @@ export const renameTable = async (db, businessId, tableId, value, now = new Date
   if (current.nextReservation) throw tableHasActiveReservationError()
 
   const { name, nameKey } = normalizeTableName(value)
-  await runWithTableNameCollision(() => db.prepare(`UPDATE tables
+  await runWithTableNameCollision(() => auditedMutation(db, businessId, db.prepare(`UPDATE tables
     SET name = ?, name_key = ?, updated_at = ?
     WHERE id = ? AND business_id = ?`).bind(
     name,
@@ -392,7 +393,7 @@ export const renameTable = async (db, businessId, tableId, value, now = new Date
     now.toISOString(),
     tableId,
     businessId,
-  ).run())
+  ), {action:'table.updated',resourceType:'table',resourceId:tableId,now}).run())
 
   return loadTableById(db, businessId, tableId)
 }
@@ -407,14 +408,14 @@ export const setTableActive = async (db, businessId, tableId, isActive, now = ne
   if (!isActive && current.occupancy === 'occupied') throw tableOccupiedError()
   if (!isActive && current.nextReservation) throw tableHasActiveReservationError()
 
-  await db.prepare(`UPDATE tables
+  await auditedMutation(db, businessId, db.prepare(`UPDATE tables
     SET is_active = ?, updated_at = ?
     WHERE id = ? AND business_id = ?`).bind(
     isActive ? 1 : 0,
     now.toISOString(),
     tableId,
     businessId,
-  ).run()
+  ), {action:'table.updated',resourceType:'table',resourceId:tableId,now}).run()
 
   return loadTableById(db, businessId, tableId)
 }
@@ -436,7 +437,7 @@ export const reorderTables = async (db, businessId, orderedIds, now = new Date()
   const statements = orderedIds.map((id, index) => db.prepare(`UPDATE tables
     SET sort_order = ?, updated_at = ?
     WHERE id = ? AND business_id = ?`).bind(index + 1, timestamp, id, businessId))
-  await db.batch(statements)
+  await db.batch([...statements,businessEvent(db,businessId,{action:'tables.reordered',resourceType:'tables',resourceId:businessId,now})])
 
   return listTables(db, businessId)
 }

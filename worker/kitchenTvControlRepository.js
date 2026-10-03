@@ -1,3 +1,4 @@
+import { auditedMutation } from './access/audit.js'
 import { isScheduledWaiting } from '../shared/orderTiming.js'
 import { normalizeKitchenTvModality } from '../shared/kitchenTvModality.js'
 import { loadOperations } from './operationSettingsRepository.js'
@@ -36,22 +37,21 @@ export async function loadKitchenTvControl(db, businessId) {
 
 export async function setKitchenTvRequestedPage(db, businessId, page, now = new Date()) {
   const updatedAt = now.toISOString()
-  await db.prepare(`INSERT INTO kitchen_tv_display_control (
+  await auditedMutation(db,businessId,db.prepare(`INSERT INTO kitchen_tv_display_control (
       business_id, revision, requested_page, updated_at
     ) VALUES (?, 1, ?, ?)
     ON CONFLICT(business_id) DO UPDATE SET
       revision = kitchen_tv_display_control.revision + 1,
       requested_page = excluded.requested_page,
       updated_at = excluded.updated_at`)
-    .bind(businessId, page, updatedAt)
-    .run()
+    .bind(businessId, page, updatedAt),{action:'kitchen-tv.page.updated',resourceType:'settings',resourceId:'kitchen-tv',now}).run()
   return loadKitchenTvControl(db, businessId)
 }
 
 export async function setKitchenTvRequestedModality(db, businessId, modality, now = new Date()) {
   const requestedModality = normalizeKitchenTvModality(modality)
   const updatedAt = now.toISOString()
-  await db.prepare(`INSERT INTO kitchen_tv_display_control (
+  await auditedMutation(db,businessId,db.prepare(`INSERT INTO kitchen_tv_display_control (
       business_id, revision, requested_page, requested_modality, updated_at
     ) VALUES (?, 1, 1, ?, ?)
     ON CONFLICT(business_id) DO UPDATE SET
@@ -59,8 +59,7 @@ export async function setKitchenTvRequestedModality(db, businessId, modality, no
       requested_page = 1,
       requested_modality = excluded.requested_modality,
       updated_at = excluded.updated_at`)
-    .bind(businessId, requestedModality, updatedAt)
-    .run()
+    .bind(businessId, requestedModality, updatedAt),{action:'kitchen-tv.modality.updated',resourceType:'settings',resourceId:'kitchen-tv',now}).run()
   return loadKitchenTvControl(db, businessId)
 }
 
@@ -137,17 +136,15 @@ export async function hideKitchenTvOrder(db, businessId, orderId, now = new Date
   const eligibility = await getKitchenTvOrderControlEligibility(db, businessId, orderId, now)
   if (!eligibility.eligible) return false
 
-  await db.prepare(`INSERT OR IGNORE INTO kitchen_tv_hidden_orders
+  await auditedMutation(db,businessId,db.prepare(`INSERT OR IGNORE INTO kitchen_tv_hidden_orders
       (business_id, order_id, hidden_at)
     VALUES (?, ?, ?)`)
-    .bind(businessId, orderId, now.toISOString())
-    .run()
+    .bind(businessId, orderId, now.toISOString()),{action:'kitchen-tv.order.hidden',resourceType:'order',resourceId:orderId,now}).run()
   return true
 }
 
-export async function restoreKitchenTvOrder(db, businessId, orderId) {
-  await db.prepare('DELETE FROM kitchen_tv_hidden_orders WHERE business_id = ? AND order_id = ?')
-    .bind(businessId, orderId)
-    .run()
+export async function restoreKitchenTvOrder(db, businessId, orderId, now = new Date()) {
+  await auditedMutation(db,businessId,db.prepare('DELETE FROM kitchen_tv_hidden_orders WHERE business_id = ? AND order_id = ?')
+    .bind(businessId, orderId),{action:'kitchen-tv.order.restored',resourceType:'order',resourceId:orderId,now}).run()
   return true
 }

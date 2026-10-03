@@ -38,19 +38,24 @@ function createHarness({
   globalSyncEnabled = false,
   ordersSyncEnabled = false,
   effectiveConfigVersion = null,
+  accessContextId = null,
 } = {}) {
   let current
-  const Harness = () => {
+  const renders = []
+  const Harness = (props) => {
     current = useOperationalDataRuntime({
       api,
       onUnauthorized,
       globalSyncEnabled,
       ordersSyncEnabled,
       effectiveConfigVersion,
+      accessContextId,
+      ...props,
     })
+    renders.push(current)
     return null
   }
-  return { Harness, getCurrent: () => current }
+  return { Harness, getCurrent: () => current, getRenders: () => renders }
 }
 
 async function mountHarness(t, options) {
@@ -58,8 +63,89 @@ async function mountHarness(t, options) {
   let renderer
   await act(async () => { renderer = create(React.createElement(harness.Harness)) })
   t.after(() => renderer.unmount())
-  return harness
+  return { ...harness, update: (props) => renderer.update(React.createElement(harness.Harness, props)) }
 }
+
+test('access change clears private state and rejects pending bootstrap orders and mutation callbacks', async (t) => {
+  const bootstrapRead = deferred(), ordersRead = deferred()
+  let reads = 0
+  const harness = await mountHarness(t, {
+    accessContextId: 'manager-user:grants-1',
+    api: { getBootstrap: async () => ++reads === 1 ? bootstrapFixture() : bootstrapRead.promise, getOrders: async () => ordersRead.promise },
+  })
+  await act(async () => { await harness.getCurrent().refreshBootstrap() })
+  const oldEffects = harness.getCurrent().applyOfficialEffects
+  let pendingBootstrap, pendingOrders
+  await act(async () => {
+    pendingBootstrap = harness.getCurrent().refreshBootstrapSilently()
+    pendingOrders = harness.getCurrent().refreshOrders()
+  })
+  const renderIndex = harness.getRenders().length
+  await act(async () => { harness.update({ accessContextId: 'operator-user:grants-2' }) })
+  assert.deepEqual(harness.getRenders()[renderIndex].orders, [])
+  assert.deepEqual(harness.getRenders()[renderIndex].movements, [])
+  assert.equal(harness.getRenders()[renderIndex].bootstrapEffectiveConfig, null)
+  assert.deepEqual(harness.getCurrent().orders, [])
+  assert.deepEqual(harness.getCurrent().movements, [])
+  assert.equal(harness.getCurrent().financeSettings, null)
+  assert.equal(harness.getCurrent().bootstrapEffectiveConfig, null)
+  bootstrapRead.resolve(bootstrapFixture())
+  ordersRead.resolve({ orders: [{ id: 'private-old-order' }] })
+  await act(async () => {
+    assert.equal(await pendingBootstrap, false)
+    assert.equal(await pendingOrders, false)
+    assert.equal(oldEffects({ movement: { id: 'private-old-movement' }, order: { id: 'private-old-order' } }), false)
+  })
+  assert.deepEqual(harness.getCurrent().orders, [])
+  assert.deepEqual(harness.getCurrent().movements, [])
+})
+
+test('projected payment effects can update operational state without finance collections', async (t) => {
+  const data = bootstrapFixture(); delete data.movements; delete data.financeSettings
+  const harness = await mountHarness(t, { api: { getBootstrap: async () => data, getOrders: async () => ({ orders: [] }) } })
+  await act(async () => { await harness.getCurrent().refreshBootstrap() })
+  await act(async () => { harness.getCurrent().applyOfficialEffects({ order: { id: 'order-1', paymentStatus: 'Pago' }, payment: { id: 'payment-1' } }) })
+  assert.equal(harness.getCurrent().orders[0].paymentStatus, 'Pago')
+  assert.deepEqual(harness.getCurrent().movements, [])
+  assert.equal(harness.getCurrent().financeSettings, null)
+})
+
+test('old unauthorized bootstrap and orders errors cannot affect the new session handler', async (t) => {
+  for (const error of [{ status: 401 }, { status: 403, code: 'ACCESS_CHANGED' }]) {
+    const pendingBootstrap = deferred(), pendingOrders = deferred(), notifications = []
+    const harness = await mountHarness(t, { accessContextId: 'a', api: { getBootstrap: () => pendingBootstrap.promise, getOrders: () => pendingOrders.promise }, onUnauthorized: (value) => notifications.push(value) })
+    let bootstrap, orders
+    await act(async () => { bootstrap = harness.getCurrent().refreshBootstrap(); orders = harness.getCurrent().refreshOrders() })
+    await act(async () => harness.update({ accessContextId: 'b' }))
+    await act(async () => { pendingBootstrap.reject(error); pendingOrders.reject(error); await bootstrap; await orders })
+    assert.deepEqual(notifications, [])
+  }
+})
+
+test('current ACCESS_CHANGED refreshes the trusted session through the unauthorized callback', async (t) => {
+  const notifications = [], error = { status: 403, code: 'ACCESS_CHANGED' }
+  const harness = await mountHarness(t, { accessContextId: 'a', api: { getBootstrap: async () => { throw error } }, onUnauthorized: (value) => notifications.push(value) })
+  await act(async () => { await harness.getCurrent().refreshBootstrap() })
+  assert.deepEqual(notifications, [error])
+})
+
+test('projected status effects remove orders outside the current read grants', async (t) => {
+  const harness = await mountHarness(t, { api: { getBootstrap: async () => bootstrapFixture(), getOrders: async () => ({ orders: [] }) } })
+  await act(async () => { await harness.getCurrent().refreshBootstrap() })
+  await act(async () => { harness.getCurrent().applyOfficialEffects({ deletedOrderIds: ['order-1'] }) })
+  assert.deepEqual(harness.getCurrent().orders, [])
+})
+
+test('reset of an already empty runtime renews mutation callbacks and rejects the previous generation', async (t) => {
+  const harness = await mountHarness(t)
+  const previousEffects = harness.getCurrent().applyOfficialEffects
+  await act(async () => { harness.getCurrent().resetOperationalData() })
+  await act(async () => {
+    assert.equal(previousEffects({ order: { id: 'old-order' } }), false)
+    harness.getCurrent().applyOfficialEffects({ order: { id: 'new-order' } })
+  })
+  assert.deepEqual(harness.getCurrent().orders, [{ id: 'new-order' }])
+})
 
 test('createRefreshSubscription runs immediately, reacts to visible/focus, and cleans up', () => {
   let runCount = 0

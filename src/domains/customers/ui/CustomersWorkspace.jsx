@@ -14,7 +14,9 @@ function CustomersWorkspace({
   onSearchChange = () => {},
   onSortChange = () => {},
   writesBlocked = false,
-  canManageClients = false,
+  canCreateClients = false,
+  canUpdateClients = false,
+  canDeleteClients = false,
   applyOfficialEffects = () => {},
   setRequestKey = () => {},
   onSuccess = () => {},
@@ -23,7 +25,7 @@ function CustomersWorkspace({
 }) {
   const commands = useCustomerCommands({
     writesBlocked,
-    canManageClients,
+    canCreateClients, canUpdateClients, canDeleteClients,
     applyOfficialEffects,
     setRequestKey,
     onSuccess,
@@ -31,7 +33,7 @@ function CustomersWorkspace({
   })
   const editor = useCustomerEditor({
     clients,
-    canManageClients,
+    canCreateClients, canUpdateClients,
     writesBlocked,
     createClient: commands.createClient,
     updateClient: commands.updateClient,
@@ -46,7 +48,7 @@ function CustomersWorkspace({
   )
 
   const handleDeleteClient = async (clientId) => {
-    if (!canManageClients || writesBlocked) return false
+    if (!canDeleteClients || writesBlocked) return false
     const deleted = await commands.deleteClient(clientId)
     if (!deleted) return false
     editor.closeIfEditing(clientId)
@@ -64,9 +66,11 @@ function CustomersWorkspace({
         onAdd={editor.openNewClient}
         onEdit={editor.editClient}
         onDelete={handleDeleteClient}
-        canManageClients={canManageClients}
+        canCreateClients={canCreateClients}
+        canUpdateClients={canUpdateClients}
+        canDeleteClients={canDeleteClients}
       />
-      {canManageClients && (
+      {(editor.editing ? canUpdateClients : canCreateClients) && (
         <CustomerEditorDialog
           open={editor.isOpen}
           editing={editor.editing}
@@ -77,7 +81,7 @@ function CustomersWorkspace({
           disabled={writesBlocked}
         />
       )}
-      {canManageClients && editor.duplicateDialog && (
+      {(editor.editing ? canUpdateClients : canCreateClients) && editor.duplicateDialog && (
         <ClientDuplicateModal
           client={editor.duplicateDialog.client}
           onCancel={editor.dismissDuplicate}

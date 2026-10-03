@@ -1,3 +1,4 @@
+import { businessEvent } from './access/audit.js'
 import { getBusinessDate } from '../shared/finance.js'
 import { formatOrderDisplayNumber } from '../shared/orderDisplayNumber.js'
 import { mapMovementRow } from './financeRepository.js'
@@ -118,7 +119,7 @@ export async function registerOrderPayment(db, businessId, orderId, rawAllocatio
   statements.push(clearSettingsAssertions(db, policyTxId))
 
   try {
-    await db.batch(statements)
+    await db.batch([...statements,businessEvent(db,businessId,{action:'payment.received',resourceType:'order',resourceId:orderId,now})])
   } catch (error) {
     const existingPayment = await db.prepare('SELECT id FROM payments WHERE order_id = ? AND business_id = ? LIMIT 1')
       .bind(orderId, businessId).first()
@@ -346,7 +347,7 @@ export async function registerClientOrdersPayment(
   statements.push(clearSettingsAssertions(db, policyTxId))
 
   try {
-    await db.batch(statements)
+    await db.batch([...statements,...paymentRows.map(payment=>businessEvent(db,businessId,{action:'payment.received',resourceType:'order',resourceId:payment.order_id,now}))])
   } catch (error) {
     const message = String(error?.message || '')
     if (message.includes('POLICY_CHANGED')) rethrowPolicyChange(error)
@@ -522,7 +523,7 @@ export async function registerTableTabPayment(db, businessId, tableTabId, rawAll
 
   let batchResults
   try {
-    batchResults = await db.batch(statements)
+    batchResults = await db.batch([...statements,...paymentRows.map(payment=>businessEvent(db,businessId,{action:'payment.received',resourceType:'order',resourceId:payment.order_id,now}))])
   } catch (error) {
     const message = String(error?.message || '')
     if (/TABLE_TAB_HAS_UNPAID_ORDERS|TABLE_TAB_PAYMENT_INVALID|UNIQUE constraint failed:\s*payments\.order_id/i.test(message)) {

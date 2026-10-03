@@ -17,7 +17,7 @@ async function mount(overrides = {}) {
         return { client: { ...client, ...payload } }
       },
     },
-    canManageClients: true,
+    canCreateClients: true,
     writesBlocked: false,
     applyOfficialEffects: (effects) => calls.effects.push(effects),
     setRequestKey: (key) => calls.keys.push(key),
@@ -55,7 +55,7 @@ test('quick-create normalizes its dedicated payload and preserves the global req
 
 test('quick-create refuses missing capability, blocked writes and blank names before mutation', async () => {
   for (const overrides of [
-    { canManageClients: false },
+    { canCreateClients: false },
     { writesBlocked: true },
   ]) {
     const h = await mount(overrides)

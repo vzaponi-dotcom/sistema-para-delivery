@@ -3,7 +3,8 @@ import { loadAutomaticPrintJobForOrder } from './orderPrintingRepository.js'
 import { loadOrderById } from './repositories.js'
 import { cancelOrder } from './orderCancellation.js'
 import { listTables } from './tableRepository.js'
-import { requireCapability } from './settingsAccess.js'
+import { requireCapability, authorizeOrderCreate } from './access/authorization.js'
+import { projectMutationEffects } from './access/projections.js'
 import { confirmTableReservationArrival } from './tableReservationArrival.js'
 import { validateCheckoutInput } from './orderCheckout.js'
 import { updateTableReservation } from './tableReservationUpdate.js'
@@ -17,7 +18,7 @@ const FILTER_KEYS = new Set(['status', 'from', 'to', 'tableId'])
 
 const requireReservationRead = (context) => {
   const granted = context?.granted
-  if (granted?.has('orders.view') || granted?.has('comandas.view')) return
+  if (granted?.has('orders.view') || granted?.has('orders.history') || granted?.has('comandas.view')) return
   throw apiError(403, 'FORBIDDEN', 'Você não pode acessar as reservas.')
 }
 
@@ -51,11 +52,12 @@ const parseFilters = (searchParams) => {
 
 export const handleTableReservationApi = async (request, env, context, url = new URL(request.url)) => {
   if (!url.pathname.startsWith('/api/table-reservations')) return null
+  const effectsJson = (payload) => json(projectMutationEffects(payload, context.granted))
 
   if (url.pathname === '/api/table-reservations' && request.method === 'GET') {
     requireReservationRead(context)
     const reservations = await listTableReservations(env.DB, context.businessId, parseFilters(url.searchParams))
-    return json({ reservations })
+    return effectsJson({ reservations })
   }
 
   const detailMatch = /^\/api\/table-reservations\/([^/]+)$/.exec(url.pathname)
@@ -72,7 +74,7 @@ export const handleTableReservationApi = async (request, env, context, url = new
         .bind(context.businessId, reservation.orderId).first(),
     ])
     if (!order) throw apiError(404, 'TABLE_RESERVATION_NOT_FOUND', 'Reserva não encontrada.')
-    return json({
+    return effectsJson({
       reservation,
       order,
       printJob,
@@ -84,6 +86,7 @@ export const handleTableReservationApi = async (request, env, context, url = new
     requireCapability(context, 'orders.create')
     assertSameOriginMutation(request)
     const body = await readJson(request)
+    authorizeOrderCreate(context, body, env.now instanceof Date ? env.now : new Date())
     if (!Number.isInteger(body.expectedRevision) || body.expectedRevision < 1) {
       throw apiError(400, 'TABLE_RESERVATION_REVISION_REQUIRED', 'Atualize a reserva e tente novamente.')
     }
@@ -96,7 +99,6 @@ export const handleTableReservationApi = async (request, env, context, url = new
     if (validated.type !== 'Local' || validated.customerIdentity.type !== 'table' || !validated.scheduledFor) {
       throw apiError(400, 'TABLE_RESERVATION_UPDATE_INVALID', 'A edição da reserva precisa manter um pedido Local agendado.')
     }
-    if (validated.adjustment.type !== 'none') requireCapability(context, 'orders.discount')
     const result = await updateTableReservation(
       env.DB,
       context.businessId,
@@ -104,7 +106,7 @@ export const handleTableReservationApi = async (request, env, context, url = new
       { ...validated, expectedRevision: body.expectedRevision },
       now,
     )
-    return json({
+    return effectsJson({
       ...result,
       tables: await listTables(env.DB, context.businessId),
     })
@@ -130,7 +132,7 @@ export const handleTableReservationApi = async (request, env, context, url = new
       { expectedRevision: body.expectedRevision, mutationId },
       now,
     )
-    return json({
+    return effectsJson({
       ...result,
       tables: await listTables(env.DB, context.businessId),
     })
@@ -141,6 +143,7 @@ export const handleTableReservationApi = async (request, env, context, url = new
     requireCapability(context, 'orders.cancel')
     assertSameOriginMutation(request)
     const body = await readJson(request)
+    if (body.refundNow) requireCapability(context, 'payments.refund')
     if (!Number.isInteger(body.expectedRevision) || body.expectedRevision < 1) {
       throw apiError(400, 'TABLE_RESERVATION_REVISION_REQUIRED', 'Atualize a reserva e tente novamente.')
     }
@@ -169,7 +172,7 @@ export const handleTableReservationApi = async (request, env, context, url = new
       },
     )
     const closedReservation = await loadTableReservationById(env.DB, context.businessId, reservation.id)
-    return json({
+    return effectsJson({
       ...result,
       reservation: closedReservation,
       tables: await listTables(env.DB, context.businessId),

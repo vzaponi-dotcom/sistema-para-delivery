@@ -252,7 +252,7 @@ test('PUT reservation endpoint validates capability and adjustment permission an
   )
 
   const response = await handleTableReservationApi(request, { DB: db, now: NOW }, {
-    ...baseContext, granted: new Set(['orders.create', 'orders.discount']),
+    ...baseContext, granted: new Set(['orders.create', 'orders.discount', 'orders.view', 'tables.view', 'printing.queue']),
   }, new URL(request.url))
   assert.equal(response.status, 200)
   const payload = await response.json()

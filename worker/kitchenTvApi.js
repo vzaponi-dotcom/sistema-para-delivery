@@ -200,6 +200,8 @@ export async function handleKitchenTvAdminApi(request, env, context, url = new U
     assertSameOriginMutation(request)
     await requirePairedKitchenTv(env.DB, context.businessId)
     const orderId = decodeURIComponent(hiddenMatch[1])
+    const eligibility = await getKitchenTvOrderControlEligibility(env.DB, context.businessId, orderId, now)
+    if (!eligibility.exists) throw apiError(404, 'ORDER_NOT_FOUND', 'Pedido não encontrado.')
     await restoreKitchenTvOrder(env.DB, context.businessId, orderId)
     return json({ orderId, hidden: false })
   }

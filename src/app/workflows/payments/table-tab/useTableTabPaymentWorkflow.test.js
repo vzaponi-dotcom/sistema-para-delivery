@@ -95,7 +95,9 @@ async function mountWorkflow(overrides = {}) {
 
 test('accepted table-tab payment applies official effects and settles immediately when authority is complete', async () => {
   const applied = []
+  const official = { ...paidResult(), deletedOrderIds: ['hidden-order'] }
   const probe = await mountWorkflow({
+    api: { registerTableTabPayment: async () => official },
     applyOfficialEffects: (effect) => {
       applied.push(effect)
       return settledReceipt()
@@ -106,12 +108,7 @@ test('accepted table-tab payment applies official effects and settles immediatel
     assert.equal(await probe.getLatest().pay('tab-1', pixAllocations, intent), true)
   })
 
-  assert.deepEqual(applied, [{
-    orders: paidResult().orders,
-    movements: paidResult().movements,
-    tableTab: paidResult().tableTab,
-    tables: paidResult().tables,
-  }])
+  assert.deepEqual(applied, [official])
   assert.equal(probe.getLatest().syncState, null)
   assert.equal(probe.cleared.length, 1)
   assert.deepEqual(probe.successes, ['Pagamento de Mesa 7 recebido via Pix'])
@@ -250,12 +247,7 @@ test('split table-tab payment keeps one owner, sends allocations and reports mul
   })
 
   assert.deepEqual(calls, [['tab-1', allocations]])
-  assert.deepEqual(applied, [{
-    orders: result.orders,
-    movements: result.movements,
-    tableTab: result.tableTab,
-    tables: result.tables,
-  }])
+  assert.deepEqual(applied, [result])
   assert.deepEqual(probe.successes, ['Pagamento de Mesa 7 recebido em 2 formas'])
   assert.equal(probe.getLatest().syncState, null)
   probe.unmount()

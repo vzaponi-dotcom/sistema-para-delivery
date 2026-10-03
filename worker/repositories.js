@@ -1,4 +1,6 @@
+import { businessEvent, auditedMutation } from './access/audit.js'
 import { formatClientPhone, normalizeClientPhone } from '../shared/clientIdentity.js'
+import { projectBootstrap } from './access/projections.js'
 import { getBusinessDate } from '../shared/finance.js'
 import { createOrderPrintDocument } from '../shared/orderPrintDocument.js'
 import { resolveAutomaticOrderPrintAvailableAt, resolvePrintCopies } from '../shared/printContextPolicy.js'
@@ -136,7 +138,7 @@ const productSnapshotSize = (row) => {
   return presentation === 'Unidade' ? 'Un' : presentation
 }
 
-export const loadBootstrap = async (db, businessId, effectiveBusinessConfig) => {
+export const loadBootstrap = async (db, businessId, effectiveBusinessConfig, granted) => {
   const business = await db.prepare(`SELECT
       b.id,
       b.name,
@@ -169,7 +171,7 @@ export const loadBootstrap = async (db, businessId, effectiveBusinessConfig) => 
     current.push(mapOrderItemRow(itemRow))
     itemsByOrder.set(itemRow.order_id, current)
   }
-  return {
+  const payload = {
     business: business
       ? {
           id: business.id,
@@ -187,6 +189,7 @@ export const loadBootstrap = async (db, businessId, effectiveBusinessConfig) => 
     financeSettings,
     ...(effectiveBusinessConfig ? { effectiveBusinessConfig } : {}),
   }
+  return granted instanceof Set ? projectBootstrap(payload, granted) : payload
 }
 
 const findClientRow = (db, businessId, id) => db.prepare(`SELECT id, name, phone, address FROM clients WHERE id = ? AND business_id = ? LIMIT 1`).bind(id, businessId).first()
@@ -207,7 +210,7 @@ export const createClient = async (db, businessId, input, now = new Date()) => {
   }
 
   try {
-    await db.prepare(`INSERT INTO clients (id, business_id, name, phone, address, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(id, businessId, input.name, phone, input.address, timestamp, timestamp).run()
+    await auditedMutation(db, businessId, db.prepare(`INSERT INTO clients (id, business_id, name, phone, address, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(id, businessId, input.name, phone, input.address, timestamp, timestamp), {action:'client.created',resourceType:'client',resourceId:id,now}).run()
   } catch (error) {
     if (!isPhoneTriggerCollision(error)) throw error
     throw duplicatePhoneError(phone ? await findClientByPhone(db, businessId, phone) : null)
@@ -224,7 +227,7 @@ export const updateClient = async (db, businessId, id, input, now = new Date()) 
   }
 
   try {
-    await db.prepare(`UPDATE clients SET name = ?, phone = ?, address = ?, updated_at = ? WHERE id = ? AND business_id = ?`).bind(input.name, phone, input.address, now.toISOString(), id, businessId).run()
+    await auditedMutation(db, businessId, db.prepare(`UPDATE clients SET name = ?, phone = ?, address = ?, updated_at = ? WHERE id = ? AND business_id = ?`).bind(input.name, phone, input.address, now.toISOString(), id, businessId), {action:'client.updated',resourceType:'client',resourceId:id,now}).run()
   } catch (error) {
     if (!isPhoneTriggerCollision(error)) throw error
     throw duplicatePhoneError(phone ? await findClientByPhone(db, businessId, phone) : null)
@@ -232,16 +235,16 @@ export const updateClient = async (db, businessId, id, input, now = new Date()) 
   return mapClientRow({ id, name: input.name, phone, address: input.address })
 }
 
-export const deleteClient = async (db, businessId, id) => {
+export const deleteClient = async (db, businessId, id, now = new Date()) => {
   if (!(await findClientRow(db, businessId, id))) return false
-  await db.prepare('DELETE FROM clients WHERE id = ? AND business_id = ?').bind(id, businessId).run()
+  await auditedMutation(db, businessId, db.prepare('DELETE FROM clients WHERE id = ? AND business_id = ?').bind(id, businessId), {action:'client.deleted',resourceType:'client',resourceId:id,now}).run()
   return true
 }
 
 export const createProduct = async (db, businessId, input, now = new Date()) => {
   const id = crypto.randomUUID()
   const timestamp = now.toISOString()
-  await db.prepare(`INSERT INTO products (id, business_id, category, size, name, price_cents, active, created_at, updated_at, presentation_type, presentation_value, presentation_unit) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)`).bind(
+  await auditedMutation(db, businessId, db.prepare(`INSERT INTO products (id, business_id, category, size, name, price_cents, active, created_at, updated_at, presentation_type, presentation_value, presentation_unit) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)`).bind(
     id,
     businessId,
     input.category,
@@ -253,7 +256,7 @@ export const createProduct = async (db, businessId, input, now = new Date()) => 
     input.presentationType,
     input.presentationValue,
     input.presentationUnit,
-  ).run()
+  ), {action:'product.created',resourceType:'product',resourceId:id,now}).run()
   return mapProductRow({
     id,
     category: input.category,
@@ -269,7 +272,7 @@ export const createProduct = async (db, businessId, input, now = new Date()) => 
 export const updateProduct = async (db, businessId, id, input, now = new Date()) => {
   if (!(await findProductRow(db, businessId, id))) return null
   if (input.presentationType === undefined) {
-    await db.prepare(`UPDATE products SET category = ?, size = ?, name = ?, price_cents = ?, updated_at = ? WHERE id = ? AND business_id = ? AND active = 1`).bind(
+    await auditedMutation(db, businessId, db.prepare(`UPDATE products SET category = ?, size = ?, name = ?, price_cents = ?, updated_at = ? WHERE id = ? AND business_id = ? AND active = 1`).bind(
       input.category,
       input.size,
       input.name,
@@ -277,10 +280,10 @@ export const updateProduct = async (db, businessId, id, input, now = new Date())
       now.toISOString(),
       id,
       businessId,
-    ).run()
+    ), {action:'product.updated',resourceType:'product',resourceId:id,now}).run()
     return mapProductRow({ id, category: input.category, size: input.size, name: input.name, price_cents: input.priceCents })
   }
-  await db.prepare(`UPDATE products SET category = ?, size = ?, name = ?, price_cents = ?, updated_at = ?, presentation_type = ?, presentation_value = ?, presentation_unit = ? WHERE id = ? AND business_id = ? AND active = 1`).bind(
+  await auditedMutation(db, businessId, db.prepare(`UPDATE products SET category = ?, size = ?, name = ?, price_cents = ?, updated_at = ?, presentation_type = ?, presentation_value = ?, presentation_unit = ? WHERE id = ? AND business_id = ? AND active = 1`).bind(
     input.category,
     input.size,
     input.name,
@@ -291,7 +294,7 @@ export const updateProduct = async (db, businessId, id, input, now = new Date())
     input.presentationUnit,
     id,
     businessId,
-  ).run()
+  ), {action:'product.updated',resourceType:'product',resourceId:id,now}).run()
   return mapProductRow({
     id,
     category: input.category,
@@ -306,7 +309,7 @@ export const updateProduct = async (db, businessId, id, input, now = new Date())
 
 export const deleteProduct = async (db, businessId, id, now = new Date()) => {
   if (!(await findProductRow(db, businessId, id))) return false
-  await db.prepare(`UPDATE products SET active = 0, updated_at = ? WHERE id = ? AND business_id = ? AND active = 1`).bind(now.toISOString(), id, businessId).run()
+  await auditedMutation(db, businessId, db.prepare(`UPDATE products SET active = 0, updated_at = ? WHERE id = ? AND business_id = ? AND active = 1`).bind(now.toISOString(), id, businessId), {action:'product.deleted',resourceType:'product',resourceId:id,now}).run()
   return true
 }
 
@@ -666,7 +669,7 @@ export const createOrder = async (db, businessId, rawInput, now = new Date()) =>
   if (policyGuards.length || tableTabGuard || reservationTableGuard) statements.push(clearSettingsAssertions(db, policyTxId))
 
   try {
-    await db.batch(statements)
+    await db.batch([...statements, businessEvent(db,businessId,{action:'order.created',resourceType:'order',resourceId:orderId,now}), ...(paymentAllocations ? [businessEvent(db,businessId,{action:'payment.received',resourceType:'order',resourceId:orderId,now})] : []), ...(adjustment.type !== 'none' ? [businessEvent(db,businessId,{action:'order.price.adjusted',resourceType:'order',resourceId:orderId,now})] : [])])
   } catch (error) {
     const collided = await db.prepare('SELECT id FROM orders WHERE business_id = ? AND idempotency_key = ? LIMIT 1').bind(businessId, idempotencyKey).first()
     if (collided?.id) return loadOrderById(db, businessId, collided.id)
@@ -709,7 +712,7 @@ export const updateOrderStatus = async (db, businessId, id, now = new Date()) =>
     WHERE id = ? AND business_id = ? AND status = 'Em preparo'`).bind(
     now.toISOString(), serializeOrderTimingPolicySnapshot(operations.data.timing), id, businessId)
   try {
-    await db.batch([policyGuard, stateGuard, update, clearSettingsAssertions(db, txId)])
+    await db.batch([policyGuard, stateGuard, update, clearSettingsAssertions(db, txId), businessEvent(db,businessId,{action:'order.finalized',resourceType:'order',resourceId:id,now})])
   } catch (error) {
     const refreshed = await loadOrderById(db, businessId, id)
     if (refreshed?.status === 'Finalizado') return refreshed
@@ -742,6 +745,6 @@ export const createMovement = async (db, businessId, input, now = new Date()) =>
   const id = crypto.randomUUID()
   const createdAt = now.toISOString()
   const movementDate = getBusinessDate(now)
-  await db.prepare(`INSERT INTO movements (id, business_id, type, category, description, value_cents, source, order_id, payment_id, movement_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(id, businessId, input.type, input.category, input.description, input.valueCents, 'manual', null, null, movementDate, createdAt).run()
+  await auditedMutation(db, businessId, db.prepare(`INSERT INTO movements (id, business_id, type, category, description, value_cents, source, order_id, payment_id, movement_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(id, businessId, input.type, input.category, input.description, input.valueCents, 'manual', null, null, movementDate, createdAt), {action:'finance.movement.created',resourceType:'movement',resourceId:id,now}).run()
   return mapMovementRow({ id, type: input.type, category: input.category, description: input.description, value_cents: input.valueCents, source: 'manual', order_id: null, payment_id: null, movement_date: movementDate, created_at: createdAt })
 }

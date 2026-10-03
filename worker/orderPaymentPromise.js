@@ -1,3 +1,4 @@
+import { auditedMutation } from './access/audit.js'
 import { getBusinessDate } from '../shared/finance.js'
 import { loadOrderById } from './repositories.js'
 
@@ -27,7 +28,7 @@ export const updateOrderPaymentPromise = async (db, businessId, orderId, rawDate
   if (order.status === 'Cancelado') throw repositoryError(409, 'ORDER_CANCELLED', 'Pedido cancelado não pode receber uma promessa de pagamento.')
   if (order.paymentStatus === 'Pago') throw repositoryError(409, 'ORDER_ALREADY_PAID', 'Pedido quitado não pode alterar a data prometida.')
   const promisedPaymentDate = parsePromisedPaymentDate(rawDate, getBusinessDate(now))
-  await db.prepare('UPDATE orders SET promised_payment_date = ? WHERE id = ? AND business_id = ?')
-    .bind(promisedPaymentDate, orderId, businessId).run()
+  await auditedMutation(db,businessId,db.prepare('UPDATE orders SET promised_payment_date = ? WHERE id = ? AND business_id = ?')
+    .bind(promisedPaymentDate, orderId, businessId),{action:'order.payment-promise.updated',resourceType:'order',resourceId:orderId,now}).run()
   return loadOrderById(db, businessId, orderId)
 }

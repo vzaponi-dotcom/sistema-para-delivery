@@ -1,3 +1,4 @@
+import { businessEvent } from './access/audit.js'
 import { getBusinessDate } from '../shared/finance.js'
 import { loadOrderById } from './repositories.js'
 import { loadTableReservationById } from './tableReservationRepository.js'
@@ -154,7 +155,7 @@ export const confirmTableReservationArrival = async (
       insertTab,
       linkOrder,
       convertReservation,
-      clearSettingsAssertions(db, txId),
+      clearSettingsAssertions(db, txId),businessEvent(db,businessId,{action:'reservation.arrived',resourceType:'order',resourceId:reservation.orderId,now}),
     ])
   } catch (error) {
     const refreshedReservation = await loadTableReservationById(db, businessId, reservationId)

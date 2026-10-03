@@ -98,7 +98,7 @@ test('repeated bootstrap registration returns the stored station without overwri
 test('printing endpoints expose canonical resources, retain the GET alias and reject legacy administrative overwrite', async (t) => {
   const { db, sqlite } = setup(t)
   addStation(sqlite, 'kitchen')
-  const context = await resolveSettingsAccess({ businessId: BUSINESS, sessionId: 'station-test' })
+  const context = await resolveSettingsAccess({ businessId: BUSINESS, sessionId: 'station-test', legacy: true, authMode: 'legacy' })
   const call = (path, method = 'GET', body) => handlePrintingApi(new Request(`https://delivery.example${path}`, {
     method, headers: { origin: 'https://delivery.example', 'content-type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),

@@ -1,3 +1,4 @@
+import { authenticatedSession } from './test-support/appSessionFixtures.js'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import React from 'react'
@@ -88,8 +89,9 @@ test('the App fails closed for a new sale when effective operation settings are 
   const harness = await workspaceHarness(t)
   const originalFetch = globalThis.fetch
   globalThis.fetch = async (path) => {
+    if (String(path).startsWith('/api/bootstrap?')) path = '/api/bootstrap'
     const responses = {
-      '/api/auth/session': { authenticated: true },
+      '/api/auth/session': authenticatedSession,
       '/api/bootstrap': { tables: [], tableTabs: [], orders: [], clients: [], products: [], movements: [], financeSettings: null },
       '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
       '/api/printing/jobs?limit=100': { jobs: [] },
@@ -120,8 +122,9 @@ function response(body) {
 test('repeated App navigation through every settings page does not accumulate timers or listeners', async (t) => {
   const harness = await workspaceHarness(t)
   globalThis.fetch = async (path) => {
+    if (String(path).startsWith('/api/bootstrap?')) path = '/api/bootstrap'
     const url = String(path)
-    if (url === '/api/auth/session') return response({ authenticated: true })
+    if (url === '/api/auth/session') return response(authenticatedSession)
     if (url === '/api/bootstrap') return response({
       tables: [], tableTabs: [], orders: [], clients: [], products: [], movements: [], financeSettings: null,
       effectiveBusinessConfig: {

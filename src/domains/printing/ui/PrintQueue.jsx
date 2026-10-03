@@ -52,15 +52,16 @@ const getPrintJobView = (job, stationReady, order) => {
   }
 }
 
-const EXECUTE_ACTIONS = new Set(['printNow', 'retry', 'forcePrint', 'requestSecondCopy', 'reprint'])
-const DISCARD_ACTIONS = new Set(['discard', 'skipSecondCopy'])
+const EXECUTE_ACTIONS = new Set(['retry', 'requestSecondCopy', 'skipSecondCopy', 'reprint', 'confirmPrinted', 'confirmNotPrinted'])
+const FORCE_ACTIONS = new Set(['printNow', 'forcePrint'])
+const DISCARD_ACTIONS = new Set(['discard'])
 const SEARCH_DEBOUNCE_MS = 300
 const OFFLINE_MUTATION_MESSAGE = 'Você está offline. Reconecte para alterar a fila de impressão.'
 const cacheKeyForQuery = (query) => JSON.stringify([
   query.page, query.pageSize, query.sortBy, query.sortDir, query.status, query.trigger, query.search,
 ])
 
-function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, queryState, onQueryChange, canExecutePrinting = true, canDiscardPrinting = true, isOnline = true }) {
+function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, queryState, onQueryChange, canExecutePrinting = true, canDiscardPrinting = true, canForcePrinting = false, isOnline = true }) {
   const station = printing?.localStation ?? null
   const query = queryState
   const [operationalPage, setOperationalPage] = useState({ jobs: [], pageInfo: { page: 1, pageSize: 10, totalItems: 0, totalPages: 1 } })
@@ -212,7 +213,7 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
       onToast?.(OFFLINE_MUTATION_MESSAGE)
       return false
     }
-    if ((EXECUTE_ACTIONS.has(action) && !canExecutePrinting) || (DISCARD_ACTIONS.has(action) && !canDiscardPrinting) || !selectedJob || actionPending) return false
+    if ((FORCE_ACTIONS.has(action) && !canForcePrinting) || (EXECUTE_ACTIONS.has(action) && !canExecutePrinting) || (DISCARD_ACTIONS.has(action) && !canDiscardPrinting) || !selectedJob || actionPending) return false
     setActionPending(true)
     try {
       if (action === 'printNow') await printing?.requestPrintNow?.(selectedJob, { refreshManager: false })
@@ -239,7 +240,7 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
       onToast?.(OFFLINE_MUTATION_MESSAGE)
       return false
     }
-    if ((EXECUTE_ACTIONS.has(action) && !canExecutePrinting) || (DISCARD_ACTIONS.has(action) && !canDiscardPrinting)) return false
+    if ((FORCE_ACTIONS.has(action) && !canForcePrinting) || (EXECUTE_ACTIONS.has(action) && !canExecutePrinting) || (DISCARD_ACTIONS.has(action) && !canDiscardPrinting)) return false
     if (action === 'discard' || action === 'forcePrint' || action === 'requestSecondCopy' || action === 'skipSecondCopy') setConfirmation(action)
     else if (action === 'confirmNotPrinted') setUnknownConfirmation(action)
     else if (action === 'reprint') {
@@ -466,8 +467,8 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
           <Modal title={selectedDetails.title} onClose={closeDetails} footer={<div className="print-queue-detail-actions">
             <Button type="button" variant="secondary" className="print-queue-detail-close" onClick={closeDetails} disabled={actionPending}>Fechar</Button>
             {selectedJob?.type === 'order' && selectedJob?.document?.type === 'order' && <Button type="button" variant="secondary" className="print-queue-detail-ticket" onClick={() => setShowTicket(true)} disabled={actionPending}>Ver ticket</Button>}
-            {selectedDetails.actions.filter((action) => ['discard', 'skipSecondCopy'].includes(action.key)).map((action) => <Button key={action.key} type="button" variant="secondary" className="print-queue-detail-destructive" onClick={() => requestAction(action.key)} disabled={actionPending || !isOnline || !canDiscardPrinting}>{action.label}</Button>)}
-            {selectedDetails.actions.filter((action) => !['discard', 'skipSecondCopy'].includes(action.key)).map((action) => <Button key={action.key} type="button" className="print-queue-detail-primary" onClick={() => requestAction(action.key)} disabled={actionPending || !isOnline || (EXECUTE_ACTIONS.has(action.key) && !canExecutePrinting)}>{action.label}</Button>)}
+            {selectedDetails.actions.filter((action) => DISCARD_ACTIONS.has(action.key)).map((action) => <Button key={action.key} type="button" variant="secondary" className="print-queue-detail-destructive" onClick={() => requestAction(action.key)} disabled={actionPending || !isOnline || !canDiscardPrinting}>{action.label}</Button>)}
+            {selectedDetails.actions.filter((action) => !DISCARD_ACTIONS.has(action.key)).map((action) => <Button key={action.key} type="button" className="print-queue-detail-primary" onClick={() => requestAction(action.key)} disabled={actionPending || !isOnline || (FORCE_ACTIONS.has(action.key) && !canForcePrinting) || (EXECUTE_ACTIONS.has(action.key) && !canExecutePrinting)}>{action.label}</Button>)}
           </div>}>
           {selectedDetails.identity && <p className="print-queue-detail-identity">{selectedDetails.identity}</p>}
           <div className="print-queue-detail-sections">
@@ -483,7 +484,7 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
             {(selectedDetails.attentionReason || selectedDetails.error) && <section aria-labelledby="print-detail-attention"><h3 id="print-detail-attention">Erro / atenção</h3>{selectedDetails.attentionReason && <p><span>Motivo</span>{selectedDetails.attentionReason}</p>}{selectedDetails.error?.code && <p><span>Código</span>{selectedDetails.error.code}</p>}{selectedDetails.error?.message && <p><span>Mensagem</span>{selectedDetails.error.message}</p>}</section>}
             {selectedDetails.unknownOutcome && <section className="print-queue-unknown-outcome" aria-labelledby="print-detail-unknown"><h3 id="print-detail-unknown">{selectedDetails.unknownOutcome.title}</h3><p>{selectedDetails.unknownOutcome.message}</p></section>}
             {selectedDetails.reprintOf && <section aria-labelledby="print-detail-link"><h3 id="print-detail-link">Vínculo</h3><p>{selectedDetails.reprintOf}</p></section>}
-            {selectedDetails.audit && <section aria-labelledby="print-detail-audit"><h3 id="print-detail-audit">Auditoria</h3><p><span>Ação</span>{selectedDetails.audit.action}</p>{selectedDetails.audit.at && <p><span>Horário</span>{selectedDetails.audit.at}</p>}{selectedDetails.audit.actor && <p><span>Ator/solicitante</span>{selectedDetails.audit.actor}</p>}</section>}
+            {selectedDetails.audit && <section aria-labelledby="print-detail-audit"><h3 id="print-detail-audit">Auditoria</h3><p><span>Solicitado por</span>{selectedDetails.requestedBy}</p><p><span>Ação</span>{selectedDetails.audit.action}</p>{selectedDetails.audit.at && <p><span>Horário</span>{selectedDetails.audit.at}</p>}{selectedDetails.audit.actor && <p><span>Ator/solicitante</span>{selectedDetails.audit.actor}</p>}</section>}
             {selectedDetails.secondCopySkipped && <section aria-labelledby="print-detail-second-copy"><h3 id="print-detail-second-copy">{selectedDetails.secondCopySkipped.label}</h3><p>{selectedDetails.secondCopySkipped.message}</p>{selectedDetails.secondCopySkipped.at && <p>{selectedDetails.secondCopySkipped.at}</p>}</section>}
           </div>
         </Modal>
@@ -518,7 +519,7 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
         confirmVariant={confirmation === 'requestSecondCopy' ? 'primary' : confirmation === 'skipSecondCopy' ? 'danger' : confirmation === 'discard' ? 'secondary' : undefined}
         onClose={() => setConfirmation(null)}
         onConfirm={() => void runAction(confirmation)}
-        disabled={actionPending || !isOnline || (EXECUTE_ACTIONS.has(confirmation) && !canExecutePrinting) || (DISCARD_ACTIONS.has(confirmation) && !canDiscardPrinting)}
+        disabled={actionPending || !isOnline || (FORCE_ACTIONS.has(confirmation) && !canForcePrinting) || (EXECUTE_ACTIONS.has(confirmation) && !canExecutePrinting) || (DISCARD_ACTIONS.has(confirmation) && !canDiscardPrinting)}
       />}
       {unknownConfirmation === 'confirmNotPrinted' && selectedDetails?.unknownOutcome && <ConfirmationDialog
         title="Reenviar esta via?"

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { OperationalDb } from './test-support/operationalDb.js'
 import { cancelOrder } from './orderCancellation.js'
+import { registerOrderPayment } from './paymentRepository.js'
 import { handleTableReservationApi } from './tableReservationApi.js'
 
 const BUSINESS = 'amor-e-sabor'
@@ -57,7 +58,7 @@ const reservationRow = (db) => db.sqlite.prepare(
   "SELECT status, revision, cancelled_at, no_show_at, converted_table_tab_id FROM table_reservations WHERE id = 'reservation-1'"
 ).get()
 
-const apiCall = (db, action, body, grants = ['orders.cancel']) => {
+const apiCall = (db, action, body, grants = ['orders.cancel', 'orders.history', 'comandas.view', 'tables.view']) => {
   const request = new Request(`https://delivery.test/api/table-reservations/reservation-1/${action}`, {
     method: 'POST',
     headers: { origin: 'https://delivery.test', 'content-type': 'application/json' },
@@ -86,6 +87,21 @@ test('cancelling the order from the existing order surface closes its active res
     converted_table_tab_id: null,
   })
   assert.equal(db.sqlite.prepare("SELECT COUNT(*) AS n FROM print_jobs WHERE order_id = 'order-1'").get().n, 0)
+})
+
+test('reservation refund response retains paid order confirmation without managerial movements', async () => {
+  const db = seed()
+  await registerOrderPayment(db, BUSINESS, 'order-1', [{ methodCode: 'cash', amountCents: 2500 }], new Date(CREATED))
+  const response = await apiCall(db, 'cancel', {
+    expectedRevision: 3, reason: 'client_changed_mind', refundNow: true, refundMethod: 'Dinheiro',
+  }, ['orders.cancel', 'payments.refund', 'orders.history'])
+  const body = await response.json()
+  assert.equal(body.order.status, 'Cancelado')
+  assert.equal(body.order.refundState, 'refunded')
+  assert.equal(Object.hasOwn(body, 'movement'), false)
+  assert.equal(Object.hasOwn(body, 'movements'), false)
+  assert.equal(Object.hasOwn(body, 'tables'), false)
+  assert.equal(db.sqlite.prepare("SELECT count(*) n FROM movements WHERE source='order-refund'").get().n, 1)
 })
 
 test('reservation cancel endpoint validates reservation revision and returns official closed effects', async () => {

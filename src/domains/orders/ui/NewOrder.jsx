@@ -62,8 +62,9 @@ function NewOrder({
   expectedTableTabId = '',
   currency,
   disabled,
-  canManageClients = true,
+  canCreateClients = true,
   canAdjustOrders = true,
+  canBackdateOrders = true,
   renderPaymentComposition,
   modalityOptions,
   defaultModality,
@@ -174,6 +175,7 @@ function NewOrder({
     : activeModalityOptions
   const selectedTable = tables.find((table) => table.isActive && table.id === selectedTableId) ?? null
   const todayValue = getBusinessDate()
+  const orderDateAllowed = canBackdateOrders || orderDate >= todayValue
   const maxDateValue = getScheduleMaxBusinessDate(new Date())
   const scheduledFor = scheduleMode === 'scheduled'
     ? businessDateTimeToIso(orderDate, scheduledTime)
@@ -229,7 +231,7 @@ function NewOrder({
     identityValid: identityValidation.ok,
     orderDate,
     itemCount,
-    scheduleValid,
+    scheduleValid: scheduleValid && orderDateAllowed,
   })
   const canSubmit = Boolean(stepAccess.review) && !modalityNeedsReview && !policyReviewError
   const canContinueCustomer = stepAccess.products && !modalityNeedsReview
@@ -270,6 +272,7 @@ function NewOrder({
   }
 
   const changeOrderDate = (value) => {
+    if (!canBackdateOrders && value && value < todayValue) return false
     setOrderDate(value)
     if (expectedTableTabId) {
       setScheduleMode('now')
@@ -337,7 +340,7 @@ function NewOrder({
   }
 
   const createQuickClient = async () => {
-    if (!canManageClients) return false
+    if (!canCreateClients) return false
     const client = await onCreateClient({ name: quickClient.name, phone: quickClient.phone })
     if (!client) return false
     finishQuickClient(client)
@@ -346,7 +349,7 @@ function NewOrder({
 
   const handleQuickClientSubmit = async (event) => {
     event.preventDefault()
-    if (!canManageClients || disabled || !quickClient.name.trim()) return false
+    if (!canCreateClients || disabled || !quickClient.name.trim()) return false
     setQuickClientError('')
 
     const duplicate = findClientDuplicates(clients, quickClient)
@@ -368,13 +371,13 @@ function NewOrder({
   }
 
   const handleConfirmDuplicate = async () => {
-    if (!canManageClients) return false
+    if (!canCreateClients) return false
     setDuplicateClient(null)
     return createQuickClient()
   }
 
   const toggleQuickClient = () => {
-    if (!canManageClients) return false
+    if (!canCreateClients) return false
     if (quickClient.open) {
       closeQuickClient()
       return true
@@ -470,6 +473,7 @@ function NewOrder({
       )}
 
       {checkoutError && <div className="new-order-error" role="alert">{checkoutError}</div>}
+      {!orderDateAllowed && <div className="new-order-error" role="alert">Selecione uma data de hoje ou futura para continuar.</div>}
       {(policyReviewError || modalityNeedsReview) && (
         <div className="new-order-error" role="alert">
           {policyReviewError || (!type
@@ -503,6 +507,7 @@ function NewOrder({
             orderTypeOptions={visibleModalityOptions}
             orderDate={orderDate}
             todayValue={todayValue}
+            canBackdateOrders={canBackdateOrders}
             maxDateValue={maxDateValue}
             scheduleMode={scheduleMode}
             scheduledTime={scheduledTime}
@@ -515,7 +520,7 @@ function NewOrder({
             quickClient={quickClient}
             quickClientError={quickClientError}
             disabled={disabled}
-            canManageClients={canManageClients}
+            canCreateClients={canCreateClients}
             canContinue={canContinueCustomer}
             onTypeChange={changeType}
             onOrderDateChange={changeOrderDate}
@@ -590,7 +595,7 @@ function NewOrder({
         )}
       </div>
 
-      {canManageClients && duplicateClient && (
+      {canCreateClients && duplicateClient && (
         <ClientDuplicateModal
           client={duplicateClient}
           onCancel={() => setDuplicateClient(null)}

@@ -1,4 +1,5 @@
-import { useCallback, useRef, useState } from 'react'
+import { useMutationOwner } from '../../../app/runtime/session/useMutationOwner.js'
+import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import { reservationMutationNeedsDiscount } from '../domain/tableReservation.js'
 import { tableReservationApi } from '../infrastructure/tableReservationApi.js'
 
@@ -22,8 +23,10 @@ export function useTableReservationCommands({
   onError = () => {},
   onResult = () => {},
 } = {}) {
+  const ownsMutation = useMutationOwner(applyOfficialEffects)
   const [actionKey, setActionKeyState] = useState(null)
   const actionRef = useRef(null)
+  useLayoutEffect(() => { actionRef.current = null; setActionKeyState(null) }, [applyOfficialEffects])
 
   const setActionKey = useCallback((key) => {
     actionRef.current = key
@@ -42,18 +45,22 @@ export function useTableReservationCommands({
     setActionKey(key)
     try {
       const result = await call()
-      applyOfficialEffects(result)
+      if (!ownsMutation()) return false
+
+      if (applyOfficialEffects(result) === false) return false
       onResult(result, action)
       onSuccess(successMessage)
       return true
     } catch (error) {
+      if (!ownsMutation()) return false
       if (error?.status === 409) await refreshReservation()
+      if (!ownsMutation()) return false
       onError(error)
       return false
     } finally {
-      setActionKey(null)
+      if (ownsMutation()) setActionKey(null)
     }
-  }, [applyOfficialEffects, onError, onResult, onSuccess, refreshReservation, setActionKey, writesBlocked])
+  }, [ownsMutation, applyOfficialEffects, onError, onResult, onSuccess, refreshReservation, setActionKey, writesBlocked])
 
   const editReservation = useCallback((reservationId, payload) => execute({
     key: `reservation:edit:${reservationId}`,

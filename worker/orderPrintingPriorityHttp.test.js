@@ -1,3 +1,6 @@
+import { withAuditContext } from './access/audit.js'
+import { d1Adapter } from './test-support/settingsDb.js'
+import { installAuditSchema } from './test-support/auditSchema.js'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { DatabaseSync } from 'node:sqlite'
@@ -34,23 +37,14 @@ class D1Sqlite {
         last_error_message TEXT
       );
     `)
+    this.sqlite.exec("CREATE TABLE businesses(id TEXT PRIMARY KEY); INSERT INTO businesses VALUES('amor-e-sabor');")
+    installAuditSchema(this.sqlite)
+    this.sqlite.exec("INSERT INTO users(id,business_id) VALUES('u1','amor-e-sabor'); INSERT INTO sessions(id,business_id) VALUES('s1','amor-e-sabor');")
+    Object.assign(this,d1Adapter(this.sqlite))
+    this.exec = sql => this.sqlite.exec(sql)
   }
 
-  prepare(sql) {
-    const database = this.sqlite
-    return {
-      bind(...values) {
-        return {
-          async first() { return database.prepare(sql).get(...values) ?? null },
-          async all() { return { results: database.prepare(sql).all(...values) } },
-          async run() {
-            const result = database.prepare(sql).run(...values)
-            return { success: true, meta: { changes: Number(result.changes || 0) } }
-          },
-        }
-      },
-    }
-  }
+
 }
 
 const businessId = 'amor-e-sabor'
@@ -73,7 +67,8 @@ const prioritize = (db, id) => {
     method: 'POST',
     headers: { origin: 'https://delivery.example' },
   })
-  return handlePrintingApi(request, { DB: db }, { businessId }, url)
+  const context={ businessId, granted: new Set(['printing.force']), userId: 'u1', displayName: 'Maria', sessionId: 's1' }
+  return handlePrintingApi(request, { DB: withAuditContext(db,context) }, context, url)
 }
 
 test('HTTP prioritize accepts an authenticated central request without station or printer data', async () => {
@@ -88,6 +83,8 @@ test('HTTP prioritize accepts an authenticated central request without station o
   assert.equal(payload.job.status, 'pending')
   assert.equal(payload.job.priority, 1)
   assert.equal(payload.job.stationId, null)
+  const event=db.sqlite.prepare("SELECT actor_type,actor_user_id,actor_name FROM audit_events WHERE action='printing.prioritized'").get()
+  assert.deepEqual({...event},{actor_type:'user',actor_user_id:'u1',actor_name:'Maria'})
 })
 
 test('HTTP prioritize preserves terminal jobs and returns a consistent conflict', async () => {

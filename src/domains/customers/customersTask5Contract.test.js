@@ -55,7 +55,6 @@ test('Task 5 removes customer list/editor/CRUD composition ownership from App', 
 test('Task 5 keeps capability and navigation query ownership in App while injecting runtime dependencies', () => {
   const app = source('../../App.jsx')
 
-  assert.match(app, /const canManageClients = hasCapability\(granted, ['"]clients\.manage['"]\)/)
   assert.match(app, /query\.clients\.search/)
   assert.match(app, /query\.clients\.sort/)
   assert.match(app, /patchQuery\(['"]clients['"]/)

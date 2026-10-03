@@ -1,0 +1,72 @@
+const capabilityLabels = {
+  'orders.view': 'Consultar pedidos', 'orders.history': 'Consultar histórico de pedidos',
+  'orders.analysis': 'Analisar pedidos', 'orders.create': 'Criar pedidos', 'orders.finalize': 'Finalizar pedidos',
+  'orders.kitchen.control': 'Controlar pedidos na cozinha', 'orders.cancel': 'Cancelar pedidos',
+  'orders.discount': 'Ajustar preços e descontos', 'orders.backdate': 'Registrar pedidos retroativos',
+  'comandas.view': 'Consultar comandas', 'comandas.transfer': 'Transferir comandas',
+  'payments.receive': 'Receber pagamentos', 'payments.refund': 'Estornar pagamentos',
+  'clients.view': 'Consultar clientes', 'clients.create': 'Cadastrar clientes', 'clients.update': 'Editar clientes', 'clients.delete': 'Excluir clientes',
+  'products.view': 'Consultar produtos', 'products.manage': 'Gerenciar produtos',
+  'tables.view': 'Consultar mesas', 'tables.manage': 'Gerenciar mesas',
+  'finance.overview': 'Consultar resumo financeiro', 'finance.receivables': 'Consultar contas a receber',
+  'finance.movements': 'Consultar movimentos financeiros', 'finance.movements.manage': 'Gerenciar movimentos financeiros',
+  'finance.promises.manage': 'Gerenciar promessas de pagamento',
+  'reports.view': 'Consultar relatórios', 'reports.export': 'Exportar relatórios',
+  'printing.queue': 'Consultar fila de impressão', 'printing.execute': 'Imprimir e recuperar trabalhos',
+  'printing.force': 'Forçar impressão e prioridade', 'printing.discard': 'Descartar impressões',
+  'printing.settings': 'Gerenciar configuração de impressão', 'printing.settings.view': 'Consultar configuração de impressão',
+  'printing.station.view': 'Consultar estações de impressão', 'printing.station.configure': 'Configurar estações de impressão',
+  'preferences.local': 'Ajustar preferências deste dispositivo',
+  'access.users.view': 'Consultar equipe e acessos', 'access.users.manage': 'Gerenciar equipe e acessos', 'access.audit.view': 'Consultar atividades',
+  'operations.settings.view': 'Consultar configuração da operação', 'operations.settings.manage': 'Gerenciar configuração da operação',
+  'payments.settings.view': 'Consultar formas de pagamento', 'payments.settings.manage': 'Gerenciar formas de pagamento',
+  'orders.settings.view': 'Consultar configuração de pedidos', 'orders.settings.manage': 'Gerenciar configuração de pedidos',
+  'finance.categories.view': 'Consultar categorias financeiras', 'finance.categories.manage': 'Gerenciar categorias financeiras',
+  'business.profile.view': 'Consultar dados do negócio', 'business.profile.manage': 'Gerenciar dados do negócio',
+}
+const actionLabels = {
+  'access.denied': 'Acesso negado', 'access.invitation.accepted': 'Convite aceito',
+  'access.password.changed': 'Senha alterada', 'access.password.reset': 'Redefinição de senha iniciada',
+  'access.user.activated': 'Conta ativada', 'access.user.created': 'Conta criada', 'access.user.deactivated': 'Conta desativada',
+  'access.user.role-changed': 'Perfil de acesso alterado', 'access.user.updated': 'Conta atualizada',
+  'client.created': 'Cliente cadastrado', 'client.deleted': 'Cliente excluído', 'client.updated': 'Cliente atualizado',
+  'finance.movement.created': 'Movimento financeiro criado', 'finance.movement.deleted': 'Movimento financeiro excluído', 'finance.movement.updated': 'Movimento financeiro atualizado',
+  'kitchen-tv.modality.updated': 'Modalidade da TV alterada', 'kitchen-tv.order.hidden': 'Pedido ocultado na TV',
+  'kitchen-tv.order.restored': 'Pedido restaurado na TV', 'kitchen-tv.page.updated': 'Página da TV alterada',
+  'login.blocked': 'Entrada bloqueada', 'login.failure': 'Falha ao entrar', 'login.success': 'Entrada realizada',
+  'order.cancelled': 'Pedido cancelado', 'order.created': 'Pedido criado', 'order.finalized': 'Pedido finalizado',
+  'order.payment-promise.updated': 'Promessa de pagamento atualizada', 'order.price.adjusted': 'Preço do pedido ajustado',
+  'payment.received': 'Pagamento recebido', 'payment.refunded': 'Pagamento estornado',
+  'printing.attempt.prepared': 'Tentativa de impressão preparada', 'printing.claimed': 'Impressão assumida pela estação',
+  'printing.discarded': 'Impressão descartada', 'printing.forced': 'Impressão forçada',
+  'printing.outcome.observed': 'Resultado de impressão observado', 'printing.outcome.resolved': 'Resultado de impressão informado',
+  'printing.primary.updated': 'Estação principal alterada', 'printing.prioritized': 'Impressão priorizada',
+  'printing.recovery.claimed': 'Recuperação assumida pela estação', 'printing.recovery.updated': 'Recuperação atualizada',
+  'printing.reprint.requested': 'Reimpressão solicitada', 'printing.requested': 'Impressão solicitada', 'printing.retried': 'Nova tentativa solicitada',
+  'printing.second-copy.prompted': 'Segunda via oferecida', 'printing.second-copy.requested': 'Segunda via solicitada', 'printing.second-copy.skipped': 'Segunda via dispensada',
+  'printing.station.updated': 'Estação de impressão atualizada', 'printing.submission.intent': 'Intenção de envio registrada',
+  'product.created': 'Produto cadastrado', 'product.deleted': 'Produto excluído', 'product.updated': 'Produto atualizado',
+  'reservation.arrived': 'Chegada da reserva registrada', 'reservation.updated': 'Reserva atualizada', 'session.revoked': 'Sessão encerrada',
+  'settings.business-profile.updated': 'Dados do negócio atualizados', 'settings.cancellation-reasons.updated': 'Motivos de cancelamento atualizados',
+  'settings.finance-categories.updated': 'Categorias financeiras atualizadas', 'settings.finance.updated': 'Configuração financeira atualizada',
+  'settings.kitchen-tv.approved': 'TV da cozinha autorizada', 'settings.kitchen-tv.revoked': 'Autorização da TV revogada',
+  'settings.operations.updated': 'Configuração da operação atualizada', 'settings.payment-methods.updated': 'Formas de pagamento atualizadas',
+  'settings.printing.updated': 'Configuração de impressão atualizada',
+  'table-tab.transferred': 'Comanda transferida', 'table.created': 'Mesa cadastrada', 'table.updated': 'Mesa atualizada', 'tables.reordered': 'Ordem das mesas alterada',
+}
+const outcomeLabels = {
+  success: 'Concluído', failure: 'Falha', failed: 'Falha', denied: 'Negado', blocked: 'Bloqueado',
+  intent: 'Intenção registrada', unknown: 'Resultado incerto', unconfirmed: 'Não confirmado',
+  spooler_complete: 'Concluído na fila do sistema', reported_printed: 'Impressão informada como concluída',
+  manual_printed: 'Confirmado manualmente como impresso', manual_not_printed: 'Confirmado manualmente como não impresso',
+  queued: 'Na fila do sistema', spooling: 'Em envio à fila do sistema', submitted: 'Enviado à fila do sistema',
+  submitting: 'Envio em andamento', printing: 'Impressão em andamento', complete: 'Concluído na fila do sistema',
+  prepared: 'Preparado', confirmed: 'Confirmado', requires_attention: 'Requer atenção',
+}
+const readableValue = value => {
+  const text = String(value || '').replace(/[._-]+/g, ' ').trim()
+  return text ? text[0].toLocaleUpperCase('pt-BR') + text.slice(1) : 'Não informado'
+}
+export const capabilityLabel = value => capabilityLabels[value] || readableValue(value)
+export const actionLabel = value => actionLabels[value] || readableValue(value)
+export const outcomeLabel = value => outcomeLabels[value] || readableValue(value)

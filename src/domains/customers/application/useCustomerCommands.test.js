@@ -20,6 +20,25 @@ const mountProbe = async (props) => {
   }
 }
 
+test('specific client grants allow operator create/update but protect delete and never accept clients.manage override', async () => {
+  const effects = []
+  const probe = await mountProbe({
+    canCreateClients: true, canUpdateClients: true, canDeleteClients: false,
+    api: { createClient: async () => ({ client: { id: 'created' } }), updateClient: async () => ({ client: { id: 'updated' } }), deleteClient: async () => assert.fail('delete must be denied') },
+    applyOfficialEffects: effect => effects.push(effect),
+  })
+  await act(async () => {
+    assert.equal((await probe.getLatest().quickCreateClient({ name: 'Ana' })).id, 'created')
+    assert.equal((await probe.getLatest().updateClient('created', { name: 'Ana Silva' })).id, 'updated')
+    assert.equal(await probe.getLatest().deleteClient('created'), false)
+  })
+  assert.equal(effects.length, 2)
+  probe.unmount()
+  const obsolete = await mountProbe({ canManageClients: true, api: { createClient: async () => assert.fail('obsolete permission') } })
+  await act(async () => assert.equal(await obsolete.getLatest().createClient({ name: 'Ana' }), null))
+  obsolete.unmount()
+})
+
 test('customer commands preserve request keys, authoritative effects and success feedback', async () => {
   const calls = []
   const effects = []
@@ -46,7 +65,7 @@ test('customer commands preserve request keys, authoritative effects and success
     },
     applyOfficialEffects: (value) => effects.push(value),
     writesBlocked: false,
-    canManageClients: true,
+    canCreateClients: true, canUpdateClients: true, canDeleteClients: true,
     setRequestKey: (key) => keys.push(key),
     onSuccess: (message) => successes.push(message),
     onError(error) { assert.fail(error?.message || 'unexpected error') },
@@ -102,8 +121,8 @@ test('customer commands refuse every write when offline/global writes are blocke
   }
 
   for (const props of [
-    { writesBlocked: true, canManageClients: true },
-    { writesBlocked: false, canManageClients: false },
+    { writesBlocked: true, canCreateClients: true, canUpdateClients: true, canDeleteClients: true },
+    { writesBlocked: false, canCreateClients: false, canUpdateClients: false, canDeleteClients: false },
   ]) {
     const probe = await mountProbe({ ...common, ...props })
     await act(async () => {

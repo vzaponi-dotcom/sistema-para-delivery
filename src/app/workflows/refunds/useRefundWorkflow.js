@@ -1,3 +1,4 @@
+import { useMutationOwner } from '../../runtime/session/useMutationOwner.js'
 import { useCallback, useRef, useState } from 'react'
 import { refundApi } from './refundApi.js'
 
@@ -10,6 +11,7 @@ export function useRefundWorkflow({
   onSuccess = () => {},
   onError = () => {},
 } = {}) {
+  const ownsMutation = useMutationOwner(applyOfficialEffects)
   const targetRef = useRef(null)
   const submittingRef = useRef(false)
   const [refundOrder, setRefundOrder] = useState(null)
@@ -38,20 +40,26 @@ export function useRefundWorkflow({
     setRequestKey(requestKey)
     try {
       const { order, movement } = await api.refundOrder(target.id, payload)
-      applyOfficialEffects({ order, movement })
+      if (!ownsMutation()) return false
+
+      if (applyOfficialEffects({ order, movement }) === false) return false
       onSuccess('Estorno registrado com sucesso')
       targetRef.current = null
       setRefundOrder(null)
       return true
     } catch (error) {
+      if (!ownsMutation()) return false
       onError(error)
       return false
     } finally {
-      submittingRef.current = false
-      setSubmitting(false)
-      setRequestKey((current) => current === requestKey ? null : current)
+      if (ownsMutation()) {
+        submittingRef.current = false
+        setSubmitting(false)
+        setRequestKey((current) => current === requestKey ? null : current)
+      }
     }
-  }, [api, applyOfficialEffects, canRefundPayments, onError, onSuccess, setRequestKey, writesBlocked])
+  }, [ownsMutation, api, applyOfficialEffects, canRefundPayments, onError, onSuccess, setRequestKey, writesBlocked])
 
-  return { request, close, refundOrder, submitting, confirm }
+  const reset = useCallback(() => { targetRef.current = null; submittingRef.current = false; setRefundOrder(null); setSubmitting(false) }, [])
+  return { request, close, reset, refundOrder, submitting, confirm }
 }

@@ -3,20 +3,14 @@ import assert from 'node:assert/strict'
 import { act } from 'react-test-renderer'
 import { workspaceHarness as createWorkspaceHarness, workspaceTables, nodeText, buttonNamed } from './test-support/renderWorkspace.js'
 import { comandaDetail, deferred, detailResponse } from './test-support/comandaFixtures.js'
-import { legacyCapabilities } from './app/access.js'
+import { authenticatedSession, markSystemNotificationsRead } from './test-support/appSessionFixtures.js'
 
 const workspaceHarness = async (...args) => {
   const harness = await createWorkspaceHarness(...args)
-  harness.localStorage.setItem('delivery-notifications:v1:amor-e-sabor', JSON.stringify({ version: 1, knownIds: ['release-2026-09-operation-shell'], presentedIds: ['release-2026-09-operation-shell'], readIds: ['release-2026-09-operation-shell'] }))
+  markSystemNotificationsRead(harness)
   return harness
 }
 
-const authenticatedSession = {
-  authenticated: true,
-  businessId: 'amor-e-sabor',
-  settingsContextId: 'test-settings-context',
-  capabilities: [...legacyCapabilities(true)],
-}
 
 const effectivePaymentConfig = {
   version: 'payment-test-v1', revisions: { paymentMethods: 1, cancellationReasons: 1 },
@@ -45,6 +39,7 @@ async function paymentWorkspace(t, mobile = false) {
   const h = await workspaceHarness(t, { mobile })
   const state = { tables: workspaceTables, expired: false, relogged: false, pending: [], detail: comandaDetail, bootstrapCalls: 0 }
   globalThis.fetch = async (path, options = {}) => {
+    if (String(path).startsWith('/api/bootstrap?')) path = '/api/bootstrap'
     if (path.endsWith('/cancel')) return state.deferCancellation.promise
     if (path === '/api/orders') return state.deferOrders ? state.deferOrders.promise : jsonResponse({ orders: state.bootstrapData?.orders || [] })
     if (path.endsWith('/payment')) {
@@ -64,9 +59,10 @@ async function paymentWorkspace(t, mobile = false) {
     }
     if (path === '/api/auth/login') { state.relogged = true; return jsonResponse({}) }
     const responses = {
-      '/api/auth/session': state.relogged ? authenticatedSession : { authenticated: true },
+      '/api/auth/session': authenticatedSession,
       '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
       '/api/printing/jobs?limit=100': { jobs: [] },
+      '/api/printing/jobs/summary': { summary: {} },
     }
     assert.ok(Object.hasOwn(responses, path), path)
     return { ok: true, json: async () => responses[path] }
@@ -623,13 +619,15 @@ test('App renders official Comandas, preserves selection across destinations and
   const requests = []
   const originalFetch = globalThis.fetch
   globalThis.fetch = async (path, options) => {
+    if (String(path).startsWith('/api/bootstrap?')) path = '/api/bootstrap'
     requests.push([path, options.method || 'GET'])
     const responses = {
       ...checkoutDetails,
-      '/api/auth/session': { authenticated: true },
+      '/api/auth/session': authenticatedSession,
       '/api/bootstrap': { tables: workspaceTables, tableTabs: [], orders: [], clients: [], products: [], movements: [], financeSettings: null, effectiveBusinessConfig: effectiveCheckoutConfig },
       '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
       '/api/printing/jobs?limit=100': { jobs: [] },
+      '/api/printing/jobs/summary': { summary: {} },
     }
     assert.ok(Object.hasOwn(responses, path), `Unexpected request: ${path}`)
     return { ok: true, json: async () => responses[path] }
@@ -679,16 +677,18 @@ test('an occupied comanda adds another order through the preselected wizard and 
     : table)
   const originalFetch = globalThis.fetch
   globalThis.fetch = async (path, options = {}) => {
+    if (String(path).startsWith('/api/bootstrap?')) path = '/api/bootstrap'
     requests.push([path, options])
     if (path === '/api/table-tabs/tab-42') return detailResponse(requests.some(([url]) => url === '/api/orders')
       ? { ...comandaDetail, itemCount: 4, totalCents: 14345, items: [...comandaDetail.items, { productId: 'product-1', name: 'Coxinha', presentation: '', note: '', quantity: 1, unitPriceCents: 2000, lineTotalCents: 2000 }] }
       : comandaDetail)
     const responses = {
       ...checkoutDetails,
-      '/api/auth/session': { authenticated: true },
+      '/api/auth/session': authenticatedSession,
       '/api/bootstrap': { tables: workspaceTables, tableTabs: [], orders: [], clients: [], products: [lifecycleProduct], movements: [], financeSettings: null, effectiveBusinessConfig: effectiveCheckoutConfig },
       '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
       '/api/printing/jobs?limit=100': { jobs: [] },
+      '/api/printing/jobs/summary': { summary: {} },
       '/api/orders': { order: { id: 'order-43', paymentStatus: 'Pendente', status: 'Em preparo' }, movement: null, tableTab: { id: 'tab-42', tableId: 'occupied', number: 42, status: 'open' }, tables: afterCheckoutTables },
     }
     assert.ok(Object.hasOwn(responses, path), `Unexpected request: ${path}`)
@@ -726,13 +726,15 @@ test('an occupied comanda can cancel its preselected wizard without creating an 
   const requests = []
   const originalFetch = globalThis.fetch
   globalThis.fetch = async (path, options = {}) => {
+    if (String(path).startsWith('/api/bootstrap?')) path = '/api/bootstrap'
     requests.push([path, options])
     const responses = {
       ...checkoutDetails,
-      '/api/auth/session': { authenticated: true },
+      '/api/auth/session': authenticatedSession,
       '/api/bootstrap': { tables: workspaceTables, tableTabs: [], orders: [], clients: [], products: [lifecycleProduct], movements: [], financeSettings: null, effectiveBusinessConfig: effectiveCheckoutConfig },
       '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
       '/api/printing/jobs?limit=100': { jobs: [] },
+      '/api/printing/jobs/summary': { summary: {} },
     }
     assert.ok(Object.hasOwn(responses, path), `Unexpected request: ${path}`)
     return { ok: true, json: async () => responses[path] }
@@ -757,6 +759,7 @@ test('a stale occupied-comanda checkout keeps the wizard and refreshes authorita
   let checkoutAttempted = false
   const originalFetch = globalThis.fetch
   globalThis.fetch = async (path, options = {}) => {
+    if (String(path).startsWith('/api/bootstrap?')) path = '/api/bootstrap'
     if (path === '/api/bootstrap') {
       bootstrapCalls++
       const currentTables = checkoutAttempted
@@ -771,9 +774,10 @@ test('a stale occupied-comanda checkout keeps the wizard and refreshes authorita
     }
     const responses = {
       ...checkoutDetails,
-      '/api/auth/session': { authenticated: true },
+      '/api/auth/session': authenticatedSession,
       '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
       '/api/printing/jobs?limit=100': { jobs: [] },
+      '/api/printing/jobs/summary': { summary: {} },
     }
     assert.ok(Object.hasOwn(responses, path), `Unexpected request: ${path}`)
     return { ok: true, status: 200, json: async () => responses[path] }
@@ -805,13 +809,15 @@ test('a successful table checkout returns to Comandas with the authoritative occ
     : table)
   const originalFetch = globalThis.fetch
   globalThis.fetch = async (path, options = {}) => {
+    if (String(path).startsWith('/api/bootstrap?')) path = '/api/bootstrap'
     requests.push([path, options])
     const responses = {
       ...checkoutDetails,
-      '/api/auth/session': { authenticated: true },
+      '/api/auth/session': authenticatedSession,
       '/api/bootstrap': { tables: workspaceTables, tableTabs: [], orders: [], clients: [], products: [lifecycleProduct], movements: [], financeSettings: null, effectiveBusinessConfig: effectiveCheckoutConfig },
       '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
       '/api/printing/jobs?limit=100': { jobs: [] },
+      '/api/printing/jobs/summary': { summary: {} },
       '/api/orders': { order: { id: 'order-99', paymentStatus: 'Pendente', status: 'Em preparo' }, movement: null, tableTab: { id: 'tab-99', tableId: 'free', number: 99, status: 'open' }, tables: createdTables },
     }
     assert.ok(Object.hasOwn(responses, path), `Unexpected request: ${path}`)
@@ -844,6 +850,7 @@ test('an unavailable table rejection retains the real wizard draft and retries w
     : table)
   const originalFetch = globalThis.fetch
   globalThis.fetch = async (path, options = {}) => {
+    if (String(path).startsWith('/api/bootstrap?')) path = '/api/bootstrap'
     if (path === '/api/orders' && options.method === 'POST') {
       orderRequests.push(options)
       if (orderRequests.length === 1) return { ok: false, status: 409, json: async () => ({ error: { message: 'A mesa não está disponível.' } }) }
@@ -852,10 +859,11 @@ test('an unavailable table rejection retains the real wizard draft and retries w
     const bootstrapTables = tableUnavailable ? workspaceTables.map((table) => table.id === 'free' ? { ...table, isActive: false } : table) : workspaceTables
     const responses = {
       ...checkoutDetails,
-      '/api/auth/session': { authenticated: true },
+      '/api/auth/session': authenticatedSession,
       '/api/bootstrap': { tables: bootstrapTables, tableTabs: [], orders: [], clients: [], products: [lifecycleProduct], movements: [], financeSettings: null, effectiveBusinessConfig: effectiveCheckoutConfig },
       '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
       '/api/printing/jobs?limit=100': { jobs: [] },
+      '/api/printing/jobs/summary': { summary: {} },
     }
     assert.ok(Object.hasOwn(responses, path), `Unexpected request: ${path}`)
     return { ok: true, json: async () => responses[path] }
@@ -891,6 +899,7 @@ test('a deferred old checkout cannot mutate or leave an ownerless wizard after r
   const orderStarted = []
   const originalFetch = globalThis.fetch
   globalThis.fetch = async (path, options = {}) => {
+    if (String(path).startsWith('/api/bootstrap?')) path = '/api/bootstrap'
     if (path === '/api/bootstrap' && sessionExpired) {
       return { ok: false, status: 401, json: async () => ({ error: { message: 'Sessão expirada.' } }) }
     }
@@ -903,10 +912,11 @@ test('a deferred old checkout cannot mutate or leave an ownerless wizard after r
     if (path === '/api/auth/login') { relogged = true; return { ok: true, json: async () => ({}) } }
     const responses = {
       ...checkoutDetails,
-      '/api/auth/session': relogged ? authenticatedSession : { authenticated: true },
+      '/api/auth/session': authenticatedSession,
       '/api/bootstrap': { tables: workspaceTables, tableTabs: [], orders: [], clients: [], products: [lifecycleProduct], movements: [], financeSettings: null, effectiveBusinessConfig: effectiveCheckoutConfig },
       '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
       '/api/printing/jobs?limit=100': { jobs: [] },
+      '/api/printing/jobs/summary': { summary: {} },
     }
     assert.ok(Object.hasOwn(responses, path), `Unexpected request: ${path}`)
     return { ok: true, json: async () => responses[path] }
@@ -993,6 +1003,7 @@ test('a deferred stale checkout rejection cannot clear or report over a newer re
   const orderStarted = []
   const originalFetch = globalThis.fetch
   globalThis.fetch = async (path, options = {}) => {
+    if (String(path).startsWith('/api/bootstrap?')) path = '/api/bootstrap'
     if (path === '/api/bootstrap' && sessionExpired) {
       return { ok: false, status: 401, json: async () => ({ error: { message: 'Sessão expirada.' } }) }
     }
@@ -1005,10 +1016,11 @@ test('a deferred stale checkout rejection cannot clear or report over a newer re
     if (path === '/api/auth/login') { relogged = true; return { ok: true, json: async () => ({}) } }
     const responses = {
       ...checkoutDetails,
-      '/api/auth/session': relogged ? authenticatedSession : { authenticated: true },
+      '/api/auth/session': authenticatedSession,
       '/api/bootstrap': { tables: workspaceTables, tableTabs: [], orders: [], clients: [], products: [lifecycleProduct], movements: [], financeSettings: null, effectiveBusinessConfig: effectiveCheckoutConfig },
       '/api/printing/stations': { stations: [{ id: 'test-station', platform: 'other', isPrimary: false, autoPrintEnabled: false }] },
       '/api/printing/jobs?limit=100': { jobs: [] },
+      '/api/printing/jobs/summary': { summary: {} },
     }
     assert.ok(Object.hasOwn(responses, path), `Unexpected request: ${path}`)
     return { ok: true, json: async () => responses[path] }

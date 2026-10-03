@@ -29,7 +29,7 @@
 .app-topbar .notification-bell:hover { background: var(--surface-soft); }
 .operation-menu { position: relative; }
 .operation-menu-trigger { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 4px 2px 4px 16px; border: 0; border-left: 1px solid var(--border); border-radius: 0; background: transparent; color: var(--muted); font: inherit; cursor: pointer; }
-.operation-menu-trigger:focus-visible, .operation-menu-popover button:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.operation-menu-trigger:focus-visible, .operation-menu-content button:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 .operation-menu-initials, .operation-menu-logo { width: 34px; height: 34px; flex: 0 0 34px; border: 1px solid var(--border); border-radius: 50%; background: var(--surface-soft); color: var(--text-soft); }
 .operation-menu-initials { display: grid; place-items: center; font-size: .7rem; font-weight: 650; }
 .operation-menu-logo { padding: 3px; object-fit: contain; }
@@ -41,33 +41,40 @@
   top: calc(100% + 8px);
   right: 0;
   z-index: 35;
-  width: min(315px, calc(100vw - 24px));
-  padding: 8px;
+  width: min(358px, calc(100vw - 24px));
+  max-height: calc(100dvh - 100px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 10px;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 18px;
   background: var(--surface);
   color: var(--text);
   box-shadow: var(--shadow-lg);
 }
-.operation-menu-heading { display: grid; gap: 3px; padding: 10px 11px 12px; border-bottom: 1px solid var(--border); margin-bottom: 6px; }
-.operation-menu-heading-copy { display: grid; min-width: 0; gap: 3px; }
-.operation-menu-heading span { color: var(--muted); font-size: 0.78rem; }
-.operation-menu-popover button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 8px 10px; border: 0; border-radius: 9px; background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
-.operation-menu-popover .operation-menu-heading-link {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-  min-height: 56px;
-  padding: 10px 11px 12px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 6px;
-}
-.operation-menu-heading-link .operation-menu-heading-icon { color: var(--muted); }
-.operation-menu-popover button:hover { background: var(--surface-soft); }
-.operation-menu-popover button:disabled { opacity: 0.5; cursor: not-allowed; }
-.operation-menu-popover hr { border: 0; border-top: 1px solid var(--border); margin: 6px 0; }
-.operation-menu-popover .operation-menu-logout { color: var(--danger); }
+.operation-menu-content { font-size: .82rem; line-height: 1.45; }
+.operation-menu-person { display: flex; align-items: center; gap: 10px; padding: 10px 8px 16px; border-bottom: 1px solid var(--border); }
+.operation-menu-avatar { display: grid; place-items: center; width: 42px; height: 42px; flex: 0 0 42px; border-radius: 13px; background: var(--primary-soft); color: var(--primary); font-weight: 700; }
+.operation-menu-person-copy { display: grid; min-width: 0; flex: 1; gap: 3px; }
+.operation-menu-person-copy strong, .operation-menu-heading-copy strong { overflow-wrap: anywhere; color: var(--text); font-weight: 650; }
+.operation-menu-person-copy small, .operation-menu-heading-copy > span { color: var(--muted); font-size: .72rem; overflow-wrap: anywhere; }
+.operation-menu-connected { padding: 4px 7px; border-radius: 7px; background: var(--success-soft); color: var(--success); font-size: .63rem; }
+.operation-menu-section { padding-top: 14px; }
+.operation-menu-section h2 { margin: 0 8px 5px; color: var(--muted); font-size: .61rem; font-weight: 650; letter-spacing: .09em; text-transform: uppercase; }
+.operation-menu-heading { display: flex; align-items: flex-start; gap: 10px; padding: 8px; }
+.operation-menu-heading-copy { display: grid; min-width: 0; flex: 1; gap: 3px; }
+.operation-menu-heading .operation-menu-initials, .operation-menu-heading .operation-menu-logo { border-radius: 10px; }
+.operation-menu-content button { font: inherit; cursor: pointer; }
+.operation-menu-content button:disabled { opacity: .5; cursor: not-allowed; }
+.operation-menu-content .operation-menu-identity { display: inline-flex; align-items: center; justify-self: start; gap: 6px; max-width: 100%; min-height: 44px; margin-top: 3px; padding: 8px 10px; border: 0; border-radius: 9px; background: var(--surface-soft); color: var(--primary); font-size: .72rem; text-align: left; }
+.operation-menu-content .operation-menu-action { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 10px 8px; border: 0; border-radius: 10px; background: transparent; color: var(--text); text-align: left; }
+.operation-menu-action > svg { flex: 0 0 auto; color: var(--muted); }
+.operation-menu-action-copy { display: grid; min-width: 0; flex: 1; gap: 3px; overflow-wrap: anywhere; }
+.operation-menu-action-copy small { color: var(--muted); font-size: .7rem; }
+.operation-menu-content .operation-menu-action:hover, .operation-menu-content .operation-menu-identity:hover { background: var(--primary-soft); }
+.operation-menu-footer { border-top: 1px solid var(--border); margin-top: 10px; padding-top: 5px; }
+.operation-menu-content .operation-menu-logout, .operation-menu-logout > svg { color: var(--danger); }
+.operation-menu-logout .operation-menu-chevron { display: none; }
 .operation-about-copy { display: grid; gap: 8px; color: var(--text-soft); }
 .operation-about-copy strong { color: var(--text); }
 

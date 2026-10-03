@@ -11,6 +11,7 @@ import {
 
 test('C2 preserva IDs, fallbacks e menus atuais', () => {
   assert.deepEqual(NAVIGATION_DESTINATIONS.map(({ id }) => id), [
+    'my-account', 'access-team', 'access-activity',
     'settings-home', 'settings-business-profile', 'settings-operations', 'settings-modalities',
     'settings-payments', 'settings-cancellations', 'settings-finance-categories',
     'settings-kitchen-tv',
@@ -19,13 +20,14 @@ test('C2 preserva IDs, fallbacks e menus atuais', () => {
     'settings-printing', 'settings-device',
   ])
   assert.deepEqual(AREA_DESTINATION_IDS, {
+    access: ['access-team', 'access-activity'],
     orders: ['orders', 'history', 'kitchen-tv-control'],
     finance: ['dashboard', 'reports', 'receivables', 'finance'],
     settings: [
       'settings-home', 'settings-business-profile', 'settings-operations', 'settings-modalities',
       'settings-payments', 'settings-cancellations',
       'settings-finance-categories', 'settings-kitchen-tv',
-      'settings-printing', 'settings-device',
+      'settings-printing', 'settings-device', 'access-team', 'access-activity',
     ],
   })
   assert.deepEqual(DESKTOP_NAV_GROUPS.map(({ label }) => label), ['OPERAÇÃO', 'FINANCEIRO', 'CADASTROS'])

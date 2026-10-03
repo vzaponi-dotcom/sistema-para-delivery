@@ -1,3 +1,4 @@
+import { authenticatedSession } from './test-support/appSessionFixtures.js'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import React from 'react'
@@ -59,7 +60,8 @@ test('App refreshes official data after an identity conflict without retrying th
   let bootstrapCalls = 0
   const transferBodies = []
   globalThis.fetch = async (path, options = {}) => {
-    if (path === '/api/auth/session') return new Response(JSON.stringify({ authenticated: true }), { status: 200 })
+    if (String(path).startsWith('/api/bootstrap?')) path = '/api/bootstrap'
+    if (path === '/api/auth/session') return new Response(JSON.stringify(authenticatedSession), { status: 200 })
     if (path === '/api/bootstrap') {
       bootstrapCalls += 1
       return new Response(JSON.stringify({

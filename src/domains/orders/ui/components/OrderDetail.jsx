@@ -5,6 +5,7 @@ import Modal from '../../../../shared/ui/Modal'
 import OrderDetailTiming from './OrderDetailTiming.jsx'
 import { OrderTicketPreview, PrintStatusBadge } from '../../../printing/index.js'
 import PaymentBadge from '../PaymentBadge.jsx'
+import { actorLabel } from '../../../../shared/actorLabel.js'
 import StatusBadge from '../../../../shared/ui/StatusBadge'
 import { getOrderItemDisplayName, getOrderItems } from '../../domain/orderCart.js'
 import { formatOrderDate, formatOrderTime } from '../../domain/orderWorkflow.js'
@@ -33,9 +34,9 @@ const formatPrintTimestamp = (value) => {
   }).format(date)
 }
 
-const PHYSICAL_PRINT_ACTIONS = new Set(['print', 'print-now', 'second-copy', 'retry', 'force-print', 'reprint', 'historical-reprint'])
+const PHYSICAL_PRINT_ACTIONS = new Set(['print', 'preview', 'pdf', 'second-copy', 'retry', 'reprint', 'historical-reprint'])
 
-function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCancel, canCancelOrders = true, canExecutePrinting = true, canRegisterPayment = false, registerPaymentDisabled = false, onRegisterPayment, onToast }) {
+function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCancel, canCancelOrders = true, canExecutePrinting = true, canForcePrinting = false, canRegisterPayment = false, registerPaymentDisabled = false, onRegisterPayment, onToast }) {
   const [previewDocument, setPreviewDocument] = useState(null)
   const [showTicketPreview, setShowTicketPreview] = useState(false)
   const [confirmReprint, setConfirmReprint] = useState(false)
@@ -57,7 +58,7 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
   const primaryQueueAction = getPrintJobActions(printJob, { order })[0]?.key || null
 
   const runPrintingAction = async (key, action, successMessage) => {
-    if ((PHYSICAL_PRINT_ACTIONS.has(key) && !canExecutePrinting) || printingAction || typeof action !== 'function') return false
+    if ((['print-now', 'force-print'].includes(key) && !canForcePrinting) || (PHYSICAL_PRINT_ACTIONS.has(key) && !canExecutePrinting) || printingAction || typeof action !== 'function') return false
     setPrintingAction(key)
     try {
       await action()
@@ -109,12 +110,12 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
 
   const actionButton = (() => {
     if (!printJob && !isHistoricalOrder) return <Button type="button" onClick={handleFirstPrint} disabled={printingDisabled || !canExecutePrinting}>Imprimir pedido</Button>
-    if (scheduledPrintPending) return <Button type="button" onClick={handlePrintNow} disabled={printingDisabled || !canExecutePrinting}>Imprimir agora</Button>
+    if (scheduledPrintPending) return <Button type="button" onClick={handlePrintNow} disabled={printingDisabled || !canForcePrinting}>Imprimir agora</Button>
     if (awaitingSecondCopy) return <Button type="button" onClick={handleSecondCopy} disabled={printingDisabled || !canExecutePrinting}>Imprimir 2ª via</Button>
     if (printJob?.status === 'printed') return <Button type="button" onClick={() => { if (canExecutePrinting) setConfirmReprint(true) }} disabled={printingDisabled || !canExecutePrinting}>Reimprimir</Button>
     if (primaryQueueAction === 'retry') return <Button type="button" onClick={handleRetry} disabled={printingDisabled || !canExecutePrinting}>Tentar novamente</Button>
     if (primaryQueueAction === 'reprint') return <Button type="button" onClick={() => { if (canExecutePrinting) setConfirmReprint(true) }} disabled={printingDisabled || !canExecutePrinting}>Reimprimir</Button>
-    if (primaryQueueAction === 'forcePrint') return <Button type="button" onClick={handleForcePrint} disabled={printingDisabled || !canExecutePrinting}>Imprimir mesmo assim</Button>
+    if (primaryQueueAction === 'forcePrint') return <Button type="button" onClick={handleForcePrint} disabled={printingDisabled || !canForcePrinting}>Imprimir mesmo assim</Button>
     if (!printJob && isHistoricalOrder) return <Button type="button" onClick={() => { if (canExecutePrinting) setConfirmReprint(true) }} disabled={printingDisabled || !canExecutePrinting}>Reimprimir</Button>
     return null
   })()
@@ -140,6 +141,9 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
               <div><span>Tipo</span><strong>{order.type}</strong></div>
               <div><span>Data</span><strong>{formatOrderDate(order.orderDate)}</strong></div>
               <div><span>Horário</span><strong>{formatOrderTime(order.createdAt) || '—'}</strong></div>
+              <div><span>Criado por</span><strong>{actorLabel(order.attribution?.createdBy)}</strong></div>
+              {order.status === 'Finalizado' && <div><span>Finalizado por</span><strong>{actorLabel(order.attribution?.finalizedBy)}</strong></div>}
+              {order.paymentStatus === 'Pago' && <div><span>Recebido por</span><strong>{actorLabel(order.attribution?.paidBy)}</strong></div>}
               <div><span>Forma de pagamento</span><strong>{order.paymentStatus === 'Pago' ? formatPaymentSummary(order.paymentAllocations, order.paymentMethod) : 'Pendente'}</strong></div>
               {order.status === 'Cancelado' && <div><span>Motivo do cancelamento</span><strong>{order.cancelReasonLabel || order.cancelReason || 'Não informado'}{order.cancelReasonNote ? ` · ${order.cancelReasonNote}` : ''}</strong></div>}
               {order.clientPhone && <div><span>Telefone</span><strong>{order.clientPhone}</strong></div>}

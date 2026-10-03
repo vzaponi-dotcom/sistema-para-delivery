@@ -1,3 +1,4 @@
+import { businessEvent } from './access/audit.js'
 import { DEFAULT_PAYMENT_METHODS, parsePaymentMethods, paymentLabel } from '../shared/businessPolicies.js'
 import { clearSettingsAssertions, hashSettingsPayload, prepareSettingsAssertion, readSettingsReceipt, settingsError } from './settingsTransactions.js'
 
@@ -155,9 +156,9 @@ export async function savePaymentMethods(db, businessId, input, now = new Date()
   statements.push(clearSettingsAssertions(db, txId), db.prepare(SELECT_PAYMENT_METHODS).bind(businessId))
 
   try {
-    const results = await db.batch(statements)
+    const results = await db.batch([...statements,businessEvent(db,businessId,{action:'settings.payment-methods.updated',resourceType:'settings',resourceId:'payment-methods',now})])
     return {
-      resource: decode(results.at(-1).results[0]),
+      resource: decode(results[statements.length - 1].results[0]),
       receipt: { mutationId, committedRevision, committedAt, replayed: false },
     }
   } catch (cause) {

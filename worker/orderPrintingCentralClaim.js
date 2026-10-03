@@ -1,4 +1,7 @@
+import { prepareAuditSelection, withAuditContext, auditContext } from './access/audit.js'
+import { printingActor } from './access/printingAuthorization.js'
 import { loadPrintJob, resolvePrintStationHealth } from './orderPrintingRepository.js'
+import { printDocumentEligibilitySql } from './access/printingAuthorization.js'
 
 const repositoryError = (status, code, message) => Object.assign(new Error(message), { status, code })
 const timestamp = (value = new Date()) => value instanceof Date ? value.toISOString() : String(value)
@@ -39,17 +42,14 @@ const loadQzExecutor = async (db, businessId, stationId, now) => {
   return station
 }
 
-export const claimNextPrintJob = async (db, businessId, stationId, now = new Date()) => {
+export const claimNextPrintJob = async (db, businessId, stationId, now = new Date(), granted) => {
   const station = await loadQzExecutor(db, businessId, stationId, now)
   if (station.recoveryState !== 'normal') return null
   const at = timestamp(now)
   const automaticEnabled = station.autoPrintEnabled ? 1 : 0
-  const row = await db.prepare(`UPDATE print_jobs SET
-      status = 'processing', station_id = ?, processing_started_at = ?, processed_at = NULL,
-      last_error_code = NULL, last_error_message = NULL
-    WHERE id = (
-      SELECT id FROM print_jobs
+  const candidateSql = `SELECT id FROM print_jobs
       WHERE business_id = ? AND type IN ('order', 'table-tab') AND status = 'pending' AND available_at <= ?
+        AND ${printDocumentEligibilitySql(granted)}
         AND (
           (type = 'table-tab' AND trigger = 'manual')
           OR (type = 'order' AND (
@@ -60,10 +60,18 @@ export const claimNextPrintJob = async (db, businessId, stationId, now = new Dat
           ))
         )
       ORDER BY CASE WHEN second_copy_requested_at IS NOT NULL AND copies_requested = 2 AND copies_printed = 1 THEN 1 ELSE 0 END DESC,
-        priority DESC, COALESCE(available_at, created_at) ASC, created_at ASC, id ASC LIMIT 1
-    ) AND business_id = ? AND type IN ('order', 'table-tab') AND status = 'pending'
+        priority DESC, COALESCE(available_at, created_at) ASC, created_at ASC, id ASC LIMIT 1`
+  const candidateBindings = [businessId,at,automaticEnabled]
+  const update = db.prepare(`UPDATE print_jobs SET
+      status = 'processing', station_id = ?, processing_started_at = ?, processed_at = NULL,
+      last_error_code = NULL, last_error_message = NULL
+    WHERE id = (${candidateSql}) AND business_id = ? AND type IN ('order', 'table-tab') AND status = 'pending'
     RETURNING id`)
-    .bind(stationId, at, businessId, at, automaticEnabled, businessId).first()
+    .bind(stationId, at, ...candidateBindings, businessId)
+  const automaticDb=withAuditContext(db,printingActor(auditContext(db,businessId),{automatic:true,stationId}))
+  const audit=prepareAuditSelection(automaticDb,businessId,{action:'printing.claimed',resourceType:'print-job',now},candidateSql,candidateBindings)
+  const [,claimed]=await db.batch([audit,update])
+  const row=claimed.results?.[0] || null
 
   if (!row?.id) return null
   return loadPrintJob(db, businessId, row.id)

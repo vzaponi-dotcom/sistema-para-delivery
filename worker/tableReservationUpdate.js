@@ -1,3 +1,4 @@
+import { businessEvent } from './access/audit.js'
 import { formatClientPhone } from '../shared/clientIdentity.js'
 import { createOrderPrintDocument } from '../shared/orderPrintDocument.js'
 import { resolveAutomaticOrderPrintAvailableAt } from '../shared/printContextPolicy.js'
@@ -318,7 +319,7 @@ export const updateTableReservation = async (
   statements.push(clearSettingsAssertions(db, txId))
 
   try {
-    await db.batch(statements)
+    await db.batch([...statements,businessEvent(db,businessId,{action:'reservation.updated',resourceType:'order',resourceId:order.id,now})])
   } catch (error) {
     const message = String(error?.message || '')
     if (message.includes('TABLE_RESERVATION_CONFLICT')) {

@@ -21,7 +21,7 @@ async function mount(overrides = {}) {
   }
   const props = {
     clients,
-    canManageClients: true,
+    canCreateClients: true, canUpdateClients: true, canDeleteClients: true,
     writesBlocked: false,
     createClient: async (payload) => { calls.created.push(payload); return { id: 'new', ...payload } },
     updateClient: async (id, payload) => { calls.updated.push({ id, payload }); return { id, ...payload } },

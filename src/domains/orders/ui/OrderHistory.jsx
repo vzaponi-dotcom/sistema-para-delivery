@@ -19,7 +19,7 @@ import { formatOrderDisplayNumber } from '../../../../shared/orderDisplayNumber.
 const timestamp = (order) => order.cancelledAt || order.finishedAt || order.createdAt
 const defaultCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0))
 
-function OrderHistory({ orders = [], currentTiming, currency = defaultCurrency, onCancelOrder, onRegisterPayment, paymentDisabled = false, paymentOptions, cancellationOptions = [], cancellationRevision = null, actionKey = null, printing, onToast, queryState, onQueryChange, granted, canViewAnalysis = false, canCancelOrders = true, canRefundPayments = true, canExecutePrinting = true, now = new Date() }) {
+function OrderHistory({ orders = [], currentTiming, currency = defaultCurrency, onCancelOrder, onRegisterPayment, paymentDisabled = false, paymentOptions, cancellationOptions = [], cancellationRevision = null, actionKey = null, printing, onToast, queryState, onQueryChange, granted, canViewAnalysis = false, canCancelOrders = true, canRefundPayments = true, canForcePrinting = false, canExecutePrinting = true, now = new Date() }) {
   const filter = queryState.filter
   const [detailOrderId, setDetailOrderId] = useState(null)
   const [cancelOrder, setCancelOrder] = useState(null)
@@ -85,7 +85,7 @@ function OrderHistory({ orders = [], currentTiming, currency = defaultCurrency, 
           {!terminalOrders.length && <div className="empty-state compact-empty-state"><Icon name="orders" size={28} /><strong>Nenhum pedido neste filtro</strong><span>Os pedidos finalizados e cancelados aparecerão aqui.</span></div>}
         </div>
       </section>
-      {detailOrder && <OrderDetail order={detailOrder} currency={currency} printing={printing} printJob={printing?.latestJobByOrderId?.get(detailOrder.id)} onClose={() => setDetailOrderId(null)} onRequestCancel={canCancelOrders ? () => { if (!canCancelOrders) return; setDetailOrderId(null); setCancelOrder(detailOrder) } : undefined} canCancelOrders={canCancelOrders} canExecutePrinting={canExecutePrinting} canRegisterPayment={canReceiveStandaloneOrder(detailOrder, granted, 'history')} registerPaymentDisabled={paymentDisabled || Boolean(actionKey) || submitting} onRegisterPayment={registerPaymentFromDetail} onToast={onToast} />}
+      {detailOrder && <OrderDetail order={detailOrder} currency={currency} printing={printing} printJob={printing?.latestJobByOrderId?.get(detailOrder.id)} onClose={() => setDetailOrderId(null)} onRequestCancel={canCancelOrders ? () => { if (!canCancelOrders) return; setDetailOrderId(null); setCancelOrder(detailOrder) } : undefined} canCancelOrders={canCancelOrders} canForcePrinting={canForcePrinting} canExecutePrinting={canExecutePrinting} canRegisterPayment={canReceiveStandaloneOrder(detailOrder, granted, 'history')} registerPaymentDisabled={paymentDisabled || Boolean(actionKey) || submitting} onRegisterPayment={registerPaymentFromDetail} onToast={onToast} />}
       <CancelOrderDialog open={canCancelOrders && Boolean(cancelOrder)} order={cancelOrder} paymentOptions={paymentOptions} reasonOptions={cancellationOptions} reasonRevision={cancellationRevision} onClose={() => setCancelOrder(null)} onConfirm={confirmCancellation} submitting={submitting} canRefundPayments={canRefundPayments} />
     </>
   )

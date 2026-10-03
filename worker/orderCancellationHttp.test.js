@@ -26,6 +26,7 @@ class HttpDb {
           sql,
           values,
           async first() {
+            if (sql.includes('FROM business_auth_state')) return { mode: 'legacy' }
             if (sql.includes('FROM businesses b LEFT JOIN business_operation_settings')) return {
               business_id: db.order.business_id, revision: 1,
               created_at: '2026-09-01T00:00:00.000Z', updated_at: '2026-09-01T00:00:00.000Z',
@@ -63,8 +64,10 @@ class HttpDb {
               db.sessions.push({ id, business_id: businessId, token_hash: tokenHash, created_at: createdAt, expires_at: expiresAt, last_seen_at: lastSeenAt, revoked_at: null })
             } else if (sql.includes('SET last_seen_at')) {
               const [lastSeenAt, id, businessId] = values
-              const session = db.sessions.find((item) => item.id === id && item.business_id === businessId)
+              const session = db.sessions.find((item) => item.id === id && item.business_id === businessId
+                && (!sql.includes('revoked_at IS NULL') || !item.revoked_at))
               if (session) session.last_seen_at = lastSeenAt
+              return { success: true, meta: { changes: session ? 1 : 0 } }
             } else if (sql.includes("UPDATE orders SET status = 'Cancelado'")) {
               const [cancelledAt, reason, note, timingSnapshot] = values
               Object.assign(db.order, { status: 'Cancelado', cancelled_at: cancelledAt, cancel_reason: reason,
