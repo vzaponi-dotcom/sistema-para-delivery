@@ -98,13 +98,13 @@ export default function OperationMenu({ businessName, businessHasLogo = false, b
         {onSwitchUser && <MenuAction label="Trocar usuário" icon="clients" disabled={logoutDisabled} onClick={() => { close(); onSwitchUser() }} />}
       </div>
     </section>}
-    <section className="operation-menu-section operation-menu-company-section" aria-label="Empresa">
+    {(onSwitchCompany || companySettingsEntry) && <section className="operation-menu-section operation-menu-company-section" aria-label="Empresa">
       <MenuSectionHeading title="Empresa" />
-      {(onSwitchCompany || companySettingsEntry) && <div className="operation-menu-group-card operation-menu-company-actions">
+      <div className="operation-menu-group-card operation-menu-company-actions">
         {onSwitchCompany && <MenuAction label="Trocar empresa" icon="transfer" disabled={logoutDisabled} onClick={() => { close(); onSwitchCompany() }} />}
         {companySettingsEntry && <MenuAction label="Configurações da empresa" icon="settings" onClick={() => navigate(companySettingsEntry.id)} />}
-      </div>}
-    </section>
+      </div>
+    </section>}
     {onPlatform && <section className="operation-menu-section operation-menu-platform-section" aria-label="Administração Mesiva">
       <MenuSectionHeading title="Mesiva" />
       <div className="operation-menu-group-card">
