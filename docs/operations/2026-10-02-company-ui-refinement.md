@@ -36,3 +36,17 @@ Código publicado: `e881a934`. Versão do Worker de staging: `4ad3baa3-e5eb-417d
 - Capturas privadas: `company-admin-light-desktop.jpg`, `company-admin-dark-desktop.jpg`, `company-admin-dark-mobile.jpg`, `company-selector-{light,dark}-desktop.jpg`, `company-selector-dark-mobile.jpg` e `company-account-{light,dark}-desktop.jpg`, `company-account-dark-mobile.jpg`, no arquivo privado de evidências da homologação. Nenhuma captura com dados da conta foi enviada ao GitHub.
 
 O workflow automático valida PRs para master; esta PR está empilhada sobre uma branch de feature. `gh pr checks 88` não reportou checks novos. A CI anterior continua evidência do código anterior; não se declara CI nova aprovada. A suíte completa e os gates locais acima correspondem a este refinamento.
+
+## Segunda aprovação: ações separadas no menu
+
+O usuário escolheu a proposta “Ações separadas”: identidade da empresa sem cartão interno, logo maior, nome/perfil em destaque, divisor e duas linhas completas para Trocar empresa e Configurações da empresa. Reutiliza as ações oficiais e os bloqueios existentes. Código `2c00de09`, versão de staging `572528b9-cd42-440e-985e-3d60745d26ef`, global true e preparo false.
+
+A primeira suíte desta rodada encontrou uma falha real no teste `registration projection paginates with validated cursor and never includes credentials, tokens or operational data`: 3444 passaram, 1 falhou. O cadastro legado usa `datetime('now')` do SQLite; quando ele aparece na primeira página, o próprio cursor gerado era recusado por exigir uma data ISO canônica. A regressão determinística falhou antes da correção. O leitor agora admite também a data SQLite válida, preservando o texto original na comparação de paginação; formatos inválidos continuam recusados. Não modifica datas armazenadas nem requer migração.
+
+- Baseline do menu/cabeçalho: 22/22. Depois da correção: 28/28 focados, incluindo API e paginação.
+- Repetição completa: `npm test`, **3446/3446**, zero falhas/skips/cancelamentos, 181609.8684 ms. Lint, arquitetura, build e bundle de staging passaram; avisos existentes registrados nos logs privados.
+- Navegador publicado: configurações abriu `/configuracoes`; troca abriu `/empresas` e carregou as empresas; menu inspecionado nos temas claro e escuro.
+- Celular: viewport efetivo 375 px, bloco 328 px sem overflow; ambas as ações mediram 328 × 64.125 px. Capturas privadas `company-menu-separated-desktop.jpg`, `company-menu-separated-light.jpg`, `company-menu-separated-mobile.jpg`.
+- Tema original, viewport normal e tela Minha conta restaurados. Sem merge, envio de e-mails, alteração de contas ou publicação em produção.
+
+O usuário solicitou também esboços dos e-mails de convite e recuperação. As prévias usam o logo oficial e dados ilustrativos; foram conferidas em desktop/celular, mas os templates de envio ainda aguardam aprovação desse desenho.
