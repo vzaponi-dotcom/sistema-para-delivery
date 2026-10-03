@@ -86,7 +86,7 @@ function FutureScheduledOrderCard({
         {editableReservation && (
           <Button type="button" variant="secondary" icon="edit" onClick={() => onEditReservation?.(order)} disabled={disabled}>Editar reserva</Button>
         )}
-        {canCancelOrders && <Button type="button" variant="secondary" onClick={() => onCancel?.(order)} disabled={disabled}>Cancelar</Button>}
+        {canCancelOrders && <button type="button" className="kitchen-ticket-cancel-action" onClick={() => onCancel?.(order)} disabled={disabled}>{activeReservation ? 'Cancelar reserva' : 'Cancelar pedido'}</button>}
       </footer>
     </article>
   )
@@ -201,10 +201,11 @@ function Orders({ orders, officialOrders = orders, now, currentTiming, search, o
                   entry={entry}
                   now={now}
                   currentTiming={currentTiming}
-                  disabled={actionsDisabled || !canFinalizeOrders}
+                  disabled={actionsDisabled}
                   highlighted={newOrderIds.has(String(entry.order.id))}
                   onDetails={(order) => setDetailOrderId(order.id)}
-                  onFinalize={(order) => { if (!canFinalizeOrders) return false; setFinalizeCandidate(order); return true }}
+                  onFinalize={canFinalizeOrders ? (order) => { setFinalizeCandidate(order); return true } : undefined}
+                  onCancel={canCancelOrders ? (order) => { setCancelOrder(order); return true } : undefined}
                 />
               </div>
             ))}
@@ -225,10 +226,10 @@ function Orders({ orders, officialOrders = orders, now, currentTiming, search, o
                     entry={entry}
                     now={now}
                     currentTiming={currentTiming}
-                    disabled={actionsDisabled || !canCancelOrders}
+                    disabled={actionsDisabled}
                     highlighted={newOrderIds.has(String(entry.order.id))}
                     onDetails={(order) => setDetailOrderId(order.id)}
-                    onCancel={(order) => { if (!canCancelOrders) return false; setCancelOrder(order); return true }}
+                    onCancel={canCancelOrders ? (order) => { setCancelOrder(order); return true } : undefined}
                   />
                 </div>
               ))}
