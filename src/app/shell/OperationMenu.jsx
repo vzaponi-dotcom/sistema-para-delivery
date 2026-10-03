@@ -31,11 +31,8 @@ function MenuAction({ label, description, icon, onClick, disabled = false, class
   </button>
 }
 
-function MenuSectionHeading({ title, description, icon }) {
-  return <div className="operation-menu-section-heading">
-    <span className="operation-menu-section-icon" aria-hidden="true"><Icon name={icon} size={18} /></span>
-    <span className="operation-menu-section-heading-copy"><h2>{title}</h2>{description && <small>{description}</small>}</span>
-  </div>
+function MenuSectionHeading({ title }) {
+  return <div className="operation-menu-section-heading"><h2>{title}</h2></div>
 }
 
 export default function OperationMenu({ businessName, businessHasLogo = false, businessLogoVersion = null, showLogo = true, user, onSwitchCompany, onPlatform, onSwitchUser, onLogout, logoutDisabled = false }) {
@@ -80,44 +77,45 @@ export default function OperationMenu({ businessName, businessHasLogo = false, b
     ? <OperationLogo hasLogo={businessHasLogo} version={businessLogoVersion} className={className} fallback={<span className="operation-menu-initials" aria-hidden="true">{initials}</span>} />
     : <span className="operation-menu-initials" aria-hidden="true">{initials}</span>
   const content = <div className="operation-menu-content">
-    {personName && <header className="operation-menu-person">
-      <span className="operation-menu-avatar" aria-hidden="true">{[...personName][0].toLocaleUpperCase('pt-BR')}</span>
-      <span className="operation-menu-person-copy"><strong>{personName}</strong><small>{profileName}</small></span>
-      <span className="operation-menu-connected">Conectado</span>
-    </header>}
-    {(accountEntry || onSwitchUser) && <section className="operation-menu-section operation-menu-account-section" aria-label="Sua conta">
-      <MenuSectionHeading title="Minha conta" description="Seus dados, acesso e segurança." icon="client" />
-      <div className="operation-menu-group-card">
-        {accountEntry && <MenuAction label="Minha conta" description="Seus dados e sua senha" icon="client" onClick={() => navigate(accountEntry.id)} />}
-        {onSwitchUser && <MenuAction label="Trocar usuário" description="Encerrar a sessão e abrir o login" icon="clients" disabled={logoutDisabled} onClick={() => { close(); onSwitchUser() }} />}
-      </div>
-    </section>}
-    <section className="operation-menu-section operation-menu-company-section" aria-label="Empresa atual">
-      <MenuSectionHeading title="Empresa atual" description="Gerencie a empresa onde você está trabalhando." icon="orders" />
-      <div className="operation-menu-company-card">
-        <div className="operation-menu-heading">
-          {operationIdentity('operation-menu-logo')}
-          <div className="operation-menu-heading-copy"><strong>{operationName}</strong>
-            <span>Você está atuando como <b>{profileName}</b></span>
-          </div>
-        </div>
-        {(onSwitchCompany || companySettingsEntry) && <div className="operation-menu-company-actions">
-          {onSwitchCompany && <MenuAction label="Trocar empresa" description="Escolher onde você vai trabalhar" icon="transfer" disabled={logoutDisabled} onClick={() => { close(); onSwitchCompany() }} />}
-          {companySettingsEntry && <MenuAction label="Configurações da empresa" description={`Ajustes de ${operationName}`} icon="settings" onClick={() => navigate(companySettingsEntry.id)} />}
+    <section className="operation-menu-section operation-menu-session-section" aria-label="Sessão atual">
+      <MenuSectionHeading title="Sessão atual" />
+      <div className="operation-menu-session-card">
+        {personName && <div className="operation-menu-person">
+          <span className="operation-menu-avatar" aria-hidden="true">{[...personName][0].toLocaleUpperCase('pt-BR')}</span>
+          <span className="operation-menu-person-copy"><strong>{personName}</strong><small>{profileName}</small></span>
+          <span className="operation-menu-connected">Conectado</span>
         </div>}
+        <div className="operation-menu-session-company">
+          {operationIdentity('operation-menu-logo')}
+          <span className="operation-menu-heading-copy"><strong>{operationName}</strong></span>
+        </div>
       </div>
     </section>
-    {onPlatform && <section className="operation-menu-section operation-menu-platform-section" aria-label="Administração Mesiva">
-      <MenuSectionHeading title="Mesiva" description="Configurações e administração da plataforma." icon="details" />
+    {(accountEntry || onSwitchUser) && <section className="operation-menu-section operation-menu-account-section" aria-label="Conta">
+      <MenuSectionHeading title="Conta" />
       <div className="operation-menu-group-card">
-        <MenuAction label="Administração Mesiva" description="Gerencie empresas e acessos da plataforma" icon="settings" disabled={logoutDisabled} onClick={() => { close(); onPlatform() }} />
+        {accountEntry && <MenuAction label="Minha conta" icon="client" onClick={() => navigate(accountEntry.id)} />}
+        {onSwitchUser && <MenuAction label="Trocar usuário" icon="clients" disabled={logoutDisabled} onClick={() => { close(); onSwitchUser() }} />}
+      </div>
+    </section>}
+    <section className="operation-menu-section operation-menu-company-section" aria-label="Empresa">
+      <MenuSectionHeading title="Empresa" />
+      {(onSwitchCompany || companySettingsEntry) && <div className="operation-menu-group-card operation-menu-company-actions">
+        {onSwitchCompany && <MenuAction label="Trocar empresa" icon="transfer" disabled={logoutDisabled} onClick={() => { close(); onSwitchCompany() }} />}
+        {companySettingsEntry && <MenuAction label="Configurações da empresa" icon="settings" onClick={() => navigate(companySettingsEntry.id)} />}
+      </div>}
+    </section>
+    {onPlatform && <section className="operation-menu-section operation-menu-platform-section" aria-label="Administração Mesiva">
+      <MenuSectionHeading title="Mesiva" />
+      <div className="operation-menu-group-card">
+        <MenuAction label="Administração Mesiva" icon="details" disabled={logoutDisabled} onClick={() => { close(); onPlatform() }} />
       </div>
     </section>}
     <section className="operation-menu-section operation-menu-utility-section" aria-label="Preferências e ajuda">
-      <h2>Preferências e ajuda</h2>
+      <MenuSectionHeading title="Outros" />
       <div className="operation-menu-group-card">
         {!companySettingsEntry && settingsEntry && <MenuAction label="Configurações" icon="settings" onClick={() => navigate(settingsEntry.id)} />}
-        {deviceEntry && <MenuAction label="Este dispositivo" description="Tema e som de novos pedidos" icon="system" onClick={() => navigate(deviceEntry.id)} />}
+        {deviceEntry && <MenuAction label="Este dispositivo" icon="system" onClick={() => navigate(deviceEntry.id)} />}
         <MenuAction label="Sobre a Mesiva" icon="details" onClick={openAbout} />
       </div>
     </section>
