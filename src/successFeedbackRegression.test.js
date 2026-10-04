@@ -34,3 +34,11 @@ test('success confirmation is centered, blurs the page softly and stays compact 
   assert.match(css, /\.success-confirmation-icon\s*\{[^}]*width:\s*56px[^}]*height:\s*56px/s)
   assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*success-confirmation-card/s)
 })
+
+
+test('confirmed Settings feedback never becomes an error toast while warning states still surface', async () => {
+  const app = await read('./App.jsx')
+  assert.match(app, /if \(feedback\?\.status === 'confirmed'\) return/)
+  assert.match(app, /if \(feedback\?\.status\) showApiError\(feedback\)/)
+  assert.match(app, /else if \(feedback\?\.message\) setToastMessage\(feedback\.message\)/)
+})
