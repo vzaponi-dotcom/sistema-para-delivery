@@ -187,20 +187,28 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          current_mode="$(node --input-type=module <<'NODE'
-          import { connectInfrastructure } from './scripts/infra/issue-44-access-admin.mjs'
-          process.env.WRANGLER_LOG = 'error'
-          process.env.WRANGLER_SEND_METRICS = 'false'
-          process.env.CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV = 'false'
-          const connection = await connectInfrastructure('production')
-          try {
-            const row = await connection.db.prepare("SELECT mode FROM business_auth_state WHERE business_id='amor-e-sabor' LIMIT 1").first()
-            const mode = row?.mode || ''
-            if (!['legacy', 'enrollment', 'user_only'].includes(mode)) throw new Error('Unable to resolve production auth state.')
-            process.stdout.write(mode)
-          } finally {
-            await connection.dispose()
+          raw="$(timeout 60s npx --yes wrangler@4.128.0 d1 execute amor-e-sabor-delivery --remote --yes             --command "SELECT mode FROM business_auth_state WHERE business_id='amor-e-sabor' LIMIT 1;" --json)"
+          current_mode="$(RAW="$raw" node --input-type=module <<'NODE'
+          const value = JSON.parse(process.env.RAW || 'null')
+          const findMode = current => {
+            if (Array.isArray(current)) {
+              for (const item of current) {
+                const found = findMode(item)
+                if (found) return found
+              }
+              return ''
+            }
+            if (!current || typeof current !== 'object') return ''
+            if (typeof current.mode === 'string') return current.mode
+            for (const item of Object.values(current)) {
+              const found = findMode(item)
+              if (found) return found
+            }
+            return ''
           }
+          const mode = findMode(value)
+          if (!['legacy', 'enrollment', 'user_only'].includes(mode)) throw new Error('Unable to resolve production auth state.')
+          process.stdout.write(mode)
           NODE
           )"
           echo "Current production auth state: $current_mode"
