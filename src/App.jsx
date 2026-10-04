@@ -766,6 +766,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
         storage={getSessionStorage()}
         navigationBridge={policyNavigationBridge}
         onFeedback={(feedback) => {
+          if (feedback?.status === 'confirmed') return
           if (feedback?.status) showApiError(feedback)
           else if (feedback?.message) setToastMessage(feedback.message)
         }}
