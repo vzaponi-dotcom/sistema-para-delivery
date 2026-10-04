@@ -208,14 +208,27 @@ Somente depois de:
 - `ready=true`;
 - login real do administrador confirmado;
 - login real do gerente confirmado;
+- operação e impressão reais do gerente confirmadas;
 
-executar:
+usar o workflow manual **Finalize production cutover** em `master` com:
 
-```powershell
-node scripts/infra/multi-company-production-admin.mjs finalize-legacy --env production --admin-account-id "ADMIN_ACCOUNT_ID" --business-id "amor-e-sabor" --manager-account-id "MANAGER_ACCOUNT_ID" --login-verified --inventory-reviewed
-```
+- `login_verified = true`;
+- `inventory_reviewed = true`;
+- `finalization_confirmed = true`.
 
-A finalização revalida tudo dentro do batch e:
+O workflow:
+
+1. confirma que o SHA disparado ainda é o último `master`;
+2. exige as três confirmações explícitas;
+3. registra um bookmark atual do D1 imediatamente antes da operação irreversível;
+4. confirma que o Worker público continua em `multi_company` e que o PIN já é rejeitado;
+5. resolve internamente Administrador Mesiva e primeiro Gerente, sem expor e-mail/IDs humanos;
+6. reexecuta inventário e readiness;
+7. chama a finalização oficial com `--login-verified` e `--inventory-reviewed`;
+8. verifica no D1 que `business_auth_state = user_only`, que não existe mais `auth_credentials` da Amor & Sabor e que o bootstrap de produção possui `finalized_at`;
+9. repete o smoke público de autenticação.
+
+A finalização:
 
 - desativa acessos legados inventariados;
 - revoga sessões humanas legadas;
@@ -225,14 +238,16 @@ A finalização revalida tudo dentro do batch e:
 - preserva pedidos, clientes, pagamentos, movimentos, histórico e atores antigos;
 - não atribui ações históricas às novas contas.
 
-O flag `--inventory-reviewed` é obrigatório em produção. A função não aceita finalização de produção sem ele.
+A CLI `finalize-legacy` permanece somente como fallback administrativo privado.
 
 ## 10. Depois da finalização
 
 Após `user_only`:
 
-- deploys de produção devem usar `auth_phase = multi_company`;
-- o workflow consulta o estado remoto e bloqueia `legacy` ou `prepare`, impedindo recriação acidental do PIN;
+- **Deploy production** fica permanentemente em `multi_company`; o formulário não oferece mais `legacy` ou `prepare`;
+- o input `readiness_confirmed` é removido porque era exclusivo do corte inicial;
+- cada deploy ainda registra um restore point do D1 e exige `backup_confirmed=true`;
+- não existe mais passo de criação/configuração de PIN no workflow de produção;
 - recuperação normal usa o e-mail global;
 - recuperação excepcional usa `issue-account-recovery` apenas após prova externa de titularidade e em terminal privado interativo.
 
