@@ -12,11 +12,13 @@ const runbook = readFileSync('docs/release-and-migration-runbook.md', 'utf8')
 
 const productionDatabaseId = 'baa83769-4637-43f6-bf77-711f4f2ed069'
 
-test('custom domain is assigned to the isolated staging Worker while workers.dev stays available', () => {
+test('production and staging have isolated Mesiva custom domains while workers.dev remains available', () => {
   const config = JSON.parse(wrangler)
+  assert.equal(config.workers_dev, true)
+  assert.deepEqual(config.routes, [{ pattern: 'app.mesiva.com.br', custom_domain: true }])
   assert.equal(config.env.staging.workers_dev, true)
   assert.deepEqual(config.env.staging.routes, [{ pattern: 'staging.mesiva.com.br', custom_domain: true }])
-  assert.equal(config.routes, undefined, 'staging domain must not be registered on production')
+  assert.notDeepEqual(config.routes, config.env.staging.routes, 'production and staging must never share the same custom domain')
   assert.equal(config.env.staging.d1_databases[0].database_id, '73a1c0c1-142f-4247-8ffc-e858ab2ac400')
   assert.equal(config.env.staging.r2_buckets[0].bucket_name, 'mesiva-business-assets-staging')
 })
@@ -99,6 +101,11 @@ test('production deploy is manual, master-only, and validates locally before rem
   assert.match(productionWorkflow, /npm run deploy:production/)
   assert.doesNotMatch(productionWorkflow, /npm run d1:migrate:remote/)
   assert.doesNotMatch(productionWorkflow, /npm run deploy\s*$/m)
+})
+
+test('production smoke defaults to the official app.mesiva.com.br origin', () => {
+  assert.match(productionWorkflow, /PRODUCTION_URL:\s*\$\{\{ vars\.PRODUCTION_URL \|\| 'https:\/\/app\.mesiva\.com\.br' \}\}/)
+  assert.doesNotMatch(productionWorkflow, /sistema-para-delivery\.vzaponi\.workers\.dev/)
 })
 
 test('production auth-state guard runs only after the schema exists and before auth mutations', () => {
