@@ -10,7 +10,7 @@ Antes de qualquer fase diferente de `legacy`:
 
 - registrar o SHA exato de `master` e confirmar o Validate correspondente;
 - confirmar staging verde no mesmo código;
-- criar e registrar um ponto de restauração atual do D1 de produção (backup/bookmark de Time Travel);
+- confirmar que o D1 de produção oferece Time Travel; o próprio workflow registra o bookmark atual antes de qualquer migration/deploy de `prepare` ou `multi_company`;
 - confirmar o endereço oficial de produção `https://app.mesiva.com.br`, usado pela aplicação e pelos links de ativação;
 - configurar no Environment `production` do GitHub:
   - secret `CLOUDFLARE_API_TOKEN`;
@@ -45,12 +45,14 @@ O workflow:
 
 1. roda testes, arquitetura, lint, build e Worker dry-run;
 2. confirma que o SHA ainda é o último `master`;
-3. aplica as migrations de produção, garantindo que `business_auth_state` exista antes da leitura;
-4. lê o estado atual de `business_auth_state`;
-5. bloqueia qualquer tentativa de voltar a `legacy/prepare` se produção já estiver `user_only`;
-6. instala/atualiza o secret de e-mail;
-7. publica somente o modo de preparação;
-8. comprova que o PIN legado continua entrando e que os endpoints estreitos de ativação/convite estão disponíveis.
+3. consulta o Time Travel do D1 e registra no resumo do run o bookmark atual de restauração;
+4. valida os checkpoints humanos informados no disparo;
+5. aplica as migrations de produção, garantindo que `business_auth_state` exista antes da leitura;
+6. lê o estado atual de `business_auth_state`;
+7. bloqueia qualquer tentativa de voltar a `legacy/prepare` se produção já estiver `user_only`;
+8. instala/atualiza o secret de e-mail;
+9. publica somente o modo de preparação;
+10. aguarda uma janela limitada de propagação do domínio `app.mesiva.com.br` e comprova que o PIN legado continua entrando e que os endpoints estreitos de ativação/convite estão disponíveis.
 
 Neste estágio:
 
@@ -59,7 +61,7 @@ Neste estágio:
 - o painel Mesiva e o login multiempresa ainda não estão liberados;
 - o PIN continua sendo o acesso operacional de contingência.
 
-Se o smoke do PIN falhar, **parar**. Não preparar contas.
+Se a captura do bookmark falhar, o workflow para antes das migrations. Se o smoke de domínio/PIN falhar após a janela limitada de propagação, **parar** e não preparar contas.
 
 ## 3. Preparar o primeiro Administrador Mesiva
 
