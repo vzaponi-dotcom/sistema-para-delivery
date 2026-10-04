@@ -155,19 +155,15 @@ O readiness exige, entre outros pontos:
 
 ## 7. Fase B — habilitar multiempresa, sem finalizar legado
 
-Disparar novamente **Deploy production** em `master` com:
-
-- `auth_phase = multi_company`;
-- `backup_confirmed = true`;
-- `readiness_confirmed = true`.
-
-O workflow deve confirmar:
+Durante o corte inicial, produção é publicada em `multi_company` somente depois de `ready=true`, restore point atual e autorização explícita. O smoke deve confirmar:
 
 - sessão anônima informa `authMode=multi_company`;
 - tentativa de login por PIN é rejeitada;
 - nenhum passo recria o PIN.
 
-A credencial PIN ainda pode existir fisicamente no D1 nessa fase, mas o Worker multiempresa não a aceita. Ela só será removida na finalização.
+Depois que essa fase foi homologada, o workflow de **Deploy production** deixou de oferecer seleção de fase: produção fica permanentemente em `multi_company`. O único checkpoint manual de deploy que permanece é `backup_confirmed=true`, após o workflow registrar um restore point atual do D1.
+
+A credencial PIN pode continuar fisicamente no D1 até a finalização descrita na seção 9, mas o Worker multiempresa não a aceita.
 
 ## 8. Homologação humana obrigatória antes da finalização
 
