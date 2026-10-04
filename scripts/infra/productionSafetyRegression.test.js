@@ -12,11 +12,13 @@ const runbook = readFileSync('docs/release-and-migration-runbook.md', 'utf8')
 
 const productionDatabaseId = 'baa83769-4637-43f6-bf77-711f4f2ed069'
 
-test('custom domain is assigned to the isolated staging Worker while workers.dev stays available', () => {
+test('production and staging have isolated Mesiva custom domains while workers.dev remains available', () => {
   const config = JSON.parse(wrangler)
+  assert.equal(config.workers_dev, true)
+  assert.deepEqual(config.routes, [{ pattern: 'app.mesiva.com.br', custom_domain: true }])
   assert.equal(config.env.staging.workers_dev, true)
   assert.deepEqual(config.env.staging.routes, [{ pattern: 'staging.mesiva.com.br', custom_domain: true }])
-  assert.equal(config.routes, undefined, 'staging domain must not be registered on production')
+  assert.notDeepEqual(config.routes, config.env.staging.routes, 'production and staging must never share the same custom domain')
   assert.equal(config.env.staging.d1_databases[0].database_id, '73a1c0c1-142f-4247-8ffc-e858ab2ac400')
   assert.equal(config.env.staging.r2_buckets[0].bucket_name, 'mesiva-business-assets-staging')
 })
@@ -99,6 +101,45 @@ test('production deploy is manual, master-only, and validates locally before rem
   assert.match(productionWorkflow, /npm run deploy:production/)
   assert.doesNotMatch(productionWorkflow, /npm run d1:migrate:remote/)
   assert.doesNotMatch(productionWorkflow, /npm run deploy\s*$/m)
+})
+
+test('production smoke defaults to the official app.mesiva.com.br origin', () => {
+  assert.match(productionWorkflow, /PRODUCTION_URL:\s*\$\{\{ vars\.PRODUCTION_URL \|\| 'https:\/\/app\.mesiva\.com\.br' \}\}/)
+  assert.doesNotMatch(productionWorkflow, /sistema-para-delivery\.vzaponi\.workers\.dev/)
+})
+
+test('production auth-state guard runs only after the schema exists and before auth mutations', () => {
+  const migrations = productionWorkflow.indexOf('- name: Apply D1 migrations')
+  const authStateGuard = productionWorkflow.indexOf('- name: Guard requested phase against current production auth state')
+  const pin = productionWorkflow.indexOf('- name: Configure production PIN only in legacy phase')
+  const emailSecret = productionWorkflow.indexOf('- name: Configure production e-mail secret for account phases')
+  const deploy = productionWorkflow.indexOf('- name: Deploy')
+
+  for (const index of [migrations, authStateGuard, pin, emailSecret, deploy]) assert.notEqual(index, -1)
+  assert.ok(migrations < authStateGuard, 'business_auth_state must not be queried before its migration can create the table')
+  assert.ok(authStateGuard < pin, 'auth-state guard must block legacy PIN recreation before credential writes')
+  assert.ok(authStateGuard < emailSecret, 'auth-state guard must run before account-phase secret changes')
+  assert.ok(authStateGuard < deploy, 'auth-state guard must run before production publish')
+})
+
+test('production auth cutover is explicit, phased, and never recreates PIN outside legacy mode', () => {
+  assert.match(productionWorkflow, /auth_phase:/)
+  assert.match(productionWorkflow, /- legacy[\s\S]*- prepare[\s\S]*- multi_company/)
+  assert.match(productionWorkflow, /AUTH_MULTI_COMPANY_PREPARE_ENABLED = phase === 'prepare' \? 'true' : 'false'/)
+  assert.match(productionWorkflow, /AUTH_MULTI_COMPANY_ENABLED = phase === 'multi_company' \? 'true' : 'false'/)
+  assert.match(productionWorkflow, /Configure production PIN only in legacy phase[\s\S]*if: inputs\.auth_phase == 'legacy'/)
+  assert.match(productionWorkflow, /Configure production e-mail secret for account phases[\s\S]*if: inputs\.auth_phase != 'legacy'/)
+  assert.match(productionWorkflow, /backup_confirmed:/)
+  assert.match(productionWorkflow, /readiness_confirmed:/)
+  assert.match(productionWorkflow, /Require cutover checkpoints/)
+  assert.match(productionWorkflow, /Guard requested phase against current production auth state/)
+  assert.match(productionWorkflow, /current_mode.*user_only[\s\S]*legacy\/prepare deployment is blocked/s)
+  assert.match(productionWorkflow, /production-auth-smoke\.mjs/)
+  assert.match(productionWorkflow, /Do not finalize legacy access until real administrator and manager logins are manually verified/)
+  const config = JSON.parse(wrangler)
+  assert.equal(config.vars.AUTH_MULTI_COMPANY_ENABLED, 'false')
+  assert.equal(config.vars.AUTH_MULTI_COMPANY_PREPARE_ENABLED, 'false')
+  assert.equal(config.vars.AUTH_EMAIL_ENABLED, 'false')
 })
 
 test('PR template requires migration and rollback review', () => {

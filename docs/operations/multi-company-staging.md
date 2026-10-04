@@ -1,6 +1,6 @@
 # Preparação e corte multiempresa em staging
 
-Este procedimento é administrativo e acontece uma vez por ambiente. O cadastro das próximas empresas é feito no painel Mesiva, com envio de convite pelo servidor. A primeira versão da CLI aceita somente `--env staging`; produção exige outro procedimento revisado.
+Este procedimento é administrativo e acontece uma vez em staging. O cadastro das próximas empresas é feito no painel Mesiva, com envio de convite pelo servidor. A CLI desta página aceita somente `--env staging`; para produção use o roteiro separado [Corte multiempresa e primeiro acesso — produção](multi-company-production.md).
 
 ## Checkpoints
 
