@@ -1,0 +1,122 @@
+name: Finalize production cutover
+
+on:
+  workflow_dispatch:
+    inputs:
+      login_verified:
+        description: Confirm real administrator and manager logins were verified in production
+        required: true
+        default: false
+        type: boolean
+      inventory_reviewed:
+        description: Confirm the production legacy inventory was reviewed
+        required: true
+        default: false
+        type: boolean
+      finalization_confirmed:
+        description: Confirm PIN removal is irreversible without restoring D1 and a compatible bundle
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-cutover-finalization
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    name: Finalize production cutover
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CUTOVER_MANAGER_EMAIL: ${{ secrets.CUTOVER_MANAGER_EMAIL }}
+      AMOR_PIN: ${{ secrets.AMOR_PIN }}
+      PRODUCTION_URL: ${{ vars.PRODUCTION_URL || 'https://app.mesiva.com.br' }}
+      PRODUCTION_AUTH_PHASE: multi_company
+      LOGIN_VERIFIED: ${{ inputs.login_verified }}
+      INVENTORY_REVIEWED: ${{ inputs.inventory_reviewed }}
+      FINALIZATION_CONFIRMED: ${{ inputs.finalization_confirmed }}
+
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Require latest master commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          latest="$(git ls-remote origin refs/heads/master | cut -f1)"
+          if [ "$latest" != "$GITHUB_SHA" ]; then
+            echo "This master commit has been superseded; finalization is blocked."
+            exit 1
+          fi
+
+      - name: Require finalization confirmations
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$LOGIN_VERIFIED" != "true" ] || [ "$INVENTORY_REVIEWED" != "true" ] || [ "$FINALIZATION_CONFIRMED" != "true" ]; then
+            echo "All production finalization confirmations are required."
+            exit 1
+          fi
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ] || [ -z "$CUTOVER_MANAGER_EMAIL" ]; then
+            echo "Production finalization configuration is incomplete."
+            exit 1
+          fi
+
+      - name: Record production D1 restore point
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw="$(npx --yes wrangler@4.128.0 d1 time-travel info amor-e-sabor-delivery --json)"
+          bookmark="$(RAW="$raw" node --input-type=module <<'NODE'
+          const value = JSON.parse(process.env.RAW || 'null')
+          const findBookmark = current => {
+            if (Array.isArray(current)) {
+              for (const item of current) {
+                const found = findBookmark(item)
+                if (found) return found
+              }
+              return ''
+            }
+            if (!current || typeof current !== 'object') return ''
+            if (typeof current.bookmark === 'string' && current.bookmark.trim()) return current.bookmark.trim()
+            for (const item of Object.values(current)) {
+              const found = findBookmark(item)
+              if (found) return found
+            }
+            return ''
+          }
+          const bookmark = findBookmark(value)
+          if (!bookmark || !/^[A-Za-z0-9_-]{16,}$/.test(bookmark)) throw new Error('Unable to resolve a current D1 Time Travel bookmark.')
+          process.stdout.write(bookmark)
+          NODE
+          )"
+          printf 'Production D1 restore bookmark immediately before irreversible finalization: `%s`\n' "$bookmark" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify live production is multi-company
+        run: node scripts/infra/production-auth-smoke.mjs
+
+      - name: Finalize legacy production access
+        run: node scripts/infra/finalize-production-cutover-actions.mjs
+
+      - name: Verify production after finalization
+        run: node scripts/infra/production-auth-smoke.mjs
