@@ -159,7 +159,7 @@ jobs:
           NODE
           )"
           echo "PRODUCTION_D1_BOOKMARK=$bookmark" >> "$GITHUB_ENV"
-          echo "Production D1 restore bookmark recorded before account-phase changes: `$bookmark`" >> "$GITHUB_STEP_SUMMARY"
+          printf 'Production D1 restore bookmark recorded before account-phase changes: `%s`\n' "$bookmark" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Require cutover checkpoints
         shell: bash
