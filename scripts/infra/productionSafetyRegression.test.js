@@ -122,6 +122,18 @@ test('production auth-state guard runs only after the schema exists and before a
   assert.ok(authStateGuard < deploy, 'auth-state guard must run before production publish')
 })
 
+test('production auth-state guard uses bounded Wrangler D1 query instead of getPlatformProxy', () => {
+  const start = productionWorkflow.indexOf('- name: Guard requested phase against current production auth state')
+  const end = productionWorkflow.indexOf('- name: Configure production PIN only in legacy phase')
+  assert.notEqual(start, -1)
+  assert.notEqual(end, -1)
+  const guard = productionWorkflow.slice(start, end)
+  assert.match(guard, /timeout 60s npx --yes wrangler@4\.128\.0 d1 execute amor-e-sabor-delivery --remote --yes/)
+  assert.match(guard, /SELECT mode FROM business_auth_state WHERE business_id='amor-e-sabor' LIMIT 1/)
+  assert.match(guard, /--json/)
+  assert.doesNotMatch(guard, /connectInfrastructure|getPlatformProxy|issue-44-access-admin/)
+})
+
 test('production records a D1 Time Travel restore point before migrations or deployment', () => {
   const checkpoint = productionWorkflow.indexOf('- name: Record production D1 restore point')
   const checkpoints = productionWorkflow.indexOf('- name: Require cutover checkpoints')
