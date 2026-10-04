@@ -131,6 +131,8 @@ test('production records a D1 Time Travel restore point before migrations or dep
   for (const index of [checkpoint, checkpoints, migrations, deploy]) assert.notEqual(index, -1)
   assert.match(productionWorkflow, /d1 time-travel info amor-e-sabor-delivery/)
   assert.match(productionWorkflow, /PRODUCTION_D1_BOOKMARK/)
+  assert.match(productionWorkflow, /printf 'Production D1 restore bookmark recorded before account-phase changes: `%s`\\n'/)
+  assert.doesNotMatch(productionWorkflow, /echo "Production D1 restore bookmark[^"]*`\$bookmark`"/)
   assert.ok(checkpoint < checkpoints, 'restore point must be recorded before the human checkpoint is accepted')
   assert.ok(checkpoint < migrations, 'restore point must be recorded before production migrations')
   assert.ok(checkpoint < deploy, 'restore point must be recorded before production publish')
