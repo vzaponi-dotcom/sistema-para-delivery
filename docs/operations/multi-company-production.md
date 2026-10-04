@@ -11,16 +11,16 @@ Antes de qualquer fase diferente de `legacy`:
 - registrar o SHA exato de `master` e confirmar o Validate correspondente;
 - confirmar staging verde no mesmo código;
 - criar e registrar um ponto de restauração atual do D1 de produção (backup/bookmark de Time Travel);
-- confirmar o endereço oficial de produção que receberá os links de ativação;
+- confirmar o endereço oficial de produção `https://app.mesiva.com.br`, usado pela aplicação e pelos links de ativação;
 - configurar no Environment `production` do GitHub:
   - secret `CLOUDFLARE_API_TOKEN`;
   - secret `CLOUDFLARE_ACCOUNT_ID`;
   - secret `RESEND_API_KEY`;
   - secret `AMOR_PIN` enquanto o modo legado ainda existir;
-  - variable `PRODUCTION_URL` (se ausente, o workflow usa o workers.dev atual);
-  - variable `AUTH_PUBLIC_ORIGIN` com o mesmo origin HTTPS que o usuário abrirá;
-  - variable `AUTH_EMAIL_FROM` (ex.: remetente Mesiva já autorizado no Resend);
-  - variable `AUTH_EMAIL_DAILY_LIMIT`, opcional, default 80.
+  - variable `PRODUCTION_URL=https://app.mesiva.com.br` (opcional; este já é o fallback canônico do workflow);
+  - variable `AUTH_PUBLIC_ORIGIN=https://app.mesiva.com.br` para gerar links de ativação, convite e recuperação;
+  - variable `AUTH_EMAIL_FROM=Mesiva <acesso@mesiva.com.br>` ou outro remetente Mesiva já autorizado no Resend;
+  - variable `AUTH_EMAIL_DAILY_LIMIT=80`, opcional porque 80 já é o default.
 - no terminal administrativo privado que executará a CLI, disponibilizar por injeção segura:
   - `CLOUDFLARE_API_TOKEN`;
   - `CLOUDFLARE_ACCOUNT_ID`;
@@ -30,6 +30,8 @@ Antes de qualquer fase diferente de `legacy`:
   - `AUTH_EMAIL_DAILY_LIMIT` se diferente de 80.
 
 Nenhum segredo, senha, cookie ou link com token deve ser enviado ao chat, salvo em argumento de comando, commit, artefato de CI ou log de evidência.
+
+O domínio de produção é versionado em `wrangler.jsonc` como Custom Domain `app.mesiva.com.br`. O endpoint `workers.dev` permanece habilitado apenas como contingência técnica; o endereço canônico para usuários, e-mails e smoke de produção é `https://app.mesiva.com.br`.
 
 ## 2. Fase A — PREPARE, sem retirar o PIN
 
