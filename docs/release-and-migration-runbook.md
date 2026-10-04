@@ -54,7 +54,7 @@ For a behavior or infrastructure change, deploy that branch to staging and compl
 
 GitHub is the source of truth for code, environment configuration and release history. Publish through GitHub Actions; local Wrangler deployment is not the normal release path. A local test/build is useful for development, but only a successful GitHub deployment run confirms publication.
 
-After the accepted multi-company cutover on 2026-10-02, staging automatically follows `feature/issue-87-multi-company-onboarding` while PR 88 is open, and `master` after integration. The current workflow no longer automatically publishes historical feature branches. Do not push release updates to old branches. `wrangler.jsonc` now records staging multi-company enabled and preparation disabled; production flags remain disabled until its own approved cutover.
+After the accepted multi-company cutover, staging and production both use multi-company authentication with preparation disabled. The current workflow no longer automatically publishes historical feature branches. Do not push release updates to old branches. `wrangler.jsonc` is the reviewed source of truth for the final production authentication mode: e-mail login enabled, multi-company enabled, preparation disabled, and the official `https://app.mesiva.com.br` origin.
 
 The workflow checks that its commit is still the latest on its GitHub branch before any remote writes. It publishes `release.json` containing the commit and run URL, then verifies that exact commit and the multi-company authentication mode on staging. It deploys the already-tested build without rebuilding it after the release stamp. Changes to workflows take effect on the branch containing them; these rules reach master through the reviewed merge.
 
