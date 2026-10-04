@@ -65,17 +65,39 @@ Se a captura do bookmark falhar, o workflow para antes das migrations. Se o smok
 
 ## 3. Preparar o primeiro Administrador Mesiva
 
-Após prova externa de titularidade, no terminal privado:
+O caminho normal de produção é o workflow manual **Prepare Mesiva administrator** no GitHub Actions. Ele existe somente para o bootstrap do primeiro administrador da plataforma e não cria perfil Gerente/Operador nem vínculo com empresa.
+
+Disparar em `master` preenchendo:
+
+- `admin_name`: nome de exibição do Administrador Mesiva;
+- `admin_email`: e-mail controlado pelo Administrador Mesiva;
+- `ownership_confirmed = true`: confirmação explícita de titularidade e autorização da conta de plataforma.
+
+Antes de gravar a conta, o workflow:
+
+1. confirma que o SHA disparado ainda é o último `master`;
+2. valida os secrets/variables do Environment `production`;
+3. registra um bookmark atual do D1 Time Travel;
+4. executa novamente o smoke de `prepare`, incluindo continuidade do PIN legado e disponibilidade dos endpoints de ativação;
+5. acessa o D1 de produção pela API REST oficial da Cloudflare com timeout e configuração derivada do `wrangler.jsonc`, sem `getPlatformProxy`;
+6. executa o mesmo `preparePlatformAdministrator` usado pelo procedimento administrativo oficial;
+7. exige que a entrega pelo Resend seja aceita, salvo quando a conta já estiver ativada.
+
+O destinatário abre o link de ativação recebido em `AUTH_PUBLIC_ORIGIN`, confirma o e-mail e define a própria senha. A ativação não cria sessão automaticamente.
+
+A conta criada tem somente concessões explícitas de plataforma Mesiva. Ela não recebe acesso operacional implícito à Amor & Sabor ou a qualquer outra empresa.
+
+Repetir a preparação para a mesma identidade não pode sobrescrever uma credencial ativa. Um e-mail diferente não substitui silenciosamente o administrador já registrado para o bootstrap de produção.
+
+### Fallback administrativo
+
+A CLI privada abaixo permanece apenas como contingência operacional quando o workflow não puder ser usado. Ela exige injeção segura das mesmas credenciais no terminal:
 
 ```powershell
 node scripts/infra/multi-company-production-admin.mjs prepare-admin --env production --name "NOME_ADMIN" --email "EMAIL_ADMIN" --ownership-verified
 ```
 
-O comando usa exclusivamente o binding de produção revisado no `wrangler.jsonc`, não aceita banco/endpoint arbitrário e não define senha.
-
-O destinatário abre o link de ativação recebido em `AUTH_PUBLIC_ORIGIN`, confirma o e-mail e define a própria senha. A ativação não cria sessão automaticamente.
-
-Repetir `prepare-admin` para a mesma identidade não pode sobrescrever uma credencial ativa.
+Não copiar secrets do GitHub para o chat nem persistir credenciais em arquivo local.
 
 ## 4. Inspecionar o inventário legado de produção
 
