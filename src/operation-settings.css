@@ -47,7 +47,7 @@
 .operation-switch:disabled { cursor: not-allowed; }
 .operation-accessible-reason { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .operation-modality-badges { display: flex; align-items: center; gap: 16px; }
-.operation-status-badge, .operation-default-badge { padding: 4px 11px; border-radius: 99px; font-size: 12px; line-height: 1.4; white-space: nowrap; background: var(--surface-strong); color: var(--muted); }
+.operation-status-badge, .operation-default-badge { padding: 4px 11px; border-radius: var(--badge-radius); font-weight: var(--badge-font-weight); font-size: 12px; line-height: 1.4; white-space: nowrap; background: var(--surface-strong); color: var(--muted); }
 .operation-status-badge.is-active { color: var(--success); background: var(--success-soft); }
 .operation-default-badge { color: var(--primary); background: var(--primary-soft); }
 .operation-modality-menu { position: relative; }

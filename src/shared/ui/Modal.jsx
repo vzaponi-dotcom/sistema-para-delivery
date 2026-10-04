@@ -3,8 +3,15 @@ import { createPortal } from 'react-dom'
 import Icon from './Icon'
 import { acquireScrollLock } from './scrollLock.js'
 
-const focusable = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+const focusable = 'button:not([disabled]), summary, [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 const dialogSelector = '[role="dialog"][aria-modal="true"]'
+const isVisibleControl = (control) => {
+  if (control.hidden || (control.getClientRects?.().length ?? 1) === 0) return false
+  for (let parent = control.parentElement; parent; parent = parent.parentElement) {
+    if (parent.tagName === 'DETAILS' && !parent.open && !parent.querySelector('summary')?.contains(control)) return false
+  }
+  return true
+}
 const isTopmostDialog = (element) => {
   const dialogs = Array.from(document.querySelectorAll(dialogSelector))
   return dialogs.at(-1) === element
@@ -24,6 +31,7 @@ function Modal({ title, onClose, children, footer, className = '', backdropClass
     const releaseScrollLock = acquireScrollLock(document)
 
     const controls = () => Array.from(cardRef.current?.querySelectorAll?.(focusable) || [])
+      .filter(isVisibleControl)
     const initialFocus = initialFocusSelectorRef.current ? cardRef.current?.querySelector?.(initialFocusSelectorRef.current) : null
     const focusTarget = initialFocus || controls()[0]
     focusTarget?.focus?.()

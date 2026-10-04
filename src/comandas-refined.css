@@ -27,7 +27,7 @@
 .comandas-page .comanda-table-copy { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 0; }
 .comandas-page .comanda-table-name { font-size: .85rem; font-weight: 650; line-height: 1.4; }
 .comandas-page .comanda-table-copy > .comanda-status { position: static; justify-self: start; grid-row: 2; }
-.comandas-page .comanda-status { grid-area: auto; min-height: 0; padding: 3px 6px; border: 0; border-radius: 4px; font-size: .61rem; font-weight: 600; line-height: 1.4; white-space: normal; }
+.comandas-page .comanda-status { grid-area: auto; min-height: 0; padding: 3px 6px; border: 0; border-radius: var(--badge-radius); font-size: .61rem; font-weight: var(--badge-font-weight); line-height: 1.4; white-space: normal; }
 .comandas-page .comanda-status.occupied, .comandas-page .comanda-detail-status-chip { background: var(--warning-soft); color: var(--warning); }
 .comandas-page .comanda-status.free { background: var(--success-soft); color: var(--success); }
 .comandas-page .comanda-table-tab, .comandas-page .comanda-table-items, .comandas-page .comanda-table-hint { color: var(--muted); font-size: .7rem; font-weight: 400; line-height: 1.4; }
@@ -44,7 +44,7 @@
 .comandas-page .comanda-detail-identity h2, .comandas-page .reservation-detail-identity h2 { margin: 0; font-size: 1.7rem; font-weight: 650; letter-spacing: -.035em; line-height: 1.2; overflow-wrap: anywhere; }
 .comandas-page .comanda-detail-hero-info, .comandas-page .reservation-detail-hero-info { gap: 10px; justify-items: end; text-align: right; }
 .comandas-page .comanda-detail-hero-chips, .comandas-page .reservation-detail-chips { justify-content: flex-end; }
-.comandas-page .comanda-detail-status-chip, .comandas-page .reservation-status-chip { min-height: 26px; padding: 5px 9px; border: 0; border-radius: 5px; font-size: .68rem; font-weight: 600; }
+.comandas-page .comanda-detail-status-chip, .comandas-page .reservation-status-chip { min-height: 26px; padding: 5px 9px; border: 0; border-radius: var(--badge-radius); font-size: .68rem; font-weight: var(--badge-font-weight); }
 .comandas-page .comanda-detail-status-chip.is-closed { background: var(--surface-soft); color: var(--muted); }
 .comandas-page .comanda-detail-hero time { justify-content: flex-end; font-size: .67rem; }
 .comandas-page .comanda-detail-order-summary, .comandas-page .reservation-detail-order-summary { gap: 8px; min-height: 0; padding: 0 0 18px; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; color: var(--muted); }

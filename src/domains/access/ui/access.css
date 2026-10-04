@@ -163,11 +163,11 @@
   min-height: 28px;
   padding: 4px 10px;
   border: 1px solid color-mix(in srgb, var(--success) 36%, transparent);
-  border-radius: 999px;
+  border-radius: var(--badge-radius);
   background: var(--success-soft);
   color: var(--success);
   font-size: .76rem;
-  font-weight: 750;
+  font-weight: var(--badge-font-weight);
 }
 .access-security-card {
   display: grid;

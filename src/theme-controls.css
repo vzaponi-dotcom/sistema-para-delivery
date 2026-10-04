@@ -50,7 +50,7 @@
 .theme-option.active {
   background: var(--primary-fill);
   color: var(--primary-contrast);
-  box-shadow: 0 5px 14px color-mix(in srgb, var(--primary) 24%, transparent);
+  box-shadow: none;
 }
 
 .theme-option:focus-visible {

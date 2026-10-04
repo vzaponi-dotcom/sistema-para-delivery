@@ -623,13 +623,14 @@
   margin-bottom: 14px;
   padding: 5px 10px;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--badge-radius);
+  font-weight: var(--badge-font-weight);
   font-size: 0.72rem;
   line-height: 1;
 }
 
 .order-timing-marker strong {
-  font-weight: 850;
+  font-weight: var(--badge-font-weight);
   letter-spacing: -0.01em;
 }
 

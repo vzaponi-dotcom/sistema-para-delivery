@@ -16,7 +16,7 @@
 .print-queue-jobs-table th { background: var(--surface-soft); color: var(--muted); font-size: 0.68rem; font-weight: 850; text-transform: uppercase; letter-spacing: 0.07em; }
 .print-queue-jobs-table td { color: var(--text-soft); font-size: 0.84rem; }
 .print-queue-jobs-table tbody tr:last-child td { border-bottom: 0; }
-.print-queue-status { display: inline-flex; align-items: center; min-height: 26px; padding: 4px 9px; border-radius: 999px; background: var(--surface-strong); color: var(--text-soft); font-size: 0.7rem; font-weight: 800; white-space: nowrap; }
+.print-queue-status { display: inline-flex; align-items: center; min-height: 26px; padding: 4px 9px; border-radius: var(--badge-radius); background: var(--surface-strong); color: var(--text-soft); font-size: 0.7rem; font-weight: var(--badge-font-weight); white-space: nowrap; }
 .print-queue-status-queued { background: var(--info-soft); color: var(--info); }
 .print-queue-status-waiting_station, .print-queue-status-waiting_second_copy { background: var(--warning-soft); color: var(--warning); }
 .print-queue-status-printing { background: var(--purple-soft); color: var(--purple); }

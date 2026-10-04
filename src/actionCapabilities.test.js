@@ -171,7 +171,9 @@ test('4. orders.cancel permite cancelamento simples sem oferecer payments.refund
 
 test('5. payments.receive abre recebimento no HistÃ³rico sem finance.receivables', async (t) => {
   const { renderer } = await appWorkspace(t, new Set(['orders.history', 'payments.receive']))
-  await act(async () => buttonNamed(renderer.root, 'Ver detalhes').props.onClick())
+  await act(async () => buttonNamed(renderer.root, 'Hoje').props.onClick())
+  await act(async () => buttonNamed(renderer.root, 'Todo o período').props.onClick())
+  await act(async () => renderer.root.findByProps({ className: 'history-order-row', 'aria-label': 'Ver detalhes do Pedido #102' }).props.onClick({ target: { closest: () => null } }))
   assert.ok(buttonNamed(renderer.root, 'Registrar pagamento'))
   assert.equal(Boolean(buttonNamed(renderer.root.findByProps({ 'aria-label': 'Menu principal' }), 'A receber')), false)
 })

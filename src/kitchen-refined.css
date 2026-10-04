@@ -41,6 +41,7 @@
 .kitchen-page .kitchen-search { flex: 1; max-width: none; min-width: 0; min-height: 42px; border-radius: 8px; background: var(--surface); border-color: var(--border-strong); }
 .kitchen-page .kitchen-search input { width: 100%; min-width: 0; font-size: .75rem; font-weight: 400; }
 .kitchen-page .kitchen-search input::placeholder { color: var(--muted); }
+.kitchen-page .kitchen-search:focus-within { border-color: var(--primary); }
 .kitchen-queue-filters { display: flex; gap: 3px; padding: 3px; border-radius: 8px; background: var(--surface-soft); flex: 0 0 auto; }
 .kitchen-queue-filters button { min-height: 36px; padding: 6px 10px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font: inherit; font-size: .69rem; cursor: pointer; }
 .kitchen-queue-filters button[aria-pressed='true'] { background: var(--surface); color: var(--text); box-shadow: 0 1px 4px #0f274718; font-weight: 600; }
@@ -63,7 +64,7 @@
 .kitchen-page .kitchen-ticket-late .kitchen-ticket { border-left-color: var(--kitchen-late); }
 .kitchen-page .kitchen-ticket-header { justify-content: space-between; gap: 10px; flex-wrap: nowrap; }
 .kitchen-page .kitchen-ticket-customer-name { font-size: .94rem; line-height: 1.4; font-weight: 600; }
-.kitchen-page .kitchen-ticket .status-badge { flex: 0 0 auto; font-size: .65rem; padding: 4px 7px; border-radius: 6px; font-weight: 500; }
+.kitchen-page .kitchen-ticket .status-badge { flex: 0 0 auto; font-size: .65rem; padding: 4px 7px; border-radius: var(--badge-radius); font-weight: var(--badge-font-weight); }
 .kitchen-page .kitchen-ticket .status-em-preparo { background: var(--surface-soft); color: var(--text-soft); }
 .kitchen-page .kitchen-ticket .status-agendado { background: var(--info-soft); color: var(--info); }
 .kitchen-page .kitchen-ticket-late .status-badge { background: var(--danger-soft); color: var(--danger); }

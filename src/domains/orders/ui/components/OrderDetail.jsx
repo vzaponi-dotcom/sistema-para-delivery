@@ -5,6 +5,9 @@ import Modal from '../../../../shared/ui/Modal'
 import OrderDetailTiming from './OrderDetailTiming.jsx'
 import { OrderTicketPreview, PrintStatusBadge } from '../../../printing/index.js'
 import PaymentBadge from '../PaymentBadge.jsx'
+import OrderPaymentStatus from './OrderPaymentStatus.jsx'
+import Icon from '../../../../shared/ui/Icon.jsx'
+import './order-detail-redesigned.css'
 import { actorLabel } from '../../../../shared/actorLabel.js'
 import StatusBadge from '../../../../shared/ui/StatusBadge'
 import { getOrderItemDisplayName, getOrderItems } from '../../domain/orderCart.js'
@@ -36,7 +39,7 @@ const formatPrintTimestamp = (value) => {
 
 const PHYSICAL_PRINT_ACTIONS = new Set(['print', 'preview', 'pdf', 'second-copy', 'retry', 'reprint', 'historical-reprint'])
 
-function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCancel, canCancelOrders = true, canExecutePrinting = true, canForcePrinting = false, canRegisterPayment = false, registerPaymentDisabled = false, onRegisterPayment, onToast }) {
+function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCancel, canCancelOrders = true, canExecutePrinting = true, canForcePrinting = false, canRegisterPayment = false, registerPaymentDisabled = false, onRegisterPayment, onToast, initialPrintingOpen = false }) {
   const [previewDocument, setPreviewDocument] = useState(null)
   const [showTicketPreview, setShowTicketPreview] = useState(false)
   const [confirmReprint, setConfirmReprint] = useState(false)
@@ -48,6 +51,7 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
   const defaultCopies = printing?.localStation?.defaultCopies === 1 ? 1 : 2
   const reprintCopies = printJob?.copiesRequested === 1 ? 1 : defaultCopies
   const isHistoricalOrder = ['Finalizado', 'Cancelado'].includes(order.status)
+  const showPaymentAction = canRegisterPayment && order.status !== 'Cancelado' && order.paymentStatus !== 'Pago'
   const stationName = printing?.stations?.find((station) => station.id === printJob?.stationId)?.name || printJob?.stationId || '—'
   const printingDisabled = Boolean(printingAction)
   const now = new Date()
@@ -122,38 +126,41 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
 
   return (
     <>
-      <Modal title={formatOrderDisplayNumber(order)} onClose={onClose}>
-        <div className="order-detail">
+      <Modal title={`Detalhes do ${formatOrderDisplayNumber(order)}`} className="order-detail-modal" onClose={onClose} footer={<div className="order-detail-dialog-actions">
+        {canCancelOrders && order.status !== 'Cancelado' && onRequestCancel && <Button type="button" variant="secondary" className="order-detail-cancel-action" onClick={() => { if (canCancelOrders) onRequestCancel?.() }}>Cancelar pedido</Button>}
+        <div className="order-detail-dialog-primary-actions">{!showPaymentAction && <Button type="button" variant="secondary" onClick={onClose}>Fechar detalhes</Button>}
+          {showPaymentAction && <Button type="button" disabled={registerPaymentDisabled} onClick={() => { if (!registerPaymentDisabled) onRegisterPayment?.() }}>Registrar pagamento</Button>}
+        </div>
+      </div>}>
+        <div className="order-detail order-detail-redesigned">
           <section className="order-detail-section order-detail-summary-section">
             <div className="section-heading compact-section-heading"><h3>Resumo</h3></div>
             <div className="order-detail-heading">
               <div>
                 <span>Cliente</span>
                 <strong>{order.client}</strong>
+                <span>{formatOrderDisplayNumber(order)} · {order.type}</span>
               </div>
+              <div className="order-detail-hero-value"><span>Total do pedido</span><strong>{currency(order.total)}</strong></div>
+            </div>
               <div className="order-detail-badges">
                 <StatusBadge status={order.status} />
-                <PaymentBadge order={order} />
+                {order.status === 'Cancelado' ? <OrderPaymentStatus order={order} /> : <PaymentBadge order={order} />}
                 {printJob && <PrintStatusBadge job={printJob} />}
               </div>
-            </div>
             <div className="order-detail-meta">
-              <div><span>Tipo</span><strong>{order.type}</strong></div>
-              <div><span>Data</span><strong>{formatOrderDate(order.orderDate)}</strong></div>
-              <div><span>Horário</span><strong>{formatOrderTime(order.createdAt) || '—'}</strong></div>
+              <div><span>Criado em</span><strong>{formatPrintTimestamp(order.createdAt)}</strong></div>
+              {order.finishedAt && order.status !== 'Cancelado' && <div><span>Finalizado em</span><strong>{formatPrintTimestamp(order.finishedAt)}</strong></div>}
+              {order.cancelledAt && order.status === 'Cancelado' && <div><span>Cancelado em</span><strong>{formatPrintTimestamp(order.cancelledAt)}</strong></div>}
+              {order.isBackdated && <div><span>Data do pedido</span><strong>{formatOrderDate(order.orderDate)}</strong></div>}
               <div><span>Criado por</span><strong>{actorLabel(order.attribution?.createdBy)}</strong></div>
               {order.status === 'Finalizado' && <div><span>Finalizado por</span><strong>{actorLabel(order.attribution?.finalizedBy)}</strong></div>}
               {order.paymentStatus === 'Pago' && <div><span>Recebido por</span><strong>{actorLabel(order.attribution?.paidBy)}</strong></div>}
-              <div><span>Forma de pagamento</span><strong>{order.paymentStatus === 'Pago' ? formatPaymentSummary(order.paymentAllocations, order.paymentMethod) : 'Pendente'}</strong></div>
+              <div><span>Forma de pagamento</span><strong>{order.paymentStatus === 'Pago' ? formatPaymentSummary(order.paymentAllocations, order.paymentMethod) : order.status === 'Cancelado' ? 'Não recebido' : 'Pendente'}</strong></div>
               {order.status === 'Cancelado' && <div><span>Motivo do cancelamento</span><strong>{order.cancelReasonLabel || order.cancelReason || 'Não informado'}{order.cancelReasonNote ? ` · ${order.cancelReasonNote}` : ''}</strong></div>}
               {order.clientPhone && <div><span>Telefone</span><strong>{order.clientPhone}</strong></div>}
               {order.clientAddress && <div><span>Endereço</span><strong>{order.clientAddress}</strong></div>}
             </div>
-          </section>
-
-          <section className="order-detail-section order-timing-section">
-            <div className="section-heading compact-section-heading"><h3>Horários</h3></div>
-            <OrderDetailTiming order={order} />
           </section>
 
           <section className="order-detail-section">
@@ -166,8 +173,8 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
               {items.map((item) => (
                 <div className="order-detail-item" key={item.id || item.lineId || `${item.productId}-${item.name}-${item.note}`}>
                   <div>
-                    <strong>{item.quantity}x {getOrderItemDisplayName(item)}</strong>
-                    {item.note && <span>↳ {item.note}</span>}
+                    <div className="order-detail-item-copy"><span className="order-detail-item-quantity">{item.quantity}×</span><strong>{getOrderItemDisplayName(item)}</strong></div>
+                    {item.note && <span className="order-detail-item-note"><Icon name="arrow-right" size={14} />{item.note}</span>}
                   </div>
                   <strong>{currency(Number(item.unitPrice ?? item.catalogPrice ?? 0) * Number(item.quantity || 1))}</strong>
                 </div>
@@ -202,22 +209,23 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
                 <div className="order-detail-total-final"><span>Total recebido</span><strong>{currency(order.paidAmount || order.total || 0)}</strong></div>
               </div>
             )}
-            {canRegisterPayment && <div className="order-detail-cancel-action"><Button type="button" disabled={registerPaymentDisabled} onClick={() => { if (!registerPaymentDisabled) onRegisterPayment?.() }}>Registrar pagamento</Button></div>}
-            {canCancelOrders && onRequestCancel && <div className="order-detail-cancel-action"><Button type="button" variant="secondary" onClick={() => { if (canCancelOrders) onRequestCancel?.() }}>Cancelar pedido</Button></div>}
           </section>
-
-          <section className="order-detail-section order-printing-section">
-            <div className="section-heading compact-section-heading">
-              <div>
-                <h3>Impressão</h3>
-              </div>
+          <details className="order-detail-section order-timing-section">
+            <summary className="order-detail-disclosure"><h3><Icon name="clock" size={16} />Horários</h3><Icon name="arrow-down" size={16} /></summary>
+            <OrderDetailTiming order={order} />
+          </details>
+          <details className="order-detail-section order-printing-section" open={initialPrintingOpen || Boolean(printJob?.lastError?.message)}>
+            <summary className="order-detail-disclosure">
+              <h3><Icon name="printer" size={16} />Impressão</h3>
               {printJob && <PrintStatusBadge job={printJob} />}
-            </div>
+              <Icon name="arrow-down" size={16} />
+            </summary>
 
-            <div className="order-printing-actions">
-              <Button type="button" variant="secondary" onClick={handlePreview} disabled={Boolean(printingAction)}>Visualizar ticket</Button>
-              <Button type="button" variant="secondary" onClick={handlePdf} disabled={Boolean(printingAction)}>Gerar PDF</Button>
-              {actionButton}
+            <div className="order-printing-content">
+            <div className="order-detail-print-tools">
+              {actionButton && <div className="order-detail-print-primary">{actionButton}</div>}
+              <Button type="button" variant="secondary" icon="eye" onClick={handlePreview} disabled={Boolean(printingAction)}>Visualizar ticket</Button>
+              <Button type="button" variant="secondary" icon="note" onClick={handlePdf} disabled={Boolean(printingAction)}>Gerar PDF</Button>
             </div>
 
             {!printJob && <p className="order-printing-helper">Este pedido ainda não possui histórico de impressão. Isso é esperado quando a impressão automática estava desligada.</p>}
@@ -226,14 +234,17 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
             {!scheduledPrintPending && !awaitingSecondCopy && ['pending', 'processing'].includes(printJob?.status) && <p className="order-printing-helper">A impressão já está na fila ou em andamento. Aguarde o resultado antes de gerar outra cópia física.</p>}
 
             {printJob && (
-              <div className="order-printing-diagnostics">
-                <div><span>Cópias</span><strong>{printJob.copiesPrinted || 0}/{printJob.copiesRequested}</strong></div>
-                <div><span>Estação</span><strong>{stationName}</strong></div>
-                <div><span>Processado em</span><strong>{formatPrintTimestamp(printJob.processedAt)}</strong></div>
-                {printJob.lastError?.message && <div className="order-printing-diagnostic-error"><span>Diagnóstico</span><strong>{printJob.lastError.message}</strong></div>}
-              </div>
+              <>
+                <dl className="order-detail-print-facts">
+                  <div><dt>Cópias</dt><dd>{printJob.copiesPrinted || 0}/{printJob.copiesRequested}</dd></div>
+                  <div><dt>Estação</dt><dd>{stationName}</dd></div>
+                  <div className="order-detail-print-processed"><dt>Processado em</dt><dd>{formatPrintTimestamp(printJob.processedAt)}</dd></div>
+                </dl>
+                {printJob.lastError?.message && <div className="order-detail-print-notice"><Icon name="alert" size={16} /><div><span>Diagnóstico</span><p>{printJob.lastError.message}</p></div></div>}
+              </>
             )}
-          </section>
+            </div>
+          </details>
         </div>
       </Modal>
 

@@ -12,7 +12,7 @@
 .table-management-summary { min-width: 0; display: grid; gap: 7px; }
 .table-management-summary > strong { overflow-wrap: anywhere; font-size: 1rem; line-height: 1.25; }
 .table-statuses { display: flex; flex-wrap: wrap; gap: 6px; }
-.table-status { padding: 4px 8px; border-radius: 999px; font-size: .7rem; font-weight: 800; line-height: 1.2; }
+.table-status { padding: 4px 8px; border-radius: var(--badge-radius); font-size: .7rem; font-weight: var(--badge-font-weight); line-height: 1.2; }
 .table-status.active { background: var(--surface-strong); color: var(--text-soft); }
 .table-status.free { background: var(--success-soft); color: var(--success); }
 .table-status.inactive { background: var(--surface-strong); color: var(--muted); }

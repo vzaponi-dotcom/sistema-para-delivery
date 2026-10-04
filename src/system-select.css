@@ -64,6 +64,22 @@
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14);
 }
 
+/* Dialogs size themselves around the expanded list instead of clipping an overlay. */
+[role="dialog"] .system-select-dropdown {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  max-width: 100%;
+  max-height: min(280px, 40dvh);
+  margin-top: 6px;
+  box-shadow: none;
+}
+
+[role="dialog"] .system-select-dropdown .system-select-option-label > span:last-child {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .system-select-option,
 .system-select-sheet-option {
   width: 100%;

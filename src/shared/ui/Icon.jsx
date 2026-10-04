@@ -49,6 +49,7 @@ const icons = {
   'arrow-right': <path d="m9 6 6 6-6 6"/>,
   'arrow-left': <path d="m15 6-6 6 6 6"/>,
   menu: <path d="M4 7h16M4 12h16M4 17h16"/>,
+  more: <><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></>,
   kitchen: <><path d="M4 4h16v16H4Z"/><path d="M8 8h8M8 12h8M8 16h5"/></>,
   preparation: <><path d="M5 4h14v16H5Z"/><path d="M8 8h8M8 12h5M8 16h8"/></>,
   calendar: <><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18"/></>,
