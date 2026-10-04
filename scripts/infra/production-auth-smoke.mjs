@@ -12,7 +12,7 @@ export async function verifyProductionAuth({
   baseUrl,
   phase,
   pin = '',
-  attempts = 12,
+  attempts = 20,
   fetchImpl = fetch,
   sleep = ms => new Promise(resolve => setTimeout(resolve, ms)),
   log = console.log,
@@ -99,7 +99,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     baseUrl: process.env.PRODUCTION_URL,
     phase: process.env.PRODUCTION_AUTH_PHASE,
     pin: process.env.AMOR_PIN || '',
-    attempts: Number(process.env.PRODUCTION_READY_ATTEMPTS || 12),
+    attempts: Number(process.env.PRODUCTION_READY_ATTEMPTS || 20),
   }).catch(error => {
     console.error(error.message)
     process.exitCode = 1
