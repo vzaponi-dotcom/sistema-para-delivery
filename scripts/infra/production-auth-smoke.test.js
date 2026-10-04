@@ -51,3 +51,42 @@ test('production multi-company smoke fails if legacy PIN is still accepted', asy
       : response({ authenticated: true }),
   }), /PIN login remained available/)
 })
+
+test('production smoke retries only within a bounded custom-domain propagation window', async () => {
+  let sessionReads = 0
+  const delays = []
+  const result = await verifyProductionAuth({
+    baseUrl: 'https://app.mesiva.com.br',
+    phase: 'prepare',
+    pin: '1234',
+    attempts: 3,
+    sleep: async ms => delays.push(ms),
+    log() {},
+    fetchImpl: async (url) => {
+      if (url.endsWith('/api/auth/session')) {
+        sessionReads += 1
+        if (sessionReads < 3) return response({ error: { code: 'NOT_READY' } }, 503)
+        return response({ authenticated: false, authMode: 'legacy' })
+      }
+      if (url.endsWith('/api/auth/login')) return response({ authenticated: true })
+      return response({ error: { code: 'INVALID_TOKEN' } }, 400)
+    },
+  })
+  assert.equal(result.legacyLogin, true)
+  assert.equal(sessionReads, 3)
+  assert.deepEqual(delays, [5000, 5000])
+})
+
+test('production smoke fails after the bounded propagation window', async () => {
+  const delays = []
+  await assert.rejects(verifyProductionAuth({
+    baseUrl: 'https://app.mesiva.com.br',
+    phase: 'prepare',
+    pin: '1234',
+    attempts: 2,
+    sleep: async ms => delays.push(ms),
+    log() {},
+    fetchImpl: async () => response({ error: { code: 'NOT_READY' } }, 503),
+  }), /bounded propagation window/)
+  assert.deepEqual(delays, [5000])
+})
