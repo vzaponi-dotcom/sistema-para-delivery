@@ -21,6 +21,7 @@ test('final production cutover is a separate explicit irreversible workflow', as
   assert.match(workflow, /finalize-production-cutover-actions\.mjs/)
   assert.match(workflow, /CUTOVER_MANAGER_EMAIL:\s*\$\{\{ secrets\.CUTOVER_MANAGER_EMAIL \}\}/)
   assert.match(workflow, /PRODUCTION_AUTH_PHASE:\s*multi_company/)
+  assert.doesNotMatch(workflow, /AMOR_PIN:/)
 })
 
 test('final production cutover runner rechecks readiness and verifies user_only with PIN physically absent', async () => {
