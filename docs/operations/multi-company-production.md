@@ -101,37 +101,47 @@ Não copiar secrets do GitHub para o chat nem persistir credenciais em arquivo l
 
 ## 4. Inspecionar o inventário legado de produção
 
-Antes de criar o vínculo do primeiro gerente, revisar o inventário capturado pelo bootstrap:
+O caminho normal é o workflow manual **Manage production cutover** no GitHub Actions, em `master`, com:
 
-```powershell
-node scripts/infra/multi-company-production-admin.mjs inspect-inventory --env production --admin-account-id "ADMIN_ACCOUNT_ID"
-```
+- `cutover_action = inspect_inventory`;
+- `ownership_confirmed = false`.
 
-A saída traz somente metadados operacionais necessários à revisão (IDs, nome de exibição, papel/estado), sem senha/token.
+O workflow resolve internamente o Administrador Mesiva registrado no bootstrap e publica apenas agregados não sensíveis no resumo do run: quantidade de registros inventariados, quantidade ativa e se todos pertencem à Amor & Sabor. Nome, e-mail, ID humano e segredo não são publicados no CI.
+
+Se o inventário apontar outra empresa, o procedimento falha fechado e o corte deve ser interrompido.
+
+A CLI privada `inspect-inventory` permanece somente como fallback quando uma revisão nominal for indispensável em terminal privado.
 
 **Regra de produção:** o preparo do gerente não renomeia silenciosamente um login legado conflitante. Se existir colisão com o e-mail escolhido, o batch falha e nenhum novo acesso é persistido. Nesse caso, interromper e decidir a migração daquela identidade antes de continuar.
 
 ## 5. Preparar o gerente da empresa existente
 
-Depois da revisão:
+Antes de executar o workflow, configurar temporariamente no Environment `production` dois secrets:
 
-```powershell
-node scripts/infra/multi-company-production-admin.mjs prepare-business-manager --env production --business-id "amor-e-sabor" --name "NOME_GERENTE" --email "EMAIL_GERENTE" --ownership-verified
-```
+- `CUTOVER_MANAGER_NAME`: nome do primeiro gerente da Amor & Sabor;
+- `CUTOVER_MANAGER_EMAIL`: e-mail controlado por essa pessoa.
 
-É permitido usar a mesma conta do Administrador Mesiva. Nesse caso, a senha global já criada é preservada e apenas o vínculo empresarial é acrescentado.
+Não usar inputs públicos do workflow para esses dados.
 
-Se for uma conta nova, o gerente recebe convite e define sua senha pelo fluxo oficial.
+Depois disparar **Manage production cutover** com:
+
+- `cutover_action = prepare_business_manager`;
+- `ownership_confirmed = true`.
+
+O workflow registra um bookmark atual do D1, reconfirma que produção continua em `prepare`, revalida o inventário e executa o mesmo `prepareExistingBusinessManager` oficial. Se o gerente ainda não tiver conta global ativa, o Resend deve aceitar o convite. Nenhum acesso legado é finalizado nessa etapa.
+
+É permitido usar a mesma conta do Administrador Mesiva, mas para produção normal a recomendação é manter a conta de plataforma separada da conta operacional do cliente.
+
+Depois que o gerente ativar o convite e definir sua senha, manter os dois secrets até concluir o readiness; em seguida eles podem ser removidos do Environment `production`.
 
 ## 6. Readiness antes do corte
 
-Com os IDs retornados:
+Disparar **Manage production cutover** com:
 
-```powershell
-node scripts/infra/multi-company-production-admin.mjs check-ready --env production --admin-account-id "ADMIN_ACCOUNT_ID" --business-id "amor-e-sabor" --manager-account-id "MANAGER_ACCOUNT_ID"
-```
+- `cutover_action = check_ready`;
+- `ownership_confirmed = false`.
 
-Só continuar com `ready=true`.
+O workflow resolve internamente o administrador do bootstrap e a conta do gerente pelo e-mail armazenado no secret, sem publicar seus identificadores. Só continuar quando o resumo informar `Ready: true`.
 
 O readiness exige, entre outros pontos:
 
