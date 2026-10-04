@@ -208,7 +208,10 @@ test('a newer cancellation rejects three financial collections without free tabl
   await select() // retires only the old payment UI; its network response is pending
   await navigate('Pedidos')
   await act(async () => buttonNamed(r.root.findByProps({ 'aria-label': 'Navegação de Pedidos' }), 'Histórico').props.onClick())
+  await act(async () => buttonNamed(r.root, 'Hoje').props.onClick())
+  await act(async () => buttonNamed(r.root, 'Todo o período').props.onClick())
   const otherRow = r.root.findAllByType('article').find((row) => nodeText(row).includes('Outro pedido'))
+  await act(async () => otherRow.findAllByType('button').find(node => node.props['aria-haspopup'] === 'menu').props.onClick())
   await act(async () => buttonNamed(otherRow, 'Cancelar pedido').props.onClick())
   const { default: SystemSelect } = await h.load('/src/shared/ui/SystemSelect.jsx')
   await act(async () => r.root.findByType(SystemSelect).props.onChange('duplicate_order'))

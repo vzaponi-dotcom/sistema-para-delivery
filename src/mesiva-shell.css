@@ -31,7 +31,7 @@
 .sidebar-product-footer > span { width: 5px; height: 5px; border-radius: 50%; background: var(--navigation-accent, var(--success)); }
 .app-shell .app-content { width: min(1600px, 100%); padding: 30px 36px 56px; }
 .app-shell .button { font-weight: 600; }
-.app-shell .button-primary { box-shadow: 0 2px 4px #0f274712; }
+.app-shell .button-primary { box-shadow: none; }
 .app-shell .area-navigation-item { font-size: .8rem; font-weight: 500; }
 .app-shell .area-navigation-item.active { border-bottom-color: var(--navigation-accent, var(--primary)); font-weight: 600; }
 .app-shell .mobile-bottom-nav { box-shadow: none; }

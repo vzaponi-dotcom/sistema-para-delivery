@@ -11,6 +11,7 @@ function SystemSelect({ value, options, onChange, disabled = false, label, id, p
   const listboxId = `${selectId}-options`
   const rootRef = useRef(null)
   const triggerRef = useRef(null)
+  const dropdownRef = useRef(null)
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(() => Math.max(0, options.findIndex((option) => option.value === value)))
   const [mobile, setMobile] = useState(() => typeof window !== 'undefined' && window.matchMedia(mobileQuery).matches)
@@ -32,6 +33,12 @@ function SystemSelect({ value, options, onChange, disabled = false, label, id, p
     }
     document.addEventListener('mousedown', handlePointerDown)
     return () => document.removeEventListener('mousedown', handlePointerDown)
+  }, [mobile, open])
+
+  useEffect(() => {
+    if (open && !mobile && dropdownRef.current?.closest?.('[role="dialog"]')) {
+      dropdownRef.current.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    }
   }, [mobile, open])
 
   const close = () => {
@@ -132,7 +139,7 @@ function SystemSelect({ value, options, onChange, disabled = false, label, id, p
           </div>
         </BottomSheet>
       ) : (
-        <div id={listboxId} className="system-select-dropdown" role="listbox" aria-label={label}>
+        <div ref={dropdownRef} id={listboxId} className="system-select-dropdown" role="listbox" aria-label={label}>
           {optionButtons('system-select-option')}
         </div>
       ))}

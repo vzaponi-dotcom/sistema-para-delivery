@@ -3,6 +3,19 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { runInNewContext } from 'node:vm'
 
+test('order history candidate can deploy manually to staging without admitting other feature branches', () => {
+  const workflow = readFileSync(new URL('../../.github/workflows/deploy-staging.yml', import.meta.url), 'utf8')
+  const condition = /^    if: (.+)$/m.exec(workflow)?.[1]
+  assert.ok(condition, 'staging job must have an explicit branch gate')
+  const allowed = (ref, event_name) => runInNewContext(condition, { github: { ref: `refs/heads/${ref}`, event_name } })
+  assert.equal(allowed('feature/orders-history-ui-polish', 'workflow_dispatch'), true)
+  assert.equal(allowed('feature/orders-history-ui-polish', 'push'), false)
+  assert.equal(allowed('feature/unapproved-candidate', 'workflow_dispatch'), false)
+  assert.equal(allowed('master', 'push'), true)
+  assert.match(workflow, /Feature staging is allowed only while its pull request is open/)
+  assert.match(workflow, /latest.*GITHUB_SHA/s)
+})
+
 test('staging smoke requests SPA deep links/assets from the canonical staging release branches', async () => {
   const workflow = readFileSync(new URL('../../.github/workflows/deploy-staging.yml', import.meta.url), 'utf8')
   const jobEnv = workflow.split('    env:')[1]?.split('    steps:')[0]

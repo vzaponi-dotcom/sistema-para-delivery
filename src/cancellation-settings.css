@@ -276,7 +276,8 @@
   justify-content: center;
   gap: 6px;
   padding: 5px 10px;
-  border-radius: 999px;
+  border-radius: var(--badge-radius);
+  font-weight: var(--badge-font-weight);
   background: var(--surface-strong);
   color: var(--text-soft);
   font-size: 12px;

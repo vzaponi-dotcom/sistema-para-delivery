@@ -363,7 +363,7 @@
   font-weight: 800;
   cursor: pointer;
   list-style: none;
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--primary) 18%, transparent);
+  box-shadow: none;
 }
 
 .reporting-export summary::-webkit-details-marker {
@@ -543,10 +543,10 @@
 .reporting-comparison-pill {
   flex: 0 0 auto;
   padding: 3px 6px;
-  border-radius: 999px;
+  border-radius: var(--badge-radius);
   background: var(--surface-strong);
   color: var(--text-soft);
-  font-weight: 800;
+  font-weight: var(--badge-font-weight);
 }
 
 .reporting-comparison.is-positive .reporting-comparison-pill {
@@ -611,11 +611,11 @@
 .reporting-panel-badge {
   flex: 0 0 auto;
   padding: 5px 8px;
-  border-radius: 999px;
+  border-radius: var(--badge-radius);
   background: var(--surface-strong);
   color: var(--text-soft);
   font-size: .68rem;
-  font-weight: 750;
+  font-weight: var(--badge-font-weight);
 }
 
 .reporting-comparison-visual-list {
@@ -2942,9 +2942,9 @@
   align-items: center;
   justify-content: center;
   padding: 3px 7px;
-  border-radius: 999px;
+  border-radius: var(--badge-radius);
   font-size: .64rem;
-  font-weight: 820;
+  font-weight: var(--badge-font-weight);
   white-space: nowrap;
 }
 
@@ -4596,11 +4596,11 @@
   align-items: center;
   gap: 5px;
   padding: 7px 9px;
-  border-radius: 999px;
+  border-radius: var(--badge-radius);
   background: color-mix(in srgb, var(--primary) 12%, var(--surface-strong));
   color: color-mix(in srgb, var(--primary) 70%, var(--text));
   font-size: .62rem;
-  font-weight: 760;
+  font-weight: var(--badge-font-weight);
   white-space: nowrap;
 }
 

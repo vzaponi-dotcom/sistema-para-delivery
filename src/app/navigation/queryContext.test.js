@@ -33,7 +33,7 @@ test('um contexto novo restaura todos os defaults permitidos', () => {
 
   assert.deepEqual(context, {
     orders: { search: '' },
-    history: { filter: 'all', analysisPeriod: '30d' },
+    history: { filter: 'all', analysisPeriod: '30d', search: '', period: 'today', startDate: '', endDate: '' },
     dashboard: { period: '30d', valuesVisible: true },
     clients: { search: '', sort: 'name-asc' },
     products: { search: '', categoryFilter: 'Todos' },

@@ -100,7 +100,14 @@ async function operationalWorkspace(t, { orders, capabilities = operationalCapab
   const { renderer } = await h.renderAdminApp(App, { capabilities })
   const navigate = async (name) => act(async () => buttonNamed(renderer.root.findByProps({ 'aria-label': 'Menu principal' }), name).props.onClick())
   const openKitchenDetail = async () => act(async () => buttonNamed(renderer.root, 'Exibir detalhes').props.onClick())
-  const openHistoryDetail = async () => act(async () => buttonNamed(renderer.root, 'Ver detalhes').props.onClick())
+  const openHistoryDetail = async () => {
+    const today = buttonNamed(renderer.root, 'Hoje')
+    if (today) {
+      await act(async () => today.props.onClick())
+      await act(async () => buttonNamed(renderer.root, 'Todo o período').props.onClick())
+    }
+    await act(async () => renderer.root.findAllByType('article').find(node => node.props['aria-label']?.startsWith('Ver detalhes do Pedido #')).props.onClick({ target: { closest: () => null } }))
+  }
   const openOperationalPayment = async () => act(async () => buttonNamed(renderer.root, 'Registrar pagamento').props.onClick())
   const submitPayment = () => renderer.root.findByType('form').props.onSubmit({ preventDefault() {} })
   return { h, renderer, state, navigate, openKitchenDetail, openHistoryDetail, openOperationalPayment, submitPayment }

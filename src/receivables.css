@@ -456,7 +456,7 @@
 
 .receivables-client-receive-button.button-primary:not(:disabled) {
   border-color: color-mix(in srgb, var(--primary-fill) 82%, var(--text));
-  box-shadow: 0 10px 24px color-mix(in srgb, var(--primary) 30%, transparent);
+  box-shadow: none;
 }
 
 .receivables-client-receive-button.button-primary:disabled {

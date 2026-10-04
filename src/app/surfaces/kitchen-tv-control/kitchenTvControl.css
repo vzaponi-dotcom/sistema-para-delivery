@@ -461,11 +461,11 @@
   gap: 3px;
   min-height: 22px;
   padding: 3px 6px;
-  border-radius: 999px;
+  border-radius: var(--badge-radius);
   background: var(--surface-soft);
   color: var(--text-soft);
   font-size: .6rem;
-  font-weight: 850;
+  font-weight: var(--badge-font-weight);
   line-height: 1;
   letter-spacing: .015em;
 }

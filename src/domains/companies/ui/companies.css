@@ -187,10 +187,10 @@
   min-height: 28px;
   padding: 4px 10px;
   border: 1px solid color-mix(in srgb, var(--primary) 32%, var(--border));
-  border-radius: 999px;
+  border-radius: var(--badge-radius);
   background: color-mix(in srgb, var(--primary-soft) 68%, transparent);
   color: var(--primary) !important;
-  font-weight: 700;
+  font-weight: var(--badge-font-weight);
 }
 .company-current {
   margin-top: 0;

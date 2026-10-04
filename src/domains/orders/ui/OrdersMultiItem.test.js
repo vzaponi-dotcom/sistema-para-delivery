@@ -59,14 +59,14 @@ test('order details keep their semantic sections, item notes, and printing in th
   const detail = source('./components/OrderDetail.jsx')
   const timing = source('./components/OrderDetailTiming.jsx')
 
-  const sectionOrder = ['Resumo', 'Horários', 'Itens', 'Valores', 'Impressão']
+  const sectionOrder = ['Resumo', 'Itens', 'Valores', 'Horários', 'Impressão']
   let previous = -1
   for (const label of sectionOrder) {
     const position = detail.indexOf(`>${label}<`)
     assert.ok(position > previous, `${label} must follow the preceding detail section`)
     previous = position
   }
-  assert.match(detail, /item\.note && <span>↳ \{item\.note\}<\/span>/)
+  assert.match(detail, /item\.note && <span className="order-detail-item-note"><Icon name="arrow-right" size=\{14\} \/>\{item\.note\}<\/span>/)
   assert.match(timing, /className="order-detail-timing"/)
   assert.match(timing, /className="order-detail-timing-row"/)
   assert.match(timing, /<dt>\{row\.label\}<\/dt>/)

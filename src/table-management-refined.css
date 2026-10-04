@@ -21,7 +21,7 @@
 .table-management-identity strong { color: var(--text); font-size: .9rem; font-weight: 650; overflow-wrap: anywhere; }
 .table-management-symbol { display: grid; flex: 0 0 40px; height: 40px; place-items: center; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-soft); color: var(--muted); }
 .tables-refined .inactive .table-management-identity strong { color: var(--muted); }
-.tables-refined .table-status { display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px; font-size: .67rem; font-weight: 650; border-radius: 5px; white-space: nowrap; }
+.tables-refined .table-status { display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px; font-size: .67rem; font-weight: var(--badge-font-weight); border-radius: var(--badge-radius); white-space: nowrap; }
 .tables-refined .table-status::before { content: ''; width: 4px; height: 4px; background: currentColor; border-radius: 50%; }
 .table-management-context { min-width: 0; color: var(--muted); font-size: .76rem; }
 .table-management-reservation { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 7px; min-height: 38px; border-left: 3px solid var(--info); border-radius: 0 6px 6px 0; background: color-mix(in srgb, var(--info-soft) 65%, var(--surface)); color: var(--info); padding: 9px 10px; font-size: .68rem; }

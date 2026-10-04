@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:worker": "npx --yes wrangler@4.128.0 dev",
+    "dev:worker": "npx --yes wrangler@4.147.0 dev",
     "build": "vite build",
     "lint": "oxlint",
     "test": "node --test",

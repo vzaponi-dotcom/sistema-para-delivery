@@ -142,11 +142,11 @@
   display: inline-flex;
   align-items: center;
   padding: 0 8px;
-  border-radius: 999px;
+  border-radius: var(--badge-radius);
   background: var(--surface-soft);
   color: var(--muted);
   font-size: .66rem;
-  font-weight: 800;
+  font-weight: var(--badge-font-weight);
 }
 
 .payment-composition-line-fields {

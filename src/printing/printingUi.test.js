@@ -40,7 +40,8 @@ test('order detail keeps print actions separate and uses the central queue comma
   for (const label of ['Visualizar ticket', 'Gerar PDF', 'Imprimir pedido', 'Imprimir 2ª via', 'Reimprimir', 'Tentar novamente', 'Imprimir agora']) {
     assert.match(detail, new RegExp(label))
   }
-  assert.match(detail, /<h3>Impressão<\/h3>/)
+  assert.match(detail, /<details className="order-detail-section order-printing-section"/)
+  assert.match(detail, /<h3>.*Impressão<\/h3>/)
   assert.match(detail, /getPreviewDocument/)
   assert.match(detail, /downloadOrderPdf/)
   assert.match(detail, /printOrder/)

@@ -18,7 +18,7 @@ concurrency:
 jobs:
   deploy:
     name: Deploy staging Worker
-    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/feature/account-menu-company-context'
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/feature/account-menu-company-context' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feature/orders-history-ui-polish')
     runs-on: ubuntu-latest
     environment: staging
     env:

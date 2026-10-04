@@ -57,6 +57,8 @@
   --text-muted: var(--muted);
   --color-primary: var(--primary);
   --radius-sm: 10px;
+  --badge-radius: 6px;
+  --badge-font-weight: 400;
   --radius-md: 14px;
   --radius-lg: 20px;
   --radius-xl: 26px;
