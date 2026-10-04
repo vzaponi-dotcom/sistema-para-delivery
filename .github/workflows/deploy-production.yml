@@ -27,9 +27,6 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       PRODUCTION_AUTH_PHASE: multi_company
       PRODUCTION_URL: ${{ vars.PRODUCTION_URL || 'https://app.mesiva.com.br' }}
-      PRODUCTION_AUTH_PUBLIC_ORIGIN: ${{ vars.AUTH_PUBLIC_ORIGIN }}
-      PRODUCTION_AUTH_EMAIL_FROM: ${{ vars.AUTH_EMAIL_FROM }}
-      PRODUCTION_AUTH_EMAIL_DAILY_LIMIT: ${{ vars.AUTH_EMAIL_DAILY_LIMIT || '80' }}
 
     steps:
       - name: Checkout master
@@ -58,7 +55,7 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Configure production multi-company authentication
+      - name: Validate production multi-company configuration
         shell: bash
         run: |
           set -euo pipefail
@@ -66,24 +63,14 @@ jobs:
           import fs from 'node:fs'
 
           const config = JSON.parse(fs.readFileSync('wrangler.jsonc', 'utf8'))
-          const vars = config.vars ||= {}
-          vars.AUTH_EMAIL_ENABLED = 'true'
-          vars.AUTH_MULTI_COMPANY_ENABLED = 'true'
-          vars.AUTH_MULTI_COMPANY_PREPARE_ENABLED = 'false'
-
-          const origin = process.env.PRODUCTION_AUTH_PUBLIC_ORIGIN || ''
-          const from = process.env.PRODUCTION_AUTH_EMAIL_FROM || ''
-          const dailyLimit = Number(process.env.PRODUCTION_AUTH_EMAIL_DAILY_LIMIT || '80')
-          const url = new URL(origin)
-          if (url.protocol !== 'https:' || url.origin !== origin || url.username || url.password) throw new Error('Production AUTH_PUBLIC_ORIGIN must be a trusted HTTPS origin.')
-          if (!from.trim()) throw new Error('Production AUTH_EMAIL_FROM is required for multi_company.')
+          const vars = config.vars || {}
+          if (vars.AUTH_EMAIL_ENABLED !== 'true') throw new Error('Production e-mail auth must stay enabled.')
+          if (vars.AUTH_MULTI_COMPANY_ENABLED !== 'true') throw new Error('Production multi-company auth must stay enabled.')
+          if (vars.AUTH_MULTI_COMPANY_PREPARE_ENABLED !== 'false') throw new Error('Production prepare mode must stay disabled.')
+          if (vars.AUTH_PUBLIC_ORIGIN !== 'https://app.mesiva.com.br') throw new Error('Production AUTH_PUBLIC_ORIGIN is invalid.')
+          if (vars.AUTH_EMAIL_FROM !== 'Mesiva <acesso@mesiva.com.br>') throw new Error('Production AUTH_EMAIL_FROM is invalid.')
+          const dailyLimit = Number(vars.AUTH_EMAIL_DAILY_LIMIT)
           if (!Number.isSafeInteger(dailyLimit) || dailyLimit < 1) throw new Error('Production AUTH_EMAIL_DAILY_LIMIT is invalid.')
-          vars.AUTH_PUBLIC_ORIGIN = origin
-          vars.AUTH_EMAIL_FROM = from
-          vars.AUTH_EMAIL_DAILY_LIMIT = String(dailyLimit)
-
-          fs.writeFileSync('wrangler.jsonc', JSON.stringify(config, null, 2) + '\n')
-          console.log('Prepared production auth phase: multi_company')
           NODE
 
       - name: Validate Worker bundle
