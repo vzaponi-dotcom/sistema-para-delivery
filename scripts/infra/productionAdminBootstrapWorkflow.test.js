@@ -21,6 +21,12 @@ test('Mesiva administrator bootstrap workflow is manual, production-scoped and m
   assert.match(workflow, /AUTH_EMAIL_FROM:\s*\$\{\{ vars\.AUTH_EMAIL_FROM \}\}/)
   assert.match(workflow, /production-auth-smoke\.mjs/)
   assert.match(workflow, /prepare-mesiva-admin-actions\.mjs/)
+  assert.match(workflow, /d1 time-travel info amor-e-sabor-delivery --json/)
+  const restorePoint = workflow.indexOf('- name: Record production D1 restore point')
+  const smoke = workflow.indexOf('- name: Verify production prepare phase')
+  const prepare = workflow.indexOf('- name: Prepare Mesiva platform administrator')
+  for (const index of [restorePoint, smoke, prepare]) assert.notEqual(index, -1)
+  assert.ok(restorePoint < smoke && smoke < prepare, 'restore point and prepare smoke must run before administrator writes')
   assert.doesNotMatch(workflow, /getPlatformProxy|multi-company-production-admin\.mjs prepare-admin/)
 })
 
