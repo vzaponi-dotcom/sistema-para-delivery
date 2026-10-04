@@ -37,7 +37,6 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CUTOVER_MANAGER_EMAIL: ${{ secrets.CUTOVER_MANAGER_EMAIL }}
-      AMOR_PIN: ${{ secrets.AMOR_PIN }}
       PRODUCTION_URL: ${{ vars.PRODUCTION_URL || 'https://app.mesiva.com.br' }}
       PRODUCTION_AUTH_PHASE: multi_company
       LOGIN_VERIFIED: ${{ inputs.login_verified }}
