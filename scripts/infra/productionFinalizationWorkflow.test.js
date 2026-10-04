@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises'
 const finalizeWorkflowUrl = new URL('../../.github/workflows/finalize-production-cutover.yml', import.meta.url)
 const finalizeRunnerUrl = new URL('./finalize-production-cutover-actions.mjs', import.meta.url)
 const deployWorkflowUrl = new URL('../../.github/workflows/deploy-production.yml', import.meta.url)
+const wranglerUrl = new URL('../../wrangler.jsonc', import.meta.url)
 
 test('final production cutover is a separate explicit irreversible workflow', async () => {
   const workflow = await readFile(finalizeWorkflowUrl, 'utf8')
@@ -40,15 +41,17 @@ test('final production cutover runner rechecks readiness and verifies user_only 
 
 test('normal production deploy is permanently multi-company after cutover and cannot recreate PIN', async () => {
   const workflow = await readFile(deployWorkflowUrl, 'utf8')
+  const config = JSON.parse(await readFile(wranglerUrl, 'utf8'))
   assert.doesNotMatch(workflow, /auth_phase:/)
   assert.doesNotMatch(workflow, /readiness_confirmed:/)
   assert.doesNotMatch(workflow, /- legacy|\n\s*- prepare/)
-  assert.doesNotMatch(workflow, /Configure production PIN/)
-  assert.doesNotMatch(workflow, /AMOR_PIN:\s*\$\{\{ secrets\.AMOR_PIN \}\}/)
+  assert.doesNotMatch(workflow, /Configure production PIN|generate-pin-hash|AMOR_PIN:/)
   assert.match(workflow, /PRODUCTION_AUTH_PHASE:\s*multi_company/)
-  assert.match(workflow, /AUTH_EMAIL_ENABLED = 'true'/)
-  assert.match(workflow, /AUTH_MULTI_COMPANY_ENABLED = 'true'/)
-  assert.match(workflow, /AUTH_MULTI_COMPANY_PREPARE_ENABLED = 'false'/)
+  assert.match(workflow, /Validate production multi-company configuration/)
   assert.match(workflow, /backup_confirmed:/)
   assert.match(workflow, /production-auth-smoke\.mjs/)
+  assert.equal(config.vars.AUTH_EMAIL_ENABLED, 'true')
+  assert.equal(config.vars.AUTH_MULTI_COMPANY_ENABLED, 'true')
+  assert.equal(config.vars.AUTH_MULTI_COMPANY_PREPARE_ENABLED, 'false')
+  assert.equal(config.vars.AUTH_PUBLIC_ORIGIN, 'https://app.mesiva.com.br')
 })
