@@ -90,6 +90,18 @@ test('automatic consumer does not claim while QZ or another local transport is n
   assert.equal(canConsumeAutomaticPrintJob(readyAutomaticConsumer()), true)
 })
 
+test('background primary keeps physical consumption eligible and revalidates QZ without forcing UI refresh', () => {
+  assert.equal(canConsumeAutomaticPrintJob(readyAutomaticConsumer({ visible: false })), true)
+
+  const syncStart = managerSource.indexOf('const sync = () => {')
+  const syncEnd = managerSource.indexOf('const timer = globalThis.setInterval?.(sync, PRINT_STATE_POLL_MS)', syncStart)
+  assert.ok(syncStart >= 0 && syncEnd > syncStart)
+  const syncBlock = managerSource.slice(syncStart, syncEnd)
+  assert.match(syncBlock, /if \(visiblePage\(\)\) void refresh\(\)/)
+  assert.match(syncBlock, /initializeBackgroundPhysicalTransport/)
+  assert.doesNotMatch(syncBlock, /if \(!visiblePage\(\)/)
+})
+
 test('a non-normal recovery state pauses the normal consumer while the manager uses the dedicated one-copy recovery APIs', () => {
   assert.equal(canConsumeAutomaticPrintJob(readyAutomaticConsumer({ station: { isPrimary: true, autoPrintEnabled: true, recoveryState: 'pending' } })), false)
   assert.equal(canConsumeAutomaticPrintJob(readyAutomaticConsumer({ station: { isPrimary: true, autoPrintEnabled: true, recoveryState: 'active' } })), false)
