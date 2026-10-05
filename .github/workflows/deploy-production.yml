@@ -2,12 +2,6 @@ name: Deploy production
 
 on:
   workflow_dispatch:
-    inputs:
-      backup_confirmed:
-        description: Confirm the workflow-recorded production D1 restore point before publishing
-        required: true
-        default: false
-        type: boolean
 
 permissions:
   contents: read
@@ -127,17 +121,6 @@ jobs:
           )"
           echo "PRODUCTION_D1_BOOKMARK=$bookmark" >> "$GITHUB_ENV"
           printf 'Production D1 restore bookmark recorded before publish: `%s`\n' "$bookmark" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Require production safety checkpoint
-        shell: bash
-        env:
-          BACKUP_CONFIRMED: ${{ inputs.backup_confirmed }}
-        run: |
-          set -euo pipefail
-          if [ "$BACKUP_CONFIRMED" != "true" ]; then
-            echo "Production publish requires confirmation of the current D1 restore point."
-            exit 1
-          fi
 
       - name: Show pending D1 migrations
         run: npx --yes wrangler@4.128.0 d1 migrations list amor-e-sabor-delivery --remote

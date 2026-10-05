@@ -66,9 +66,10 @@ Antes de publicar:
 1. confirmar Validate verde no SHA atual de `master`;
 2. confirmar staging verde;
 3. disparar **Deploy production** em `master`;
-4. marcar `backup_confirmed = true` depois que o próprio workflow registrar o restore point atual do D1;
-5. aguardar testes, migrations, deploy e smoke;
-6. confirmar `app.mesiva.com.br` operacional.
+4. aguardar testes, migrations, deploy e smoke;
+5. confirmar `app.mesiva.com.br` operacional.
+
+O ponto de restauração é registrado automaticamente, sem checkbox de confirmação. Se o registro falhar ou retornar um bookmark inválido, o workflow interrompe a publicação antes das migrations remotas.
 
 O workflow:
 
