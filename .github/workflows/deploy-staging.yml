@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
   pull-requests: read
 
 concurrency:
@@ -43,11 +44,14 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Require successful validation of this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPLOY_ENVIRONMENT: staging
+        run: node scripts/infra/deploy-validation-gate.mjs
+
       - name: Install dependencies
         run: npm ci
-
-      - name: Test
-        run: npm test
 
       - name: Validate frontend architecture
         run: npm run test:architecture

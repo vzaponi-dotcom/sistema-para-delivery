@@ -5,6 +5,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: production-deploy
@@ -34,11 +35,14 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Require successful validation and staging of this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPLOY_ENVIRONMENT: production
+        run: node scripts/infra/deploy-validation-gate.mjs
+
       - name: Install dependencies
         run: npm ci
-
-      - name: Test
-        run: npm test
 
       - name: Validate frontend architecture
         run: npm run test:architecture

@@ -104,6 +104,23 @@ test('production deploy is manual, master-only, and validates locally before rem
   assert.doesNotMatch(productionWorkflow, /npm run deploy\s*$/m)
 })
 
+test('deploy workflows require GitHub validation before installation and remote writes instead of repeating the suite', () => {
+  for (const [workflow, environment, remoteWrite] of [
+    [productionWorkflow, 'production', '- name: Record production D1 restore point'],
+    [readFileSync(stagingWorkflowPath, 'utf8'), 'staging', '- name: Ensure staging R2 bucket'],
+  ]) {
+    const gate = workflow.indexOf('run: node scripts/infra/deploy-validation-gate.mjs')
+    const installation = workflow.indexOf('run: npm ci')
+    const remote = workflow.indexOf(remoteWrite)
+    for (const index of [gate, installation, remote]) assert.notEqual(index, -1)
+    assert.ok(gate < installation && gate < remote, 'approval must precede dependency installation and remote operations')
+    assert.match(workflow, /actions: read/)
+    assert.match(workflow.slice(0, gate), /GH_TOKEN: \$\{\{ github\.token \}\}/)
+    assert.match(workflow.slice(0, gate), new RegExp(`DEPLOY_ENVIRONMENT: ${environment}`))
+    assert.doesNotMatch(workflow, /run: npm test/)
+  }
+})
+
 test('production smoke defaults to the official app.mesiva.com.br origin', () => {
   assert.match(productionWorkflow, /PRODUCTION_URL:\s*\$\{\{ vars\.PRODUCTION_URL \|\| 'https:\/\/app\.mesiva\.com\.br' \}\}/)
   assert.doesNotMatch(productionWorkflow, /sistema-para-delivery\.vzaponi\.workers\.dev/)
