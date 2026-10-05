@@ -87,7 +87,7 @@
       ]
     }
   },
-  "workers_dev": true,
+  "workers_dev": false,
   "routes": [
     {
       "pattern": "app.mesiva.com.br",
