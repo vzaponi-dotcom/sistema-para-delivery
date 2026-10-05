@@ -1,274 +1,227 @@
-# Amor & Sabor — Gestão do Delivery
+# Mesiva — operação de restaurantes
 
-Aplicação web em React/Vite com backend Cloudflare Worker, persistência central em D1 e acesso protegido por PIN compartilhado.
+Aplicação web para pedidos e cozinha, mesas/comandas, relacionamento com clientes, catálogo, financeiro, relatórios e impressão. O frontend usa React, React Router e Vite; a API roda em Cloudflare Workers, com dados persistidos no D1.
 
-## Arquitetura
+O acesso atual é por **e-mail e senha**, com contas Mesiva e vínculos por empresa. O login compartilhado por PIN e a impressão direta por Web Serial/RawBT pertencem a versões anteriores e não são o fluxo atual.
 
-```text
-React / Vite
-    ↓ HTTPS (mesma origem)
-Cloudflare Worker /api/*
-    ↓
-Cloudflare D1
-```
+## Ambientes
 
-O D1 é a fonte oficial de clientes, produtos, pedidos, pagamentos e movimentações. Dados de negócio não dependem mais de `localStorage`, então computador e celular passam a enxergar a mesma base após carregar os dados do servidor.
+| Ambiente | Acesso | Dados |
+| --- | --- | --- |
+| Desenvolvimento local | http://127.0.0.1:4173 | D1 local, com contas e dados fictícios |
+| Staging | https://staging.mesiva.com.br | D1 e recursos exclusivos de homologação |
+| Produção | https://app.mesiva.com.br | D1 e recursos com dados reais |
+
+D1 é a fonte oficial de clientes, produtos, pedidos, pagamentos e movimentos. O navegador mantém preferências locais, mas não é a autoridade dos dados de negócio. Escritas não são enfileiradas offline.
 
 ## Requisitos
 
-- Node.js 22
-- npm
-- Conta Cloudflare autenticada para operações locais/remotas de D1 e deploy
+- Node.js 22 e npm.
+- Git para branches, worktrees e PRs.
+- Para operações remotas, acesso autorizado aos ambientes GitHub/Cloudflare.
+- Para impressão física, estação Windows com QZ Tray e impressora configurada.
 
-O projeto fixa o Wrangler em `4.128.0` nos comandos via `npx --yes`, evitando depender de uma versão global ou de `latest`.
+Use as versões de ferramentas declaradas no projeto. Atualmente, `dev:worker` fixa Wrangler 4.147.0 e os scripts de migrations/deploy fixam 4.128.0; não substitua por `latest` ou uma instalação global.
 
 ## Instalação
 
 ```bash
 npm ci
-```
-
-## Desenvolvimento do frontend
-
-```bash
-npm run dev
-```
-
-## Banco D1 local
-
-Aplique as migrations locais:
-
-```bash
-npm run d1:migrate:local
-```
-
-Para inspecionar as tabelas:
-
-```bash
-npx --yes wrangler@4.128.0 d1 execute amor-e-sabor-delivery --local --command "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
-```
-
-## Configurar um PIN local
-
-O PIN nunca deve ser salvo em arquivo, commitado no Git ou incluído no bundle do frontend. O script imprime somente o verificador PBKDF2.
-
-```bash
-read -s AMOR_PIN
-PIN="$AMOR_PIN" node scripts/generate-pin-hash.mjs
-unset AMOR_PIN
-```
-
-Copie apenas o verificador impresso e grave-o na tabela `auth_credentials` do D1 local para `business_id = 'amor-e-sabor'`.
-
-Exemplo SQL:
-
-```sql
-INSERT INTO auth_credentials (business_id, pin_hash, created_at, updated_at)
-VALUES ('amor-e-sabor', '<COLE_O_VERIFICADOR_AQUI>', datetime('now'), datetime('now'))
-ON CONFLICT(business_id) DO UPDATE SET
-  pin_hash = excluded.pin_hash,
-  updated_at = datetime('now');
-```
-
-## Executar SPA + Worker localmente
-
-Primeiro gere o build do frontend:
-
-```bash
 npm run build
 ```
 
-Depois inicie o Worker:
+O build inicial cria `dist/`, usado pelo binding de assets do Worker. Não é necessário reconstruir o frontend a cada edição quando Vite está rodando.
+
+## Desenvolvimento local: frontend e API
+
+São dois processos. Vite usa a porta **4173** e encaminha `/api/*` para o Worker na porta **8787**, conforme `vite.config.js`.
+
+### Escolher o banco local
+
+Antes de iniciar ou aplicar migrations, confira o diretório de persistência já usado. Nesta instalação, os dados de teste existentes ficam em `.wrangler/local-orders-state`. Reutilize esse caminho para preservar contas, clientes e pedidos entre reinicializações.
+
+Os exemplos abaixo usam explicitamente esse diretório. Para outro banco local, substitua o caminho **em ambos os comandos**. Não apague o estado existente para corrigir login ou falhas ao salvar.
+
+Aplique migrations locais:
 
 ```bash
-npm run dev:worker
+npm run d1:migrate:local -- --persist-to .wrangler/local-orders-state
 ```
 
-O Wrangler serve a SPA e direciona `/api/*` para o Worker na mesma origem.
-
-## Validação
-
-Antes de abrir/atualizar um PR, valide sem escrever em nenhum banco remoto:
+### Terminal 1 — Worker/API
 
 ```bash
-npm test
+npm run dev:worker -- --local --ip 127.0.0.1 --port 8787 --persist-to .wrangler/local-orders-state
+```
+
+### Terminal 2 — frontend
+
+```bash
+npm run dev -- --host 127.0.0.1
+```
+
+Abra http://127.0.0.1:4173. Mantenha o mesmo hostname durante a sessão: `localhost` e `127.0.0.1` têm cookies e preferências separados.
+
+Antes de criar novos processos, confira se as portas já estão em uso. Para testar worktrees em paralelo, use pares de portas diferentes, ajuste o proxy e mantenha o estado D1 adequado a cada tarefa.
+
+### Login local
+
+- Use uma conta fictícia previamente preparada **nesse banco local**.
+- Contas de staging/produção não são automaticamente copiadas para o ambiente local.
+- Migrations criam/evoluem o schema; não fornecem uma conta demo universal. Um banco novo exige preparação de contas fictícias.
+- Não existe senha padrão no projeto. Não grave credenciais no README, em fixtures públicas ou no Git.
+- O cadastro e a ativação de novas empresas em operação são feitos pelo painel Mesiva e pelo fluxo de convites. Os procedimentos administrativos remotos não são scripts de seed local.
+
+Se o login ou a gravação falhar, verifique os dois servidores, a resposta de `/api/*`, o banco/persistência selecionado, as migrations e as permissões da conta. Não reative PIN como contorno.
+
+### Preview do build
+
+`npm run preview` serve o frontend compilado na porta 4173; **não inicia o Worker/API**. Para testar o sistema completo, mantenha a API disponível. Para servir SPA e API pelo próprio Worker local, gere o build e use o endereço informado pelo Wrangler.
+
+## Autenticação e permissões
+
+A configuração canônica em `wrangler.jsonc` mantém:
+
+- autenticação por e-mail habilitada;
+- autenticação multiempresa habilitada;
+- modo de preparação desabilitado;
+- origem oficial de produção `https://app.mesiva.com.br`.
+
+Uma conta pode ter vínculos operacionais com empresas. A administração global Mesiva é separada desses vínculos; o contexto autenticado determina a empresa acessada.
+
+Ações e dados são controlados por **capabilities**. O nome do perfil não substitui as permissões efetivamente concedidas. Recebimentos exigem `payments.receive`, além das permissões da superfície, e são autorizados no Worker.
+
+Referências de implementação: `shared/settingsAccess.js`, `src/app/access.js`, `worker/access/authorization.js` e `worker/access/roles.js`.
+
+O corte para produção multiempresa já foi concluído. Os workflows temporários de preparação/corte foram aposentados; consulte [a operação corrente](docs/operations/multi-company-production.md), sem repetir o procedimento antigo.
+
+## Arquitetura e organização
+
+```text
+React / React Router / Vite
+    ↓ /api/*, sessão e contexto de empresa
+Cloudflare Worker
+    ↓
+D1 (dados) / R2 (assets de negócio)
+```
+
+| Diretório | Responsabilidade |
+| --- | --- |
+| `src/app/` | Shell, rotas, runtime, superfícies e workflows entre domínios |
+| `src/domains/` | Acesso, empresas/plataforma, pedidos, mesas, clientes, catálogo, financeiro, relatórios e impressão |
+| `src/shared/` | UI, hooks e utilitários genéricos do frontend |
+| `src/infrastructure/` | HTTP, autenticação, armazenamento e transporte QZ |
+| `shared/` | Contratos/regras compartilhados entre frontend e Worker |
+| `worker/` | API, autorização, contexto de empresa e persistência |
+| `migrations/` | Evolução do schema D1 |
+| `scripts/` | Verificações de arquitetura e procedimentos de infraestrutura |
+| `.github/workflows/` | Validação e publicação |
+
+Dentro dos domínios, `domain/` contém regras puras, `application/` coordena fluxos, `infrastructure/` integra recursos e `ui/` apresenta a interface. Consumidores externos entram por `index.js`; regras de domínio não dependem de React, DOM ou HTTP.
+
+As instruções para novas tarefas estão em [AGENTS.md](AGENTS.md). Os limites de imports são verificados por `npm run test:architecture`.
+
+## Pedidos, clientes e recebimentos
+
+O checkout permite vários produtos, quantidades, observações por item, taxa de entrega e ajustes. Os preços oficiais e o total são recalculados pelo Worker. Itens iguais com observações iguais são agrupados; observações diferentes mantêm linhas separadas.
+
+**Salvar pedido** mantém pagamento pendente; **Salvar e receber** registra o recebimento no checkout, conforme as permissões. Pagamento e preparo são independentes: um pedido pago pode continuar em preparo.
+
+A área de clientes oferece cadastro e relacionamento, com resumo, histórico de pedidos e recebimentos individuais/em lote elegíveis. Pedidos vinculados a comanda são recebidos pelo fluxo da comanda; pedidos pagos ou cancelados não entram no recebimento.
+
+Valide essas regras com dados fictícios no ambiente local/staging, incluindo desktop, mobile, permissões e sincronização. Não crie lançamentos fictícios em produção como teste de release.
+
+## Impressão atual: Windows e QZ Tray
+
+```text
+Dispositivo solicitante → fila central → estação principal Windows
+    → QZ Tray → spooler Windows → USB → MPT-II
+```
+
+Celulares e outros dispositivos solicitam ou acompanham jobs; a impressão física é realizada pela estação principal Windows. O fluxo atual não envia diretamente pelo RawBT/Web Serial.
+
+Na estação:
+
+1. Instale e autorize QZ Tray 2.2.6.
+2. Configure a impressora USB e a fila Windows conforme o runbook.
+3. Em **Pedidos > Impressão**, selecione a impressora e confirme a configuração da estação.
+4. Valide a saída física antes de manter impressão automática ativa.
+
+A conclusão de `qz.print()` não confirma uma via. O sistema acompanha eventos do spooler; `JOB COMPLETE` correlacionado contabiliza a via. Resultado desconhecido exige decisão humana, sem reenvio automático que possa duplicar tickets.
+
+Prévia e PDF usam o documento oficial do pedido. Os procedimentos de configuração, cópias e recuperação estão no [runbook Windows/QZ](docs/operations/windows-qz-tray-printing.md).
+
+## Verificação
+
+Durante o desenvolvimento, execute os testes da área alterada:
+
+```bash
+node --test caminho/do/arquivo.test.js
+```
+
+Verificações gerais:
+
+```bash
+npm run test:architecture
 npm run lint
 npm run build
-npm run d1:migrate:local
+npm test
+```
+
+O workflow **Validate application** (`.github/workflows/validate.yml`) roda a suíte completa em **oito shards**, seguida de arquitetura, lint, build, dry-runs do Worker, migrations locais e gates D1 de instalação limpa/upgrade.
+
+Para conferir o bundle localmente, sem publicar:
+
+```bash
 npx --yes wrangler@4.128.0 deploy --dry-run
 npx --yes wrangler@4.128.0 deploy --dry-run --env staging
 ```
 
-O workflow `.github/workflows/validate.yml` executa esse gate em Pull Requests para `master`. Ele não publica Workers nem aplica migrations remotas.
+Gates D1 usados no CI:
 
-## Ambientes e fluxo de release
+```bash
+node scripts/infra/spec-b-d1-gate.mjs
+node scripts/infra/operation-profile-d1-gate.mjs
+```
 
-O projeto possui dois ambientes persistentes e isolados:
+A aprovação completa do CI é necessária para integração/publicação. Informe falhas, travamentos ou limitações de verificações locais; não substitua testes por uma declaração de sucesso. Mudanças somente de documentação requerem conferir links, comandos e coerência, sem repetir a suíte da aplicação desnecessariamente.
 
-- **staging:** Worker `sistema-para-delivery-staging` + D1 `amor-e-sabor-delivery-staging`, somente com dados fictícios;
-- **produção:** Worker `sistema-para-delivery` + D1 `amor-e-sabor-delivery`, com dados reais.
-
-Dados reais de produção nunca devem ser copiados para staging.
-
-O fluxo oficial é:
+## Fluxo de publicação
 
 ```text
-feature/fix branch
--> Pull Request para master
--> Validate application verde
--> Deploy staging
--> homologação humana
--> merge em master
--> Deploy production explícito
--> smoke test
+Branch de trabalho → PR e CI → staging/homologação
+    → merge em master → CI e staging do commit integrado
+    → Deploy production explícito → smoke pós-publicação
 ```
 
-O procedimento completo, incluindo migrations e rollback, está em `docs/release-and-migration-runbook.md`.
+GitHub Actions é o caminho normal de publicação:
 
-## Nova venda com vários itens
+- **Deploy staging**: aplica migrations e publica apenas os recursos de staging, verificando identidade do release, autenticação e deep links. Confira as restrições de branches no workflow; qualquer nova branch não está automaticamente habilitada. Na `master`, o push inicia staging automaticamente.
+- **Deploy production**: manual, restrito à `master`, exige CI e staging aprovados para o **mesmo SHA** que será publicado.
+- Deploys aproveitam a suíte já aprovada e **não repetem `npm test`**. Mantêm build, verificações aplicáveis, migrations e smokes; esperam evidências pendentes por até dez minutos.
+- Produção registra automaticamente um bookmark de restauração D1 antes das migrations. Não há checkbox manual de backup; falha no registro bloqueia a publicação.
+- Merge é integração de código, não autorização para produção.
 
-O fluxo de `Novo pedido` permite montar a venda inteira antes de salvar: vários produtos, quantidade, observação por item, taxa de entrega opcional, desconto/acréscimo e fechamento pendente ou já recebido.
+Os scripts `deploy:staging`, `deploy:production`, `d1:migrate:staging` e `d1:migrate:production` são operações remotas controladas, não comandos rotineiros de desenvolvimento. Não os execute para testar uma feature.
 
-Os preços oficiais e o total final são recalculados pelo Worker usando o catálogo salvo no D1. O navegador não é a autoridade de preço. Itens do mesmo produto com a mesma observação normalizada são agrupados; observações diferentes permanecem em linhas separadas.
+Staging usa `sistema-para-delivery-staging` e `amor-e-sabor-delivery-staging`; produção usa `sistema-para-delivery` e `amor-e-sabor-delivery`. Não copie dados reais de produção para desenvolvimento/staging.
 
-`Salvar pedido` cria a venda com pagamento pendente. `Salvar e receber` registra a venda e um único pagamento integral no mesmo checkout. O pagamento não finaliza o andamento operacional: um pedido pago do dia continua `Em preparo` até a ação de finalização.
+Leia [o runbook de publicação e migrations](docs/release-and-migration-runbook.md) para aceitação, alterações de schema, smoke e rollback. Migrations destrutivas exigem estratégia de restauração revisada; não edite migrations já aplicadas nem improvise reversões de SQL.
 
-## Impressão térmica de pedidos — 58 mm ESC/POS
+## Secrets e dados
 
-O sistema possui um **Ticket Oficial** único para cozinha, embalagem/cliente, visualização e PDF. O mesmo renderizador ESC/POS de 58 mm é usado nos dois transportes físicos homologáveis:
+- Secrets ficam nos ambientes autorizados GitHub/Cloudflare ou em arquivos locais ignorados, quando necessários ao desenvolvimento.
+- Não versione `.env`, `.dev.vars`, senhas, cookies, tokens, links de recuperação/ativação, certificados privados ou chaves QZ.
+- A empresa e as permissões são verificadas no servidor a partir do contexto autenticado.
+- Sessões são gerenciadas pelo backend; não use `localStorage` como atalho de autenticação.
+- Preserve históricos de pedidos, pagamentos, movimentos e impressão ao evoluir schema ou procedimentos.
 
-- **Windows:** Chrome + Web Serial para impressora Bluetooth Classic/serial compatível;
-- **Android:** Chrome + aplicativo RawBT, que recebe os bytes ESC/POS do Gestão Delivery e cuida da conexão Bluetooth com a impressora.
+## Documentação operacional
 
-O perfil inicial continua com 203 dpi, 384 pontos por linha, largura imprimível de 48 mm e página de código CP860. A MPT-II usada na homologação Android deve ser configurada no RawBT com **203 dpi** e **384 pontos**.
+- [Guia para agentes e novos chats](AGENTS.md)
+- [Publicação, migrations e rollback](docs/release-and-migration-runbook.md)
+- [Produção multiempresa e administração corrente](docs/operations/multi-company-production.md)
+- [Impressão Windows/QZ e recuperação operacional](docs/operations/windows-qz-tray-printing.md)
+- [Políticas e configurações Spec B](docs/operations/spec-b-settings.md)
 
-A configuração fica em **Pedidos > Impressão**.
-
-### Configuração inicial no Windows
-
-1. Pareie a impressora nas configurações Bluetooth do Windows.
-2. Abra o Gestão Delivery em uma origem HTTPS usando Chrome compatível.
-3. Entre em **Pedidos > Impressão**.
-4. Clique em **Conectar impressora** e selecione a porta da impressora no seletor do navegador.
-5. Execute **Testar impressão**.
-6. Se este computador for responsável pela impressão automática, marque-o como **estação principal**.
-7. Escolha **1** ou **2 cópias**.
-8. Ative a impressão automática somente depois de aprovar o teste físico.
-
-A seleção inicial no Windows precisa de uma ação explícita do usuário. Depois da autorização, o sistema tenta reutilizar somente a porta já autorizada naquele navegador.
-
-### Configuração inicial no Android com RawBT
-
-1. Pareie a impressora nas configurações Bluetooth do Android.
-2. Instale e abra o RawBT.
-3. No RawBT, selecione a impressora e confirme que uma impressão de teste do próprio aplicativo funciona.
-4. Para a MPT-II homologada, configure **203 dpi** e **384 pontos** de largura de impressão.
-5. Abra o Gestão Delivery no Chrome e entre em **Pedidos > Impressão**.
-6. Confirme **Plataforma: Android**, **Driver: RawBT** e o estado **RawBT pronto**.
-7. Não haverá seletor Web Serial nem botão de conexão Bluetooth do navegador no Android; a impressora é escolhida no RawBT.
-8. Escolha **1 cópia** e execute **Testar impressão** antes de testar pedidos reais.
-9. Depois de validar impressão manual, marque a estação como principal e teste a impressão automática de forma controlada antes de mantê-la ativa.
-
-`RawBT pronto` significa que o Gestão Delivery selecionou o transporte RawBT para Android; não é confirmação de que a impressora física está ligada ou conectada. A impressão de teste é a validação operacional.
-
-### Comportamento operacional
-
-- Um pedido novo gera no máximo um job automático, apenas se a estação principal estiver com impressão automática ativa no momento da criação.
-- Atualizar a página, sincronizar outro dispositivo, trocar de aba ou recuperar foco não cria um novo job de impressão.
-- Apenas a estação principal consome jobs automáticos.
-- **Reimprimir** cria um novo job manual e pede confirmação, preservando o histórico anterior.
-- **Tentar novamente** reutiliza o mesmo job e o mesmo snapshot quando houve falha conhecida.
-- Não há loop de retry automático depois de uma falha.
-- No Web Serial, `Impresso` significa que a escrita serial terminou sem erro reportado; a impressora simples não confirma necessariamente a saída física do papel.
-- No Android/RawBT, o navegador só consegue confirmar que entregou o comando ao esquema do RawBT; a saída física precisa ser validada operacionalmente.
-- Preview e PDF continuam disponíveis mesmo sem a impressora conectada.
-- Pedidos finalizados continuam permitindo preview, PDF e reimpressão pelo Histórico.
-
-### Compatibilidade e limites da V1
-
-- Alvo desktop: Chrome com Web Serial e Windows com impressora serial Bluetooth compatível pareada pelo sistema operacional.
-- Alvo Android: Chrome + RawBT configurado para a impressora ESC/POS; a MPT-II é o hardware de homologação atual.
-- A abertura automática do RawBT a partir de um job sem gesto do usuário depende do comportamento do Android/Chrome e deve ser validada fisicamente em staging antes de aprovar a impressão automática.
-- Safari e Firefox não possuem garantia de compatibilidade com este fluxo.
-- Não há envio automático do ticket por WhatsApp.
-- Não há failover automático para uma segunda estação de impressão.
-- Não há roteamento por setor/cozinha nem múltiplas impressoras na V1.
-- Não há comando de corte automático na V1.
-- A página de código inicial para português é CP860 (`ESC t 3`); o comportamento da unidade física é a autoridade final.
-
-O checklist completo de validação física está em `docs/order-printing-mtp5-acceptance.md` e deve ser preenchido separadamente para Windows e Android/RawBT.
-
-## Deploy de staging
-
-Staging é o ambiente usado para testar alterações antes de produção. O deploy oficial é feito pelo workflow:
-
-`.github/workflows/deploy-staging.yml` — **Deploy staging**
-
-Ele valida a aplicação, aplica migrations somente no D1 `amor-e-sabor-delivery-staging` e publica `sistema-para-delivery-staging`. Em `legacy`/`enrollment`, configura o PIN exclusivo de staging e verifica login, sessão e logout; em `user_only`, preserva a credencial antiga e verifica que o PIN é recusado sem criar sessão. O smoke confere os limites anônimos e os deep links, incluindo conta, equipe, atividades e ativação. Não cria credenciais humanas em CI; a inscrição e o corte seguem o roteiro `docs/operations/issue-44-access-cutover.md` na janela aprovada.
-
-Não copie clientes, pedidos, pagamentos, endereços, telefones ou qualquer outro dado real de produção para staging.
-
-## Deploy de produção
-
-Produção não é publicada por comandos rotineiros de desenvolvimento. Depois de PR aprovado, CI verde, homologação em staging e merge em `master`, use exclusivamente o workflow:
-
-`.github/workflows/deploy-production.yml` — **Deploy production**
-
-Esse workflow é manual e restrito a `master`. Ele executa testes, lint, build, migration local, dry-run, lista/aplica migrations de produção, preserva/configura a credencial oficial e só então publica o Worker e executa o smoke test de login.
-
-Os scripts `d1:migrate:production` e `deploy:production` existem para uso pelo fluxo de release. Eles não devem ser tratados como comandos comuns de desenvolvimento nem executados a partir de branches de feature.
-
-Migrations destrutivas ou que transformem dados reais exigem estratégia de restauração revisada antes da autorização. Consulte `docs/release-and-migration-runbook.md`.
-
-## Checklist de aceitação do checkout multi-itens
-
-Após aplicar a migration remota e publicar a versão aprovada:
-
-1. Abra Novo pedido.
-2. Selecione ou crie cliente apenas com nome/telefone.
-3. Adicione vários produtos; itens iguais com a mesma observação agrupam.
-4. Adicione o mesmo produto com outra observação e confirme linha separada.
-5. Para Entrega, deixe taxa em R$ 0,00 ou informe a taxa manual.
-6. Aplique desconto/acréscimo em R$ ou %, se necessário.
-7. Teste Salvar pedido e Salvar e receber.
-8. Confirme que pedido pago continua Em preparo.
-9. Confirme todos os itens/observações na fila e no detalhe.
-10. Confirme uma única pendência ou uma única entrada financeira por venda.
-
-Também mantenha os checks operacionais existentes de autenticação, sincronização entre dispositivos, bloqueio de gravações offline e logout.
-
-## Scripts
-
-Comandos normais de desenvolvimento e validação:
-
-```bash
-npm run dev
-npm run build
-npm run preview
-npm run dev:worker
-npm run d1:migrate:local
-npm test
-npm run lint
-```
-
-Comandos de ambiente controlado/release:
-
-```bash
-npm run d1:migrate:staging
-npm run deploy:staging
-npm run d1:migrate:production
-npm run deploy:production
-```
-
-Os dois comandos de produção são reservados ao workflow **Deploy production** no processo normal.
-
-## Segurança
-
-- O PIN não existe no código do frontend.
-- O D1 guarda apenas o verificador PBKDF2 do PIN.
-- Sessões usam token opaco em cookie `HttpOnly`, `Secure` e `SameSite=Strict`.
-- O D1 guarda apenas o hash SHA-256 do token de sessão.
-- Rotas de negócio derivam `business_id` da sessão autenticada.
-- Tentativas de login têm rate limiting no Worker.
-- Escritas não são enfileiradas offline.
-- O navegador não persiste PIN de pareamento Bluetooth nem objetos de permissão serial.
+Documentos em `docs/superpowers/` e registros datados em `docs/operations/` preservam decisões e evidências históricas. Para a operação atual, confira também o código, os workflows e os runbooks correntes.
