@@ -12,7 +12,9 @@ const mobileFoundationCss = await readFile(new URL('./mobile-foundation.css', im
 const rule = (css, selector) => css.match(new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\{([^}]*)\\}`))?.[1] || ''
 
 test('production styles define fluid desktop/tablet cards and the mobile stacked settings contract', () => {
-  assert.match(settingsCss, /grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(min\(100%,\s*240px\),\s*1fr\)\)/)
+  assert.match(rule(settingsCss, '.settings-home-grid'), /grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/)
+  assert.match(rule(settingsCss, ".settings-home-group[data-group='company'] .settings-home-grid"), /grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/)
+  assert.match(settingsCss, /@media \(max-width: 640px\)[\s\S]*\.settings-home-grid\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\)/)
   assert.match(settingsCss, /@media \(max-width: 640px\)[\s\S]*\.settings-item-row[\s\S]*flex-direction:\s*column/)
   assert.match(settingsCss, /@media \(max-width: 640px\)[\s\S]*\.operation-timing-grid[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)/)
 })

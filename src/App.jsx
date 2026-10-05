@@ -757,7 +757,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
         <NavigationProvider activeTab={activeTab} granted={granted} authenticated={authState === 'authenticated' && Boolean(sessionContext?.user?.id)} implemented={IMPLEMENTED_DESTINATIONS} moreOpen={moreOpen} requestNavigation={requestNavigation} openMore={openMore} closeMore={closeMore}>
           <AppShell user={sessionContext?.user} onSwitchUser={handleSwitchUser} onLogout={handleLogout} logoutDisabled={writesBlocked}>
             <p>Sua conta está ativa; o acesso operacional aguarda liberação.</p>
-            {activeTab === 'settings-home' ? <SettingsHome granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} /> : renderAccessSurface
+            {activeTab === 'settings-home' ? <SettingsHome granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} businessName={business?.name} user={sessionContext?.user} /> : renderAccessSurface
               ? renderAccessSurface(accessProps)
               : <section><h1>{activeTab === 'access-team' ? 'Equipe e acessos' : 'Minha conta'}</h1><p>Sua conta está ativa; o acesso operacional aguarda liberação.</p></section>}
           </AppShell>
@@ -843,7 +843,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
             )}
           </TableServiceExternalActions>
         )}
-        {(activeTab === 'settings-home' || activeTab === 'settings-business-profile' || activeTab === 'settings-operations' || activeTab === 'settings-modalities' || activeTab === 'settings-payments' || activeTab === 'settings-cancellations' || activeTab === 'settings-finance-categories' || activeTab === 'settings-kitchen-tv' || activeTab === 'settings-printing' || activeTab === 'settings-device') && <SettingsSurface section={activeTab} printing={printing} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} soundEnabled={kitchenSoundEnabled} soundProfile={kitchenSoundProfile} soundVolume={kitchenSoundVolume} onSoundEnabledChange={handleKitchenSoundEnabledChange} onSoundProfileChange={handleKitchenSoundProfileChange} onSoundVolumeChange={handleKitchenSoundVolumeChange} onPreviewSound={handleKitchenSoundPreview} onSuccessMessage={showSuccessMessage} writesBlocked={writesBlocked} />}
+        {(activeTab === 'settings-home' || activeTab === 'settings-business-profile' || activeTab === 'settings-operations' || activeTab === 'settings-modalities' || activeTab === 'settings-payments' || activeTab === 'settings-cancellations' || activeTab === 'settings-finance-categories' || activeTab === 'settings-kitchen-tv' || activeTab === 'settings-printing' || activeTab === 'settings-device') && <SettingsSurface section={activeTab} businessName={business?.name} user={sessionContext?.user} printing={printing} granted={granted} implemented={IMPLEMENTED_DESTINATIONS} onNavigate={requestNavigation} soundEnabled={kitchenSoundEnabled} soundProfile={kitchenSoundProfile} soundVolume={kitchenSoundVolume} onSoundEnabledChange={handleKitchenSoundEnabledChange} onSoundProfileChange={handleKitchenSoundProfileChange} onSoundVolumeChange={handleKitchenSoundVolumeChange} onPreviewSound={handleKitchenSoundPreview} onSuccessMessage={showSuccessMessage} writesBlocked={writesBlocked} />}
 
         {pendingDestination && (
           <Modal title={pendingDiscardKind === 'policy' ? 'Descartar alterações?' : 'Descartar venda em andamento?'} onClose={handleCancelDiscard}>

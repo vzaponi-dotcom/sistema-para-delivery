@@ -27,6 +27,8 @@ const policyForSection = (section) => {
 
 export function SettingsSurface({
   section,
+  businessName,
+  user,
   printing,
   granted,
   implemented,
@@ -82,7 +84,7 @@ export function SettingsSurface({
     onClose={dismissActiveConflict}
   />}</>
 
-  if (section === 'settings-home') return withActiveConflict(<SettingsHome granted={granted} implemented={implemented} onNavigate={onNavigate} />)
+  if (section === 'settings-home') return withActiveConflict(<SettingsHome granted={granted} implemented={implemented} onNavigate={onNavigate} businessName={businessName} user={user} />)
   if (selectedPolicy === 'businessProfile') return withActiveConflict(<div className="settings-page business-profile-settings-page">
     <BusinessProfileSettings
       resourceState={resources.businessProfile}
