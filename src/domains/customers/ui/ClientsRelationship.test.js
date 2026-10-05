@@ -38,7 +38,7 @@ test('paid cancelled and table-linked orders never expose standalone collection 
   const props = { clients, orders: [order, { ...order, id: 'paid', orderNumber: 149, paymentStatus: 'Pago' }, { ...order, id: 'cancelled', orderNumber: 150, status: 'Cancelado' }, { ...order, id: 'table', orderNumber: 151, type: 'Local', tableTabId: 'tab' }], granted: new Set(['clients.view', 'orders.view', 'orders.history', 'payments.receive']), currency: n => `R$ ${n}`, onRegisterPayment() {} }
   const renderer = await h.render(Surface, props)
   await act(async () => buttonNamed(renderer.root, 'Abrir perfil de Ana').props.onClick())
-  await act(async () => buttonNamed(renderer.root, 'Ver todos').props.onClick())
+  await act(async () => buttonNamed(renderer.root, 'Pedidos').props.onClick())
   assert.ok(buttonNamed(renderer.root, 'Receber pagamento do Pedido #148'))
   for (const number of [149, 150, 151]) assert.equal(buttonNamed(renderer.root, `Receber pagamento do Pedido #${number}`), undefined)
   assert.match(nodeText(renderer.root), /Receber pela comanda/)

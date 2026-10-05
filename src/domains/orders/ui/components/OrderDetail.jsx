@@ -198,17 +198,6 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
             )}
             <div className="order-detail-total-final"><span>Total</span><strong>{currency(order.total)}</strong></div>
             </div>
-            {order.paymentStatus === 'Pago' && Array.isArray(order.paymentAllocations) && order.paymentAllocations.length > 0 && (
-              <div className="order-detail-totals payment-allocation-breakdown">
-                {order.paymentAllocations.map((allocation) => (
-                  <div key={`${allocation.methodCode}-${allocation.amountCents}`}>
-                    <span>{allocation.methodLabel}</span>
-                    <strong>{currency(Number(allocation.amountCents || 0) / 100)}</strong>
-                  </div>
-                ))}
-                <div className="order-detail-total-final"><span>Total recebido</span><strong>{currency(order.paidAmount || order.total || 0)}</strong></div>
-              </div>
-            )}
           </section>
           <details className="order-detail-section order-timing-section">
             <summary className="order-detail-disclosure"><h3><Icon name="clock" size={16} />Horários</h3><Icon name="arrow-down" size={16} /></summary>

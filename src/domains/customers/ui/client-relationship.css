@@ -41,8 +41,7 @@ body > .client-profile-backdrop > .modal-card.client-profile-drawer { width: min
 .client-profile-facts dd { margin: 0; text-align: right; }
 .client-profile-insight { display: flex; align-items: flex-start; gap: 9px; font-size: .8rem; color: var(--muted); line-height: 1.5; }
 .client-profile-insight svg { flex: none; margin-top: 2px; }
-.client-profile-section { padding-top: 22px; margin-top: 22px; border-top: 1px solid var(--border); }
-.client-section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.client-profile-section { padding-top: 22px; }
 .client-favorite-products { display: grid; gap: 12px; padding: 0; margin: 0; list-style: none; font-size: .82rem; }
 .client-favorite-products li { display: flex; justify-content: space-between; gap: 15px; }
 .client-favorite-products small { color: var(--muted); white-space: nowrap; }

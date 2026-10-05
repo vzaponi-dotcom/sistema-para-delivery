@@ -79,7 +79,6 @@ export default function ClientRelationshipPanel({ client, profile, completeHisto
             {profile.daysSincePurchase >= 30 && <p className="client-profile-insight"><Icon name="clock" size={16} />Sem compras há {profile.daysSincePurchase} dias. Pode ser um bom momento para retomar o contato.</p>}
             <section className="client-profile-section"><h3>Mais pedidos</h3>{profile.favorites.length ? <ul className="client-favorite-products">{profile.favorites.map(product => <li key={product.key}><span>{product.name}</span><small>{product.quantity}×</small></li>)}</ul> : <p className="client-profile-muted">Os produtos aparecerão após o primeiro pedido.</p>}</section>
           </>}
-          {canViewOrders && <section className="client-profile-section"><div className="client-section-heading"><h3>Pedidos recentes</h3><button type="button" className="client-profile-link" onClick={() => onTabChange('orders')}>Ver todos</button></div><ClientOrderRows {...rowProps} orders={profile.orders.slice(0, 2)} />{!profile.orders.length && <p className="client-profile-muted">Nenhum pedido disponível.</p>}</section>}
         </>}
         {tab === 'orders' && <>
           <h3>Pedidos de {client.name.split(' ')[0]}</h3>
