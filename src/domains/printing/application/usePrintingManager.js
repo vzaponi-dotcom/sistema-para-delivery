@@ -290,7 +290,11 @@ export const usePrintingManager = ({ api = legacyPrintingApi, businessId, authen
   const ensureQzStatusMonitor = useCallback(async (printerName) => {
     const ownsMonitor = captureAccess()
     if (!ownsMonitor()) return null
-    if (qzStatusMonitorRef.current && qzStatusMonitorPrinterRef.current === printerName && qzStatusMonitorOwnerRef.current?.()) return qzStatusMonitorRef.current
+    if (qzStatusMonitorRef.current && qzStatusMonitorPrinterRef.current === printerName && qzStatusMonitorOwnerRef.current?.()) {
+      await qzStatusMonitorRef.current.refreshStatus?.()
+      if (!ownsMonitor()) return null
+      return qzStatusMonitorRef.current
+    }
     await qzStatusMonitorRef.current?.stop?.()
     if (!ownsMonitor()) return null
     updatePrinterHealth({ state: 'verifying' })
@@ -931,8 +935,8 @@ export const usePrintingManager = ({ api = legacyPrintingApi, businessId, authen
     if (!authenticated || !isOnline) return undefined
     const sync = () => {
       const ownsPoll = captureAccess()
-      if (!visiblePage() || !ownsPoll()) return
-      void refresh().catch((error) => { if (ownsPoll()) reportError(error) })
+      if (!ownsPoll()) return
+      if (visiblePage()) void refresh().catch((error) => { if (ownsPoll()) reportError(error) })
       if (busyJobIdRef.current || !supported) return
       const station = localStationRef.current
       if (!station?.id || !qzTransport.readPrinterName(station.id)) return
@@ -1006,7 +1010,6 @@ export const usePrintingManager = ({ api = legacyPrintingApi, businessId, authen
         authenticated,
         isOnline,
         supported,
-        visible: visiblePage(),
         browserOnline: browserOnline(),
         busyJobId: busyJobIdRef.current,
         printerBlocked: printerBlockedRef.current,
