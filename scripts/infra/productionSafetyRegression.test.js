@@ -12,9 +12,9 @@ const runbook = readFileSync('docs/release-and-migration-runbook.md', 'utf8')
 
 const productionDatabaseId = 'baa83769-4637-43f6-bf77-711f4f2ed069'
 
-test('production and staging have isolated Mesiva custom domains while workers.dev remains available', () => {
+test('production is exposed only on app.mesiva.com.br while staging keeps workers.dev diagnostics', () => {
   const config = JSON.parse(wrangler)
-  assert.equal(config.workers_dev, true)
+  assert.equal(config.workers_dev, false)
   assert.deepEqual(config.routes, [{ pattern: 'app.mesiva.com.br', custom_domain: true }])
   assert.equal(config.env.staging.workers_dev, true)
   assert.deepEqual(config.env.staging.routes, [{ pattern: 'staging.mesiva.com.br', custom_domain: true }])
