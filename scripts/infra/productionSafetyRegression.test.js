@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import test from 'node:test'
 
 const packageJson = JSON.parse(readFileSync('package.json', 'utf8'))
@@ -181,4 +181,20 @@ test('release runbook documents staging before explicit production release', () 
   assert.match(runbook, /Deploy production/)
   assert.match(runbook, /rollback/i)
   assert.match(runbook, /never.*production.*staging/i)
+})
+
+
+test('completed production cutover one-time Actions are retired from the repository', () => {
+  for (const path of [
+    '.github/workflows/prepare-mesiva-admin.yml',
+    '.github/workflows/manage-production-cutover.yml',
+    '.github/workflows/finalize-production-cutover.yml',
+    'scripts/infra/prepare-mesiva-admin-actions.mjs',
+    'scripts/infra/manage-production-cutover-actions.mjs',
+    'scripts/infra/finalize-production-cutover-actions.mjs',
+    'scripts/infra/cloudflare-d1-rest.mjs',
+    'scripts/infra/productionAdminBootstrapWorkflow.test.js',
+    'scripts/infra/productionCutoverAdminWorkflow.test.js',
+    'scripts/infra/productionFinalizationWorkflow.test.js',
+  ]) assert.equal(existsSync(path), false, `retired cutover artifact must be absent: ${path}`)
 })
