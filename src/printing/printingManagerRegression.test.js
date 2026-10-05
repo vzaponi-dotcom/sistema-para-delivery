@@ -121,7 +121,6 @@ test('automatic claim guard blocks duplicate, unready, or unsafe consumption sta
     { authenticated: false },
     { isOnline: false },
     { supported: false },
-    { visible: false },
     { browserOnline: false },
     { busyJobId: 'job-running' },
     { printerBlocked: true },
@@ -131,7 +130,12 @@ test('automatic claim guard blocks duplicate, unready, or unsafe consumption sta
     { station: { isPrimary: true, autoPrintEnabled: false } },
   ]) assert.equal(canConsumeAutomaticPrintJob({ ...base, ...override }), false)
 
+  assert.equal(canConsumeAutomaticPrintJob({ ...base, visible: false }), true)
   assert.match(manager, /canConsumeAutomaticPrintJob\(\{[\s\S]*transportReady:\s*transportReadyRef\.current/)
+  const consumerStart = manager.indexOf('const consumeNext = async () =>')
+  const consumerEnd = manager.indexOf('const timer = globalThis.setInterval', consumerStart)
+  assert.ok(consumerStart >= 0 && consumerEnd > consumerStart)
+  assert.doesNotMatch(manager.slice(consumerStart, consumerEnd), /visible:\s*visiblePage\(\)/)
   assert.match(manager, /updateBlocked\(false\)/)
 })
 
