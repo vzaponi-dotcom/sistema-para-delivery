@@ -48,6 +48,10 @@ The repository `Validate application` workflow runs this gate after local migrat
 
 Any red validation check blocks the release. Fix the root cause on the branch; do not merge around a failing check.
 
+The complete suite runs in `Validate application`, split into eight shards. Deployments do not repeat `npm test`: before dependency installation or remote writes, `deploy-validation-gate.mjs` requires a successful validation run for the exact deployment SHA. Master requires its push validation, not the earlier PR commit. Feature staging retains its existing branch/open-PR restrictions and requires validation of that branch head. The gate checks workflow identity, repository, branch, event, SHA and the latest applicable run/attempt.
+
+The gate waits for pending evidence for at most ten minutes in total, with a thirty-second maximum per API request. A failed/cancelled run, wrong SHA, invalid or truncated response, unavailable GitHub API or exhausted wait blocks deployment. Reruns are ordered by the current attempt's start time; equally recent attempts must all pass. Production rechecks both CI and staging on every polling round. This does not remove human staging acceptance.
+
 For a behavior or infrastructure change, deploy that branch to staging and complete acceptance there before merging.
 
 ## Staging release
@@ -61,6 +65,8 @@ The workflow checks that its commit is still the latest on its GitHub branch bef
 Secrets remain in GitHub environment/repository secrets or Cloudflare Worker secrets; secret values never belong in Git. Production remains a manual, master-only workflow and checks out the exact GitHub event commit.
 
 Use the **Deploy staging** GitHub Actions workflow. It may write only to staging resources. The workflow validates the application, applies migrations to `amor-e-sabor-delivery-staging`, configures the staging-only credential, deploys `sistema-para-delivery-staging`, and performs a staging login smoke check.
+
+On master, staging starts with the current push trigger and waits for that commit's CI approval; it does not run another full suite. The existing lightweight build/architecture/lint, local migration checks, remote migrations, release identity and post-deploy smokes remain in place.
 
 If staging deployment, migration, or acceptance fails, the production release stops. Production is not used to diagnose unfinished branch changes.
 
@@ -100,12 +106,12 @@ After the PR is merged and staging acceptance is complete, explicitly start **De
 The workflow must:
 
 1. check out `master`;
-2. run tests, lint, build, local migrations, and the production Worker dry-run;
-3. list pending production D1 migrations;
-4. apply production migrations through the controlled production script;
-5. preserve/configure the production PIN according to the existing release rules;
-6. deploy the Worker;
-7. run the production login smoke check.
+2. require successful master CI and staging deployment for the exact SHA, without rerunning the full suite;
+3. run lint, architecture, build, local migrations, configuration checks and the production Worker dry-run;
+4. record the mandatory D1 Time Travel restore bookmark before remote migrations;
+5. list and apply production migrations through the controlled production script;
+6. guard the authentication state, configure the production e-mail secret and deploy the Worker;
+7. run the production multi-company authentication smoke check.
 
 Do not run routine production migrations or Worker deployment directly from a feature branch.
 

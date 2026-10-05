@@ -73,6 +73,8 @@ O ponto de restauração é registrado automaticamente, sem checkbox de confirma
 
 O workflow:
 
+- exige uma execução aprovada de `Validate application` na `master` e de `Deploy staging`, ambas para o SHA exato da publicação;
+- aproveita essa validação completa, sem repetir `npm test` no deploy; se o CI ou staging ainda estiverem rodando, aguarda até dez minutos no total, e bloqueia em falha, cancelamento ou ausência de evidência válida;
 - registra um bookmark de Time Travel do D1 antes de mudanças remotas;
 - valida que a configuração canônica continua multiempresa;
 - aplica migrations pendentes;
