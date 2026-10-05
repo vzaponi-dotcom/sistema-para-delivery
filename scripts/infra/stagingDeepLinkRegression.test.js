@@ -12,6 +12,8 @@ test('order history candidate can deploy manually to staging without admitting o
   assert.equal(allowed('feature/orders-history-ui-polish', 'push'), false)
   assert.equal(allowed('feature/clients-relationship', 'workflow_dispatch'), true)
   assert.equal(allowed('feature/clients-relationship', 'push'), false)
+  assert.equal(allowed('codex/settings-home-refinement', 'workflow_dispatch'), true)
+  assert.equal(allowed('codex/settings-home-refinement', 'push'), false)
   assert.equal(allowed('feature/unapproved-candidate', 'workflow_dispatch'), false)
   assert.equal(allowed('master', 'push'), true)
   assert.match(workflow, /Feature staging is allowed only while its pull request is open/)
