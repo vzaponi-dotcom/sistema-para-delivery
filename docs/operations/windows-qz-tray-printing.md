@@ -16,6 +16,8 @@ Celular, tablet e demais dispositivos apenas solicitam ou acompanham jobs. Somen
 
 Em **Pedidos > Impressão**, atualize a lista de impressoras e selecione explicitamente `MPT-II`. A fila encontrada identifica a configuração salva; ela não demonstra que a impressora está ligada, conectada ou com papel.
 
+A estação principal mantém o consumidor físico elegível mesmo se a aba ficar em segundo plano ou a janela for minimizada. O navegador ainda pode reduzir a frequência de timers em background, mas o Mesiva não pausa deliberadamente a impressão por `document.visibilityState`. A revalidação periódica do transporte também consulta novamente o estado atual do QZ/impressora para sair de estados transitórios como `verifying` quando o equipamento voltar a responder `OK`.
+
 ## Verdade operacional observável
 
 Os quatro sinais abaixo governam a operação:
@@ -60,7 +62,7 @@ Não use o retorno da conexão para despejar backlog. Jobs submetidos, em `SPOOL
 - **Fila não encontrada:** confira o nome, driver, porta USB e teste do Windows; depois atualize a descoberta. Isso ainda não torna a impressora pronta.
 - **Impressora offline ou com atenção:** corrija o problema físico e espere `PRINTER OK`; não use claim, retry ou reenvio para testar.
 - **Job em SPOOLING/aguardando confirmação:** aguarde o evento correlacionado. Se a observação se perder, resolva manualmente o resultado desconhecido; não reenvie automaticamente.
-- **Job parado:** confira estação principal, conectividade, `availableAt`, estado de recuperação e a ação explícita correspondente.
+- **Job parado:** confira estação principal, conectividade, `availableAt`, estado de recuperação e a ação explícita correspondente. A Fila de impressão deve indicar o motivo operacional quando houver pendências, por exemplo QZ desconectado, impressora indisponível ou verificação em andamento.
 - **Acentos/largura:** valide papel 58 mm, 384 pontos e caracteres portugueses.
 
 ## Retenção e histórico
