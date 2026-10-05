@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import test from 'node:test'
 
@@ -135,17 +136,38 @@ test('production auth-state guard uses bounded Wrangler D1 query instead of getP
 
 test('production records a D1 Time Travel restore point before migrations or deployment', () => {
   const checkpoint = productionWorkflow.indexOf('- name: Record production D1 restore point')
-  const safety = productionWorkflow.indexOf('- name: Require production safety checkpoint')
+  const nextStep = productionWorkflow.indexOf('\n      - name:', checkpoint + 1)
   const migrations = productionWorkflow.indexOf('- name: Apply D1 migrations')
   const deploy = productionWorkflow.indexOf('- name: Deploy')
 
-  for (const index of [checkpoint, safety, migrations, deploy]) assert.notEqual(index, -1)
+  for (const index of [checkpoint, nextStep, migrations, deploy]) assert.notEqual(index, -1)
+  const guard = productionWorkflow.slice(checkpoint, nextStep)
+  assert.match(guard, /set -euo pipefail/)
+  assert.doesNotMatch(guard, /continue-on-error:|\n\s+if:/)
   assert.match(productionWorkflow, /d1 time-travel info amor-e-sabor-delivery/)
   assert.match(productionWorkflow, /PRODUCTION_D1_BOOKMARK/)
   assert.match(productionWorkflow, /printf 'Production D1 restore bookmark recorded before publish: `%s`\\n'/)
-  assert.ok(checkpoint < safety, 'restore point must be recorded before the human checkpoint is accepted')
   assert.ok(checkpoint < migrations, 'restore point must be recorded before production migrations')
   assert.ok(checkpoint < deploy, 'restore point must be recorded before production publish')
+})
+
+test('production restore checkpoint rejects missing or invalid bookmarks without confirmation input', () => {
+  assert.doesNotMatch(productionWorkflow, /backup_confirmed|BACKUP_CONFIRMED|Require production safety checkpoint/)
+  const checkpoint = productionWorkflow.split('- name: Record production D1 restore point')[1].split('\n      - name:')[0]
+  const parser = checkpoint.match(/<<'NODE'\r?\n([\s\S]*?)\r?\n\s+NODE/)[1]
+  for (const raw of ['null', '{}', '{"bookmark":"short"}', '{"bookmark":"invalid bookmark with spaces"}', 'invalid json']) {
+    const result = spawnSync(process.execPath, ['--input-type=module', '-e', parser], {
+      env: { ...process.env, RAW: raw }, encoding: 'utf8',
+    })
+    assert.equal(result.status, 1, `invalid restore point must block production: ${raw}`)
+    assert.equal(result.stdout, '')
+  }
+  const bookmark = '00000000-00000000-00000000-00000000'
+  const result = spawnSync(process.execPath, ['--input-type=module', '-e', parser], {
+    env: { ...process.env, RAW: JSON.stringify([{ result: { bookmark } }]) }, encoding: 'utf8',
+  })
+  assert.equal(result.status, 0, result.stderr)
+  assert.equal(result.stdout, bookmark)
 })
 
 test('production deploy is permanently multi-company and cannot recreate legacy PIN', () => {
@@ -155,8 +177,6 @@ test('production deploy is permanently multi-company and cannot recreate legacy 
   assert.doesNotMatch(productionWorkflow, /Configure production PIN|generate-pin-hash|auth_credentials .*pin_hash|AMOR_PIN:/)
   assert.match(productionWorkflow, /PRODUCTION_AUTH_PHASE:\s*multi_company/)
   assert.match(productionWorkflow, /Validate production multi-company configuration/)
-  assert.match(productionWorkflow, /backup_confirmed:/)
-  assert.match(productionWorkflow, /Require production safety checkpoint/)
   assert.match(productionWorkflow, /Guard production authentication state/)
   assert.match(productionWorkflow, /production-auth-smoke\.mjs/)
   assert.match(productionWorkflow, /legacy PIN deployment is unavailable/)
