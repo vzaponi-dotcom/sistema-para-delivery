@@ -11,11 +11,11 @@ export const getRendererCompatibilityMode = (transportKind) => (
 export const isPrintingTransportSupported = (platform) => getPrintingTransportKind(platform) === 'qz'
 
 export const canConsumeAutomaticPrintJob = ({
-  authenticated, isOnline, supported, visible, browserOnline: browserIsOnline,
+  authenticated, isOnline, supported, browserOnline: browserIsOnline,
   busyJobId, printerBlocked, transportReady, qzConnected = true,
   physicalReady = true, isQz = true, allowManual = false, station,
 }) => Boolean(
-  authenticated && isOnline && supported && visible && browserIsOnline
+  authenticated && isOnline && supported && browserIsOnline
   && !busyJobId && !printerBlocked && transportReady
   && (!isQz || qzConnected) && physicalReady && isQz
   && station?.isPrimary
