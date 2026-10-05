@@ -15,7 +15,7 @@ const currency = (value) => `R$ ${Number(value || 0).toFixed(2)}`
 const client = { id: 'client-1', name: 'Ana Souza', phone: '(11) 99999-9999', address: 'Centro' }
 const product = { id: 'product-1', name: 'Marmita', category: 'Refeicoes', presentationType: 'size', presentationValue: 'P', presentationUnit: '', price: 25 }
 const preparingOrder = {
-  id: 'order-preparing', orderNumber: 101, client: client.name, type: 'Retirada', status: 'Em preparo', paymentStatus: 'Pendente',
+  id: 'order-preparing', orderNumber: 101, clientId: client.id, client: client.name, type: 'Retirada', status: 'Em preparo', paymentStatus: 'Pendente',
   orderDate: '2020-09-11', createdAt: '2020-09-11T12:00:00.000Z', subtotal: 25, total: 25,
   items: [{ id: 'item-1', productId: product.id, name: product.name, quantity: 1, unitPrice: 25 }],
 }
@@ -46,7 +46,7 @@ const bootstrap = {
   },
 }
 
-async function appWorkspace(t, capabilities, { withTheme = false, bootstrapData = bootstrap } = {}) {
+async function appWorkspace(t, capabilities, { withTheme = false, bootstrapData = bootstrap, sessionData = {} } = {}) {
   const h = await workspaceHarness(t)
   const requests = []
   let totalRequests = 0
@@ -56,7 +56,7 @@ async function appWorkspace(t, capabilities, { withTheme = false, bootstrapData 
     totalRequests += 1
     if (totalRequests > 100) throw new Error(`Runaway request loop: ${url} ${method}`)
     if (method !== 'GET') requests.push({ url, method, body: options.body })
-    if (url === '/api/auth/session') return response({ authenticated: true })
+    if (url === '/api/auth/session') return response({ authenticated: true, ...(sessionData.businessId ? { capabilities: [...capabilities] } : {}), ...sessionData })
     if (url === '/api/bootstrap') return response(structuredClone(bootstrapData))
     if (url === '/api/orders') {
       if (method === 'GET') return response({ orders: structuredClone(bootstrapData.orders) })
@@ -102,9 +102,34 @@ test('operator specific client grants expose new/edit actions and hide deletion 
   const { h, renderer } = await appWorkspace(t, new Set(['orders.view', 'clients.view', 'clients.create', 'clients.update']))
   await navigate(h, 'clients')
   assert.ok(buttonNamed(renderer.root, 'Novo cliente'))
-  await act(async () => buttonNamed(renderer.root, 'Abrir ações de Ana Souza').props.onClick())
-  assert.ok(buttonNamed(renderer.root, 'Editar cliente'))
+  await act(async () => buttonNamed(renderer.root, 'Abrir perfil de Ana Souza').props.onClick())
+  assert.ok(buttonNamed(renderer.root, 'Editar cadastro'))
   assert.equal(buttonNamed(renderer.root, 'Excluir cliente'), undefined)
+})
+
+test('customer relationship launches a new order with the selected customer already filled', async t => {
+  const { h, renderer, requests } = await appWorkspace(t, new Set(['orders.view', 'clients.view', 'orders.create']))
+  await navigate(h, 'clients')
+  await act(async () => buttonNamed(renderer.root, 'Abrir perfil de Ana Souza').props.onClick())
+  await act(async () => buttonNamed(renderer.root, 'Novo pedido').props.onClick())
+  assert.ok(renderer.root.findAllByType('input').some(input => input.props.value === 'Ana Souza'))
+  assert.deepEqual(mutations(requests), [])
+})
+
+test('customer collection uses the existing payment workflow and refreshes the customer from official effects', async t => {
+  const { h, renderer, requests } = await appWorkspace(t, new Set(['clients.view', 'orders.view', 'orders.history', 'payments.receive']), { sessionData: { businessId: 'business-1', settingsContextId: 'settings-1' }, bootstrapData: { ...bootstrap, orders: [finalizedOrder], effectiveBusinessConfig: { ...bootstrap.effectiveBusinessConfig, version: 'relationship-pay-v1', revisions: { operations: 0, paymentMethods: 1 }, paymentMethods: { methods: [{ code: 'pix', label: 'Pix', value: 'Pix' }], defaultMethod: 'pix' } } } })
+  await navigate(h, 'clients')
+  await act(async () => buttonNamed(renderer.root, 'Abrir perfil de Ana Souza').props.onClick())
+  await act(async () => buttonNamed(renderer.root, 'Receber pagamento').props.onClick())
+  await act(async () => buttonNamed(renderer.root, 'Receber pagamento do Pedido #102').props.onClick())
+  await act(async () => renderer.root.findByProps({ role: 'combobox', 'aria-label': 'Forma de pagamento' }).props.onClick())
+  assert.ok(buttonNamed(renderer.root, 'Pix'), nodeText(renderer.root).slice(-1000))
+  await act(async () => buttonNamed(renderer.root, 'Pix').props.onClick())
+  assert.equal(buttonNamed(renderer.root, 'Confirmar pagamento').props.disabled, false)
+  await act(async () => renderer.root.findAllByType('form').find(form => buttonNamed(form, 'Confirmar pagamento')).props.onSubmit({ preventDefault() {} }))
+  assert.equal(requests.find(request => request.url === '/api/orders/order-finalized/payment')?.method, 'POST')
+  assert.equal(buttonNamed(renderer.root, 'Receber pagamento do Pedido #102'), undefined)
+  assert.match(nodeText(renderer.root), /Sem saldo/)
 })
 
 describe('A8 action capabilities', { concurrency: false }, () => {

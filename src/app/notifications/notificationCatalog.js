@@ -1,5 +1,17 @@
 export const SYSTEM_NOTIFICATIONS = Object.freeze([
   Object.freeze({
+    id: 'release-2026-10-client-relationship',
+    type: 'release',
+    publishedAt: '2026-10-05T00:00:00-03:00',
+    title: 'Clientes com mais contexto',
+    summary: 'Consulte o histórico, os produtos mais pedidos e o saldo do cliente sem sair do cadastro. Selecione pedidos pendentes para receber juntos.',
+    items: Object.freeze([
+      Object.freeze({ icon: 'clients', title: 'Conheça o histórico do cliente', description: 'Abra o perfil para consultar pedidos, última compra, ticket médio e produtos mais pedidos.' }),
+      Object.freeze({ icon: 'search', title: 'Encontre quem precisa de atenção', description: 'Use os filtros para localizar clientes com saldo em aberto, sem compras recentes ou sem pedidos.' }),
+      Object.freeze({ icon: 'wallet', title: 'Receba pelo perfil do cliente', description: 'Em A receber, selecione os pedidos e registre o pagamento pelo mesmo fluxo do Financeiro, conforme suas permissões.' }),
+    ]),
+  }),
+  Object.freeze({
     id: 'release-2026-09-receivables-client-batching',
     type: 'release',
     publishedAt: '2026-09-27T20:30:00-03:00',

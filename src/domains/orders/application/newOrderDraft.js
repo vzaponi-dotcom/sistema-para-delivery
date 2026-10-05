@@ -101,7 +101,7 @@ const normalizeContext = ({
     tableId,
     expectedTableTabId,
     reservationContext: null,
-    initialDraft: null,
+    initialDraft: initialDraft?.clientId ? { clientId: initialDraft.clientId, localClientId: initialDraft.localClientId || initialDraft.clientId } : null,
   }
 }
 

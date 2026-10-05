@@ -18,7 +18,6 @@ test('Task 5 exposes a public CustomersWorkspace that owns customer composition'
   for (const token of [
     'useCustomerCommands',
     'useCustomerEditor',
-    'filterAndSortClients',
     '<Clients',
     '<CustomerEditorDialog',
     '<ClientDuplicateModal',
@@ -32,6 +31,7 @@ test('Task 5 exposes a public CustomersWorkspace that owns customer composition'
   }
 
   assert.match(workspace, /closeIfEditing/)
+  assert.match(source('./ui/Clients.jsx'), /filterAndSortClients/)
 })
 
 test('Task 5 removes customer list/editor/CRUD composition ownership from App', () => {

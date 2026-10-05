@@ -3644,9 +3644,9 @@
   align-items: center;
   justify-content: center;
   padding: 3px 8px;
-  border-radius: 999px;
+  border-radius: var(--badge-radius);
   font-size: .64rem;
-  font-weight: 820;
+  font-weight: var(--badge-font-weight);
   white-space: nowrap;
 }
 

@@ -12,6 +12,7 @@ const icons = {
   chart: <><path d="M4 20V11M10 20V5M16 20v-7"/><path d="M2 20h20"/></>,
   plus: <path d="M12 5v14M5 12h14"/>,
   search: <><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></>,
+  filter: <><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="17" r="2"/></>,
   edit: <><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></>,
   trash: <><path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15M10 11v5M14 11v5"/></>,
   close: <path d="m6 6 12 12M18 6 6 18"/>,
