@@ -23,6 +23,7 @@ Pontos de entrada, não lista completa. Depois, siga imports, regras, adaptadore
 | Recebimentos: pedido, comanda, lote de clientes | `src/app/workflows/payments/` |
 | Fila de impressão / transporte QZ | `src/domains/printing/ui/PrintQueue.jsx`; `src/infrastructure/qz/` |
 | Configurações / conta e equipe | `src/app/surfaces/settings/SettingsSurface.jsx`; `src/domains/access/ui/AccessSurface.jsx` |
+| Administração Mesiva / empresas e convites | `src/domains/platform/ui/PlatformRoutes.jsx`; `worker/platform/businessesApi.js` |
 | Botões, ícones, modais, selects e badges | `src/shared/ui/` |
 | API / contexto e autorização | `worker/entry.js`; `worker/index.js`; `worker/access/authorization.js` |
 
