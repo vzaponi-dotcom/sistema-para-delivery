@@ -31,7 +31,7 @@ Antes de qualquer fase diferente de `legacy`:
 
 Nenhum segredo, senha, cookie ou link com token deve ser enviado ao chat, salvo em argumento de comando, commit, artefato de CI ou log de evidência.
 
-O domínio de produção é versionado em `wrangler.jsonc` como Custom Domain `app.mesiva.com.br`. O endpoint `workers.dev` permanece habilitado apenas como contingência técnica; o endereço canônico para usuários, e-mails e smoke de produção é `https://app.mesiva.com.br`.
+O domínio de produção é versionado em `wrangler.jsonc` como Custom Domain `app.mesiva.com.br`. O endpoint público `workers.dev` de produção fica desabilitado (`workers_dev: false`); usuários, e-mails e smoke de produção usam exclusivamente `https://app.mesiva.com.br`. Staging mantém `workers_dev: true` apenas como rota auxiliar de diagnóstico.
 
 ## 2. Fase A — PREPARE, sem retirar o PIN
 
