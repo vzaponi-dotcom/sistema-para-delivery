@@ -1,14 +1,20 @@
-import { useMemo } from 'react'
 import './client-duplicate.css'
 import { useCustomerCommands } from '../application/useCustomerCommands.js'
 import { useCustomerEditor } from '../application/useCustomerEditor.js'
-import { filterAndSortClients } from '../domain/clientList.js'
 import ClientDuplicateModal from './ClientDuplicateModal.jsx'
 import Clients from './Clients.jsx'
 import CustomerEditorDialog from './CustomerEditorDialog.jsx'
 
 function CustomersWorkspace({
   clients = [],
+  orders = [],
+  granted = new Set(),
+  currency,
+  onRegisterPayment,
+  onRegisterClientOrdersPayment,
+  onNewOrder,
+  canReceiveOrder,
+  renderOrderDetail,
   search = '',
   sort = 'name-asc',
   onSearchChange = () => {},
@@ -42,10 +48,6 @@ function CustomersWorkspace({
       if (existing?.name) onSearchChange(existing.name)
     },
   })
-  const visibleClients = useMemo(
-    () => filterAndSortClients(clients, { search, sort }),
-    [clients, search, sort],
-  )
 
   const handleDeleteClient = async (clientId) => {
     if (!canDeleteClients || writesBlocked) return false
@@ -58,7 +60,16 @@ function CustomersWorkspace({
   return (
     <>
       <Clients
-        clients={visibleClients}
+        clients={clients}
+        orders={orders}
+        granted={granted}
+        currency={currency}
+        writesBlocked={writesBlocked}
+        onRegisterPayment={onRegisterPayment}
+        onRegisterClientOrdersPayment={onRegisterClientOrdersPayment}
+        onNewOrder={onNewOrder}
+        canReceiveOrder={canReceiveOrder}
+        renderOrderDetail={renderOrderDetail}
         search={search}
         sort={sort}
         onSearchChange={onSearchChange}

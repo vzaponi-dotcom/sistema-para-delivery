@@ -16,7 +16,7 @@ const paidOrder = {
   paidAt: '2026-09-21T12:01:00.000Z', items: [], adjustment: { type: 'none' },
 }
 
-test('payment badge and order detail render mixed allocation summary, rows and total', async (t) => {
+test('payment badge and order detail retain mixed payment summary without repeating collection totals', async (t) => {
   const h = await workspaceHarness(t)
   const [{ default: PaymentBadge }, { default: OrderDetail }] = await Promise.all([
     h.load('/src/domains/orders/ui/PaymentBadge.jsx'),
@@ -33,9 +33,11 @@ test('payment badge and order detail render mixed allocation summary, rows and t
     canExecutePrinting: false,
   })
   const text = nodeText(detail.root)
-  assert.match(text, /Dinheiro.*R\$ 12\.00/)
-  assert.match(text, /Pix.*R\$ 30\.00/)
-  assert.match(text, /Total recebido.*R\$ 42\.00/)
+  assert.match(text, /Pago · 2 formas/)
+  assert.match(text, /Forma de pagamento2 formas/)
+  const values = nodeText(detail.root.findByProps({ className: 'order-detail-section order-detail-values-section' }))
+  assert.match(values, /SubtotalR\$ 42\.00TotalR\$ 42\.00$/)
+  assert.doesNotMatch(values, /Dinheiro|Pix|Total recebido/)
 })
 
 test('A Receber shows mixed summary and finds the same paid order by either allocation method', async (t) => {

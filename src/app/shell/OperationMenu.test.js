@@ -103,7 +103,7 @@ test('About identifies the operation and release without a personal profile', as
   assert.ok(renderer.root.findByProps({ 'aria-label': 'Sobre a Mesiva' }))
   const copy = nodeText(renderer.root)
   assert.match(copy, /Empresa atual: Pizzaria Bella/)
-  assert.match(copy, /Atualização atual: A Receber por cliente/)
+  assert.match(copy, /Atualização atual: Clientes com mais contexto/)
   assert.doesNotMatch(copy, /Meu perfil|Administrador|João da Silva/)
 })
 
