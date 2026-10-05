@@ -2,7 +2,7 @@
 
 Data: 05/10/2026. Branch: `codex/administracao-empresas`.
 
-Estado: especificação proposta para revisão. O usuário escolheu o layout de lista com página dedicada de detalhes e a exclusão recuperável. Este documento define a primeira entrega; não descreve funcionalidades já publicadas.
+Estado: especificação aprovada pelo usuário em 05/10/2026. O usuário escolheu o layout de lista com página dedicada de detalhes e a exclusão recuperável. Este documento define a primeira entrega; não descreve funcionalidades já publicadas. O [plano de implementação](../plans/2026-10-05-platform-company-management.md) detalha tarefas e verificações e aguarda sua própria revisão.
 
 ## 1. Objetivo e limites
 
@@ -145,10 +145,13 @@ Contratos sob `/api/platform/businesses/:businessId`:
 | `POST /invitations/:invitationId/cancel` | Cancelar convite |
 | `POST /invitations/:invitationId/resend` | Reenviar convite elegível |
 | `GET /history` | Histórico com cursor |
+| `GET /management-attempts/:key` | Consultar o resultado de uma tentativa do próprio emissor, sem repetir mutation |
 
 Preservar as rotas e respostas existentes, inclusive o reenvio inicial `/first-manager-invitation/resend`, delegando-o às mesmas regras de elegibilidade e bloqueio de ciclo. Seu contrato anterior sem body continua aceito, com assertions do estado atual; a nova interface usa o endpoint genérico com revisão, motivo e receipt. Novas respostas de lista/detalhe acrescentam `lifecycleStatus` e `managementRevision`. O filtro usa parâmetro `status`; busca mantém `query`. Consultas respondem com `cache-control: no-store` e revalidam o grant após carregar os dados. Atualizar `routePolicy.js` para classificar todos os novos endpoints explicitamente como `platform`.
 
 Novas mutations recebem `Idempotency-Key` UUID, motivo, revisão e nome quando aplicável. Uma receipt administrativa preserva conta emissora, empresa, operação, chave, hash do payload e resultado de revisão. Repetir a mesma chave/payload retorna o resultado sem novo evento; reutilizar a chave com payload diferente retorna conflito. Conferir permissão atual mesmo no replay. O resultado replayed não substitui a consulta atual da empresa. No reenvio, persistir token, receipt e revisão na mesma transação antes de entregar ao provedor: replay não prepara token nem dispara outro e-mail. Preservar o resultado de entrega incerto sem repetição automática.
+
+Precisão do contrato no planejamento: a consulta `/management-attempts/:key` implementa a reconciliação por leitura já prevista. Exigir view e a capability correspondente à ação, verificar conta emissora e empresa e retornar 404 para receipt ausente ou de outro alvo. Ausência de receipt não prova falha de uma chamada em andamento; uma repetição só pode ocorrer por ação explícita, usando a mesma chave e payload. Essa precisão será revisada junto ao plano antes de implementar.
 
 O estado, a revisão, revogações, receipt e evento são persistidos no mesmo batch D1 com assertions. Dentro da transação, revalidar sessão, grants persistidos, revisão, estado e regra da última pessoa administradora. Toda consulta/mutation de membro ou convite inclui o `business_id` alvo; IDs de outra empresa retornam 404, sem revelar dados.
 
