@@ -46,18 +46,22 @@ body > .client-profile-backdrop > .modal-card.client-profile-drawer { width: min
 .client-favorite-products { display: grid; gap: 12px; padding: 0; margin: 0; list-style: none; font-size: .82rem; }
 .client-favorite-products li { display: flex; justify-content: space-between; gap: 15px; }
 .client-favorite-products small { color: var(--muted); white-space: nowrap; }
-.client-order-line { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; border-bottom: 1px solid var(--border); padding: 16px 0; }
-.client-order-info { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; border: 0; padding: 0; color: var(--text); background: transparent; text-align: left; min-height: 44px; }
+.client-order-line { display: flex; gap: 12px; align-items: center; border-bottom: 1px solid var(--border); padding: 16px 0; }
+.client-order-content { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; gap: 4px 12px; align-items: center; }
+.client-order-info { grid-column: 1 / -1; grid-row: 1 / 3; min-width: 0; display: grid; grid-template-columns: subgrid; grid-template-rows: subgrid; align-items: center; border: 0; padding: 0; color: var(--text); background: transparent; text-align: left; min-height: 44px; }
 .client-order-info:hover .client-order-identity strong { color: var(--primary); }
 .client-order-identity, .client-order-value { display: grid; gap: 7px; min-width: 0; }
 .client-order-info strong { font-size: .79rem; font-weight: 550; }
 .client-order-identity small { display: flex; flex-wrap: wrap; font-size: .7rem; color: var(--muted); line-height: 1.5; }
 .client-order-identity small > span { white-space: nowrap; }
 .client-order-value { border-left: 1px solid var(--border); padding-left: 12px; text-align: right; font-variant-numeric: tabular-nums; }
-.client-order-badges { grid-column: 1 / -1; display: flex; justify-content: flex-start; gap: 6px; flex-wrap: wrap; }
+.client-order-badges { grid-column: 1; grid-row: 2; display: flex; justify-content: flex-start; gap: 6px; flex-wrap: wrap; }
 .client-order-badges .status-badge, .client-order-badges .payment-badge { font-size: .63rem; padding: 4px 6px; line-height: 1.2; }
-.client-order-line > .client-receive-button { padding: 9px 12px; font-size: .75rem; flex: none; }
-.client-receive-button svg { width: 15px; height: 15px; }
+.client-receive-link { grid-column: 2; grid-row: 2; justify-self: end; position: relative; min-height: 44px; padding: 4px 0 4px 10px; border: 0; background: transparent; color: var(--info); font-size: .75rem; font-weight: 400; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.client-receive-link:hover { text-decoration-thickness: 2px; }
+.client-receive-link:focus-visible { outline: 2px solid var(--info); outline-offset: 2px; border-radius: 4px; }
+.client-receive-link:disabled { opacity: .5; cursor: not-allowed; }
+.client-order-payment-hint { grid-column: 2; grid-row: 2; justify-self: end; max-width: 96px; color: var(--muted); font-size: .65rem; line-height: 1.4; text-align: right; pointer-events: none; }
 .client-profile-orderfilters { display: flex; gap: 4px; flex-wrap: wrap; margin: 14px 0 5px; }
 .client-profile-orderfilters button { min-height: 38px; border: 0; padding: 9px 10px; border-radius: 6px; background: transparent; color: var(--muted); font-size: .76rem; }
 .client-profile-orderfilters button.is-active { background: var(--primary-soft); color: var(--primary); }
@@ -104,11 +108,6 @@ body > .client-profile-backdrop > .modal-card.client-profile-drawer { width: min
   .client-profile-kpis strong { font-size: 1.08rem; }
   .client-profile-kpis .client-profile-link { font-size: .7rem; }
   .client-order-line { gap: 10px; }
-  .client-order-info { gap: 8px; }
+  .client-order-content { column-gap: 8px; }
   .client-order-value { padding-left: 10px; }
-}
-@media (max-width: 360px) {
-  .client-order-line { flex-wrap: wrap; }
-  .client-order-info { flex-basis: calc(100% - 42px); }
-  .client-order-line > .client-receive-button { margin-left: auto; min-height: 44px; }
 }

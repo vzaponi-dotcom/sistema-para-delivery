@@ -41,11 +41,13 @@ test('paid cancelled and table-linked orders never expose standalone collection 
   await act(async () => buttonNamed(renderer.root, 'Ver todos').props.onClick())
   assert.ok(buttonNamed(renderer.root, 'Receber pagamento do Pedido #148'))
   for (const number of [149, 150, 151]) assert.equal(buttonNamed(renderer.root, `Receber pagamento do Pedido #${number}`), undefined)
+  assert.match(nodeText(renderer.root), /Receber pela comanda/)
   await act(async () => buttonNamed(renderer.root, 'Ver detalhes do Pedido #148').props.onClick())
   assert.ok(buttonNamed(renderer.root, 'Registrar pagamento'))
   await act(async () => renderer.update(React.createElement(Surface, { ...props, orders: props.orders.map(o => ({ ...o, paymentStatus: 'Pago' })) })))
   assert.equal(buttonNamed(renderer.root, 'Registrar pagamento'), undefined)
   assert.equal(buttonNamed(renderer.root, 'Receber pagamento do Pedido #148'), undefined)
+  assert.doesNotMatch(nodeText(renderer.root), /Receber pela comanda/)
   assert.match(nodeText(renderer.root.findAllByProps({ className: 'client-open-balance ' })[0]), /Sem saldo/)
 })
 

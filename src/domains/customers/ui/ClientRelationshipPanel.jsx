@@ -13,12 +13,15 @@ const orderFilters = [['all', 'Todos'], ['pending', 'A receber'], ['finished', '
 function ClientOrderRows({ orders, currency, onDetails, canReceive, onReceive, disabled, selection }) {
   return <div className="client-order-list">{orders.map(order => <div className="client-order-line" key={order.id}>
     {selection?.canSelect(order) && <label className="client-order-selection"><input type="checkbox" aria-label={`Selecionar ${formatOrderDisplayNumber(order)}`} checked={selection.ids.includes(order.id)} disabled={disabled || (!selection.ids.includes(order.id) && selection.ids.length >= 100)} onChange={() => selection.toggle(order.id)} /></label>}
+    <div className="client-order-content">
     <button type="button" className="client-order-info" aria-label={`Ver detalhes do ${formatOrderDisplayNumber(order)}`} onClick={() => onDetails(order.id)}>
       <span className="client-order-identity"><strong>{formatOrderDisplayNumber(order)}</strong><small><span>{dateLabel(clientOrderDate(order))}</span><span> · {order.type}</span></small></span>
       <span className="client-order-value"><strong>{currency(order.total)}</strong></span>
       <span className="client-order-badges"><StatusBadge status={order.status} />{order.status !== 'Cancelado' && <span className={`payment-badge ${order.paymentStatus === 'Pago' ? 'payment-paid' : 'payment-pending'}`}>{order.paymentStatus === 'Pago' ? 'Pago' : 'Pendente'}</span>}</span>
     </button>
-    {!selection && canReceive(order) && <Button variant="secondary" icon="wallet" className="client-receive-button" disabled={disabled} aria-label={`Receber pagamento do ${formatOrderDisplayNumber(order)}`} onClick={() => onReceive(order)}>Receber</Button>}
+    {!selection && canReceive(order) && <button type="button" className="client-receive-link" disabled={disabled} aria-label={`Receber pagamento do ${formatOrderDisplayNumber(order)}`} onClick={() => onReceive(order)}>Receber</button>}
+    {order.status !== 'Cancelado' && order.paymentStatus !== 'Pago' && (order.type === 'Local' || order.tableTabId) && <span className="client-order-payment-hint">Receber pela comanda</span>}
+    </div>
   </div>)}</div>
 }
 
