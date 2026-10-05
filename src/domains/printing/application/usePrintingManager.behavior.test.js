@@ -102,6 +102,18 @@ test('background primary keeps physical consumption eligible and revalidates QZ 
   assert.doesNotMatch(syncBlock, /if \(!visiblePage\(\)/)
 })
 
+test('an existing QZ status monitor is actively refreshed before it is reused', () => {
+  const start = managerSource.indexOf('const ensureQzStatusMonitor = useCallback')
+  const end = managerSource.indexOf('const configureQz = useCallback', start)
+  assert.ok(start >= 0 && end > start)
+  const block = managerSource.slice(start, end)
+  assert.match(block, /qzStatusMonitorRef\.current\.refreshStatus\?\.\(\)/)
+  assert.ok(
+    block.indexOf('refreshStatus?.()') < block.indexOf('return qzStatusMonitorRef.current'),
+    'the current physical state must be rechecked before reusing the monitor',
+  )
+})
+
 test('a non-normal recovery state pauses the normal consumer while the manager uses the dedicated one-copy recovery APIs', () => {
   assert.equal(canConsumeAutomaticPrintJob(readyAutomaticConsumer({ station: { isPrimary: true, autoPrintEnabled: true, recoveryState: 'pending' } })), false)
   assert.equal(canConsumeAutomaticPrintJob(readyAutomaticConsumer({ station: { isPrimary: true, autoPrintEnabled: true, recoveryState: 'active' } })), false)
