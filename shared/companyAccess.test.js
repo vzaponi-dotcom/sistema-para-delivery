@@ -11,3 +11,10 @@ test('platform grants are explicit and never confer business access', () => {
   assert.equal(sessionHasBusinessAccess({ scope: 'business', businessId: 'A', userId: 'u', contextId: 'ctx' }), true)
   assert.equal(sessionHasBusinessAccess({ scope: 'business', businessId: 'A', userId: 'u' }), false)
 })
+
+test('company management capabilities require exact persisted grants and platform scope', () => {
+  for (const capability of ['platform.businesses.manage','platform.businesses.delete','platform.memberships.view','platform.memberships.manage','platform.invitations.cancel']) {
+    assert.equal(hasPlatformCapability({scope:'platform',capabilities:[capability]},capability),true)
+    assert.equal(hasPlatformCapability({scope:'business',capabilities:[capability]},capability),false)
+  }
+})
