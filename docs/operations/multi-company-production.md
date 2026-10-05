@@ -1,295 +1,150 @@
-# Corte multiempresa e primeiro acesso — produção
+# Produção multiempresa — estado final e operação corrente
 
-Este roteiro prepara o primeiro Administrador Mesiva e o primeiro gerente da empresa já existente sem desligar o acesso legado antes da confirmação real. Ele é executado somente em uma janela de produção explicitamente autorizada.
+**Status:** corte concluído em 04/10/2026 (America/Sao_Paulo).
 
-A implementação desta frente **não executa produção por si só**. O workflow `Deploy production` continua manual e master-only.
+Este documento substitui o roteiro transitório usado para migrar a Amor & Sabor do PIN legado para contas Mesiva por e-mail e senha. Os workflows de uso único do corte foram aposentados após a homologação e não fazem mais parte da operação normal.
 
-## 1. Pré-requisitos obrigatórios
+## 1. Estado definitivo de produção
 
-Antes de qualquer fase diferente de `legacy`:
+A produção opera com:
 
-- registrar o SHA exato de `master` e confirmar o Validate correspondente;
-- confirmar staging verde no mesmo código;
-- confirmar que o D1 de produção oferece Time Travel; o próprio workflow registra o bookmark atual antes de qualquer migration/deploy de `prepare` ou `multi_company`;
-- confirmar o endereço oficial de produção `https://app.mesiva.com.br`, usado pela aplicação e pelos links de ativação;
-- configurar no Environment `production` do GitHub:
-  - secret `CLOUDFLARE_API_TOKEN`;
-  - secret `CLOUDFLARE_ACCOUNT_ID`;
-  - secret `RESEND_API_KEY`;
-  - secret `AMOR_PIN` enquanto o modo legado ainda existir;
-  - variable `PRODUCTION_URL=https://app.mesiva.com.br` (opcional; este já é o fallback canônico do workflow);
-  - variable `AUTH_PUBLIC_ORIGIN=https://app.mesiva.com.br` para gerar links de ativação, convite e recuperação;
-  - variable `AUTH_EMAIL_FROM=Mesiva <acesso@mesiva.com.br>` ou outro remetente Mesiva já autorizado no Resend;
-  - variable `AUTH_EMAIL_DAILY_LIMIT=80`, opcional porque 80 já é o default.
-- no terminal administrativo privado que executará a CLI, disponibilizar por injeção segura:
-  - `CLOUDFLARE_API_TOKEN`;
-  - `CLOUDFLARE_ACCOUNT_ID`;
-  - `RESEND_API_KEY`;
-  - `AUTH_PUBLIC_ORIGIN`;
-  - `AUTH_EMAIL_FROM`;
-  - `AUTH_EMAIL_DAILY_LIMIT` se diferente de 80.
+- domínio oficial: `https://app.mesiva.com.br`;
+- `workers_dev: false` em produção;
+- autenticação `multi_company` habilitada;
+- `business_auth_state = user_only` para a Amor & Sabor;
+- PIN legado removido fisicamente de `auth_credentials`;
+- sessões legadas revogadas;
+- Administrador Mesiva global separado dos vínculos operacionais das empresas;
+- primeiro Gerente da Amor & Sabor ativo por e-mail e senha;
+- recuperação normal de senha por e-mail;
+- Resend como transporte de e-mail de produção.
 
-Nenhum segredo, senha, cookie ou link com token deve ser enviado ao chat, salvo em argumento de comando, commit, artefato de CI ou log de evidência.
+Staging continua isolado em `https://staging.mesiva.com.br` e mantém `workers_dev: true` apenas como rota auxiliar de diagnóstico.
 
-O domínio de produção é versionado em `wrangler.jsonc` como Custom Domain `app.mesiva.com.br`. O endpoint público `workers.dev` de produção fica desabilitado (`workers_dev: false`); usuários, e-mails e smoke de produção usam exclusivamente `https://app.mesiva.com.br`. Staging mantém `workers_dev: true` apenas como rota auxiliar de diagnóstico.
+## 2. Evidência do fechamento
 
-## 2. Fase A — PREPARE, sem retirar o PIN
+O corte foi concluído com as seguintes verificações reais de produção:
 
-Disparar manualmente **Deploy production** no SHA atual de `master` com:
+- primeiro Administrador Mesiva preparado, ativado e autenticado;
+- inventário legado revisado;
+- primeiro Gerente da Amor & Sabor preparado, ativado e autenticado;
+- `check_ready = true`;
+- deploy `multi_company` concluído;
+- painel `/mesiva/empresas` homologado pelo Administrador Mesiva;
+- operação do Gerente homologada;
+- impressão/QZ homologada no ambiente real;
+- finalização remota concluída com `mode=user_only`, `legacyPinRemoved=true`, `finalized=true`;
+- smoke pós-finalização confirmou PIN rejeitado;
+- deploy final com `workers_dev: false` confirmou somente `app.mesiva.com.br` como endpoint público de produção.
 
-- `auth_phase = prepare`;
-- `backup_confirmed = true`;
-- `readiness_confirmed = false`.
+Referências principais:
+
+- Finalize production cutover #1 — run `37245342969` — SUCCESS;
+- Deploy production #70 — run `37248169529` — SUCCESS;
+- Worker final desse deploy: `b1ce9b16-e018-40a6-953e-85ad613b8a12`.
+
+## 3. Workflows de corte aposentados
+
+Os seguintes workflows eram deliberadamente temporários e foram removidos após o fechamento:
+
+- `Prepare Mesiva administrator`;
+- `Manage production cutover`;
+- `Finalize production cutover`.
+
+Também foram removidos os runners, testes e o adaptador D1 REST que existiam apenas para esses fluxos.
+
+Não recriar esses workflows como atalho operacional. Novas funcionalidades administrativas devem entrar pelo painel Mesiva ou por um procedimento novo, explicitamente revisado.
+
+## 4. Deploy normal de produção
+
+O único caminho normal de publicação continua sendo **Deploy production**, manual e master-only.
+
+O formulário de produção não oferece mais `legacy`, `prepare` ou `readiness_confirmed`. Produção é permanentemente multiempresa.
+
+Antes de publicar:
+
+1. confirmar Validate verde no SHA atual de `master`;
+2. confirmar staging verde;
+3. disparar **Deploy production** em `master`;
+4. marcar `backup_confirmed = true` depois que o próprio workflow registrar o restore point atual do D1;
+5. aguardar testes, migrations, deploy e smoke;
+6. confirmar `app.mesiva.com.br` operacional.
 
 O workflow:
 
-1. roda testes, arquitetura, lint, build e Worker dry-run;
-2. confirma que o SHA ainda é o último `master`;
-3. consulta o Time Travel do D1 e registra no resumo do run o bookmark atual de restauração;
-4. valida os checkpoints humanos informados no disparo;
-5. aplica as migrations de produção, garantindo que `business_auth_state` exista antes da leitura;
-6. lê o estado atual de `business_auth_state`;
-7. bloqueia qualquer tentativa de voltar a `legacy/prepare` se produção já estiver `user_only`;
-8. instala/atualiza o secret de e-mail;
-9. publica somente o modo de preparação;
-10. aguarda uma janela limitada de propagação do domínio `app.mesiva.com.br` e comprova que o PIN legado continua entrando e que os endpoints estreitos de ativação/convite estão disponíveis.
+- registra um bookmark de Time Travel do D1 antes de mudanças remotas;
+- valida que a configuração canônica continua multiempresa;
+- aplica migrations pendentes;
+- consulta o estado de autenticação;
+- mantém o secret de e-mail;
+- publica o Worker;
+- executa smoke de autenticação no domínio oficial.
 
-Neste estágio:
+Não existe passo de criação ou restauração de PIN no deploy normal.
 
-- `AUTH_MULTI_COMPANY_ENABLED=false`;
-- `AUTH_MULTI_COMPANY_PREPARE_ENABLED=true`;
-- o painel Mesiva e o login multiempresa ainda não estão liberados;
-- o PIN continua sendo o acesso operacional de contingência.
+## 5. Configuração e secrets permanentes
 
-Se a captura do bookmark falhar, o workflow para antes das migrations. Se o smoke de domínio/PIN falhar após a janela limitada de propagação, **parar** e não preparar contas.
+Configuração canônica versionada em `wrangler.jsonc`:
 
-## 3. Preparar o primeiro Administrador Mesiva
+- `AUTH_EMAIL_ENABLED=true`;
+- `AUTH_MULTI_COMPANY_ENABLED=true`;
+- `AUTH_MULTI_COMPANY_PREPARE_ENABLED=false`;
+- `AUTH_PUBLIC_ORIGIN=https://app.mesiva.com.br`;
+- `AUTH_EMAIL_FROM=Mesiva <acesso@mesiva.com.br>`;
+- `AUTH_EMAIL_DAILY_LIMIT=80`;
+- `workers_dev=false` em produção.
 
-O caminho normal de produção é o workflow manual **Prepare Mesiva administrator** no GitHub Actions. Ele existe somente para o bootstrap do primeiro administrador da plataforma e não cria perfil Gerente/Operador nem vínculo com empresa.
+Secrets permanentes esperados:
 
-Disparar em `master` preenchendo:
+- Repository secret `CLOUDFLARE_API_TOKEN`;
+- Repository secret `CLOUDFLARE_ACCOUNT_ID`;
+- Environment secret `production / RESEND_API_KEY`.
 
-- `admin_name`: nome de exibição do Administrador Mesiva;
-- `admin_email`: e-mail controlado pelo Administrador Mesiva;
-- `ownership_confirmed = true`: confirmação explícita de titularidade e autorização da conta de plataforma.
+Os secrets/variables temporários do corte, inclusive `AMOR_PIN` e `CUTOVER_*`, não fazem mais parte da configuração corrente.
 
-Antes de gravar a conta, o workflow:
+Nunca registrar valores de secrets em commit, documentação, log de evidência ou chat.
 
-1. confirma que o SHA disparado ainda é o último `master`;
-2. valida os secrets/variables do Environment `production`;
-3. registra um bookmark atual do D1 Time Travel;
-4. executa novamente o smoke de `prepare`, incluindo continuidade do PIN legado e disponibilidade dos endpoints de ativação;
-5. acessa o D1 de produção pela API REST oficial da Cloudflare com timeout e configuração derivada do `wrangler.jsonc`, sem `getPlatformProxy`;
-6. executa o mesmo `preparePlatformAdministrator` usado pelo procedimento administrativo oficial;
-7. exige que a entrega pelo Resend seja aceita, salvo quando a conta já estiver ativada.
-
-O destinatário abre o link de ativação recebido em `AUTH_PUBLIC_ORIGIN`, confirma o e-mail e define a própria senha. A ativação não cria sessão automaticamente.
-
-A conta criada tem somente concessões explícitas de plataforma Mesiva. Ela não recebe acesso operacional implícito à Amor & Sabor ou a qualquer outra empresa.
-
-Repetir a preparação para a mesma identidade não pode sobrescrever uma credencial ativa. Um e-mail diferente não substitui silenciosamente o administrador já registrado para o bootstrap de produção.
-
-### Fallback administrativo
-
-A CLI privada abaixo permanece apenas como contingência operacional quando o workflow não puder ser usado. Ela exige injeção segura das mesmas credenciais no terminal:
-
-```powershell
-node scripts/infra/multi-company-production-admin.mjs prepare-admin --env production --name "NOME_ADMIN" --email "EMAIL_ADMIN" --ownership-verified
-```
-
-Não copiar secrets do GitHub para o chat nem persistir credenciais em arquivo local.
-
-## 4. Inspecionar o inventário legado de produção
-
-O caminho normal é o workflow manual **Manage production cutover** no GitHub Actions, em `master`, com:
-
-- `cutover_action = inspect_inventory`;
-- `ownership_confirmed = false`.
-
-O workflow resolve internamente o Administrador Mesiva registrado no bootstrap e publica apenas agregados não sensíveis no resumo do run: quantidade de registros inventariados, quantidade ativa e se todos pertencem à Amor & Sabor. Nome, e-mail, ID humano e segredo não são publicados no CI.
-
-Se o inventário apontar outra empresa, o procedimento falha fechado e o corte deve ser interrompido.
-
-A CLI privada `inspect-inventory` permanece somente como fallback quando uma revisão nominal for indispensável em terminal privado.
-
-**Regra de produção:** o preparo do gerente não renomeia silenciosamente um login legado conflitante. Se existir colisão com o e-mail escolhido, o batch falha e nenhum novo acesso é persistido. Nesse caso, interromper e decidir a migração daquela identidade antes de continuar.
-
-## 5. Preparar o gerente da empresa existente
-
-Antes de executar o workflow, configurar temporariamente no Environment `production` dois secrets:
-
-- `CUTOVER_MANAGER_NAME`: nome do primeiro gerente da Amor & Sabor;
-- `CUTOVER_MANAGER_EMAIL`: e-mail controlado por essa pessoa.
-
-Não usar inputs públicos do workflow para esses dados.
-
-Depois disparar **Manage production cutover** com:
-
-- `cutover_action = prepare_business_manager`;
-- `ownership_confirmed = true`.
-
-O workflow registra um bookmark atual do D1, reconfirma que produção continua em `prepare`, revalida o inventário e executa o mesmo `prepareExistingBusinessManager` oficial. Se o gerente ainda não tiver conta global ativa, o Resend deve aceitar o convite. Nenhum acesso legado é finalizado nessa etapa.
-
-É permitido usar a mesma conta do Administrador Mesiva, mas para produção normal a recomendação é manter a conta de plataforma separada da conta operacional do cliente.
-
-Depois que o gerente ativar o convite e definir sua senha, manter os dois secrets até concluir o readiness; em seguida eles podem ser removidos do Environment `production`.
-
-## 6. Readiness antes do corte
-
-Disparar **Manage production cutover** com:
-
-- `cutover_action = check_ready`;
-- `ownership_confirmed = false`.
-
-O workflow resolve internamente o administrador do bootstrap e a conta do gerente pelo e-mail armazenado no secret, sem publicar seus identificadores. Só continuar quando o resumo informar `Ready: true`.
-
-O readiness exige, entre outros pontos:
-
-- administrador ativo, verificado e com credencial suportada;
-- grants explícitos da plataforma;
-- empresa ativa;
-- gerente ativo/verificado;
-- perfil com `access.users.manage`.
-
-`ready=true` ainda **não** substitui um login real no site.
-
-## 7. Fase B — habilitar multiempresa, sem finalizar legado
-
-Durante o corte inicial, produção é publicada em `multi_company` somente depois de `ready=true`, restore point atual e autorização explícita. O smoke deve confirmar:
-
-- sessão anônima informa `authMode=multi_company`;
-- tentativa de login por PIN é rejeitada;
-- nenhum passo recria o PIN.
-
-Depois que essa fase foi homologada, o workflow de **Deploy production** deixou de oferecer seleção de fase: produção fica permanentemente em `multi_company`. O único checkpoint manual de deploy que permanece é `backup_confirmed=true`, após o workflow registrar um restore point atual do D1.
-
-A credencial PIN pode continuar fisicamente no D1 até a finalização descrita na seção 9, mas o Worker multiempresa não a aceita.
-
-## 8. Homologação humana obrigatória antes da finalização
-
-Com o novo código ativo, realizar login real no endereço oficial de produção.
+## 6. Administração de contas
 
 ### Administrador Mesiva
 
-Confirmar:
+O Administrador Mesiva entra normalmente em `https://app.mesiva.com.br` com e-mail e senha e acessa o painel de plataforma.
 
-- login por e-mail e senha;
-- acesso a `/mesiva/empresas`;
-- capacidade de listar/cadastrar empresas conforme grants;
-- ausência de acesso operacional implícito a empresas sem vínculo.
+Uma conta de plataforma não aparece automaticamente na equipe de uma empresa e não recebe acesso operacional implícito aos clientes.
 
-### Gerente da Amor & Sabor
+### Empresas e equipes
 
-Confirmar:
+Novas empresas são provisionadas pelo painel Mesiva. O primeiro Gerente recebe o vínculo empresarial e, depois, gerencia a própria equipe conforme suas capabilities.
 
-- login por e-mail e senha;
-- abertura da Amor & Sabor;
-- Pedidos;
-- Comandas;
-- A receber;
-- Movimentações;
-- Configurações;
-- fila/impressão conforme ambiente disponível;
-- TV/controle;
-- Minha conta;
-- troca de empresa, se aplicável.
+Gerentes e Operadores são vínculos empresariais. Administrador Mesiva é uma concessão global de plataforma.
 
-Se qualquer login ou contexto falhar, **não executar `finalize-legacy`**. Enquanto a finalização não ocorreu, o banco ainda conserva a credencial PIN para um retorno controlado de código à fase anterior, se realmente necessário.
+## 7. Recuperação de acesso
 
-## 9. Finalização irreversível do caminho normal
+A recuperação normal usa **Esqueci minha senha** e e-mail.
 
-Somente depois de:
-
-- inventário explicitamente revisado;
-- `ready=true`;
-- login real do administrador confirmado;
-- login real do gerente confirmado;
-- operação e impressão reais do gerente confirmadas;
-
-usar o workflow manual **Finalize production cutover** em `master` com:
-
-- `login_verified = true`;
-- `inventory_reviewed = true`;
-- `finalization_confirmed = true`.
-
-O workflow:
-
-1. confirma que o SHA disparado ainda é o último `master`;
-2. exige as três confirmações explícitas;
-3. registra um bookmark atual do D1 imediatamente antes da operação irreversível;
-4. confirma que o Worker público continua em `multi_company` e que o PIN já é rejeitado;
-5. resolve internamente Administrador Mesiva e primeiro Gerente, sem expor e-mail/IDs humanos;
-6. reexecuta inventário e readiness;
-7. chama a finalização oficial com `--login-verified` e `--inventory-reviewed`;
-8. verifica no D1 que `business_auth_state = user_only`, que não existe mais `auth_credentials` da Amor & Sabor e que o bootstrap de produção possui `finalized_at`;
-9. repete o smoke público de autenticação.
-
-A finalização:
-
-- desativa acessos legados inventariados;
-- revoga sessões humanas legadas;
-- muda `business_auth_state` para `user_only`;
-- remove `auth_credentials` do PIN da Amor & Sabor;
-- marca o bootstrap de **production** como finalizado;
-- preserva pedidos, clientes, pagamentos, movimentos, histórico e atores antigos;
-- não atribui ações históricas às novas contas.
-
-A CLI `finalize-legacy` permanece somente como fallback administrativo privado.
-
-## 10. Depois da finalização
-
-Após `user_only`:
-
-- **Deploy production** fica permanentemente em `multi_company`; o formulário não oferece mais `legacy` ou `prepare`;
-- o input `readiness_confirmed` é removido porque era exclusivo do corte inicial;
-- cada deploy ainda registra um restore point do D1 e exige `backup_confirmed=true`;
-- não existe mais passo de criação/configuração de PIN no workflow de produção;
-- recuperação normal usa o e-mail global;
-- recuperação excepcional usa `issue-account-recovery` apenas após prova externa de titularidade e em terminal privado interativo.
-
-Exemplo excepcional:
+A recuperação excepcional continua disponível somente em procedimento privado, após prova externa de titularidade:
 
 ```powershell
 node scripts/infra/multi-company-production-admin.mjs issue-account-recovery --env production --account-id "ACCOUNT_ID" --ownership-verified --show-link-once
 ```
 
-O link é exibido apenas no canal privado, expira e não deve ser capturado em evidência.
+O link é confidencial, expira e não deve ser capturado em evidência.
 
-## 11. Retorno
+## 8. Rollback após o fechamento
 
-### Antes de `finalize-legacy`
+Depois de `user_only`, trocar flags não é rollback.
 
-Se o deploy `multi_company` apresentar problema antes da finalização, avaliar retorno ao bundle/fase anterior usando o mesmo snapshot de dados. Não criar outra identidade nem repetir convite incerto sem reconciliação.
-
-### Depois de `finalize-legacy`
-
-Trocar flags não é rollback válido. O workflow bloqueia `legacy/prepare` quando o banco já está `user_only`.
-
-Um retorno pós-finalização exige:
+Se um incidente realmente exigir retorno a um estado anterior ao corte:
 
 1. interromper novas escritas;
-2. avaliar dados criados após o corte;
-3. restaurar explicitamente o bookmark/backup compatível do D1 e o bundle correspondente;
-4. validar integridade antes de reabrir tráfego.
+2. identificar o bookmark D1 compatível;
+3. avaliar dados criados depois do corte;
+4. restaurar explicitamente o D1;
+5. restaurar um bundle compatível;
+6. validar integridade antes de reabrir tráfego.
 
-Nunca recriar PIN manualmente como atalho.
+**Nunca recriar o PIN manualmente como atalho.**
 
-## 12. Evidência de fechamento
+## 9. Histórico
 
-Registrar sem segredos:
-
-- SHA de `master`;
-- Validate do SHA;
-- execução production/prepare;
-- resultado de ativação do admin;
-- resultado de inspeção de inventário;
-- resultado de ativação do gerente;
-- `check-ready = true`;
-- execução production/multi_company;
-- login real admin PASS;
-- login real gerente PASS;
-- finalização PASS;
-- estado `user_only`;
-- PIN rejeitado;
-- limitações físicas ainda não homologadas, se houver.
-
+Os detalhes de desenho, TDD, decisões e homologações do corte permanecem preservados nos documentos de specs, planos, QA e histórico do GitHub. Este arquivo representa apenas o **estado operacional corrente** depois do encerramento.
