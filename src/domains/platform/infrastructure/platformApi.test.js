@@ -13,3 +13,14 @@ test('platform requests preserve search, cursor, encoded identity and creation i
   assert.deepEqual(JSON.parse(calls[2][1].body), { name: 'A', managerName: 'Ana', managerEmail: 'ana@example.test' })
   assert.equal(calls[3][0], '/api/platform/businesses/company%2FA/first-manager-invitation/resend')
 })
+
+test('management API encodes every resource and reconciliation only performs GET',async()=>{
+  const calls=[],api=createPlatformApi({request:async(...args)=>{calls.push(args);return {}}})
+  await api.manageBusiness({businessId:'company/A',operation:'membership.revoke',userId:'member/B'},{reason:'Saída da equipe',expectedRevision:3},'key')
+  await api.getManagementAttempt('company/A','attempt/C')
+  assert.equal(calls[0][0],'/api/platform/businesses/company%2FA/memberships/member%2FB/revoke')
+  assert.equal(calls[0][1].method,'POST')
+  assert.equal(new Headers(calls[0][1].headers).get('Idempotency-Key'),'key')
+  assert.equal(calls[1][0],'/api/platform/businesses/company%2FA/management-attempts/attempt%2FC')
+  assert.equal(calls[1][1]?.method,undefined)
+})

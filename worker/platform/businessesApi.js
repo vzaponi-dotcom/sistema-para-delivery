@@ -4,17 +4,38 @@ import { requireCurrentPlatformCapability } from './access.js'
 import { listPlatformBusinesses, getPlatformBusiness } from './businessesRepository.js'
 import { createBusiness } from './businessProvisioning.js'
 import { resendCompanyInvitation } from '../tenancy/companyInvitations.js'
+import { performBusinessManagement } from './managementCommands.js'
+import { MANAGEMENT_CAPABILITIES } from './managementTransactions.js'
+import { listPlatformMemberships, listPlatformHistory, getPlatformManagementAttempt } from './managementRepository.js'
 
 const response = (body, status = 200) => json(body, { status, headers: { 'cache-control': 'no-store' } })
 export async function handlePlatformBusinessesApi(request, env, context, options = {}) {
   const url = new URL(request.url), path = url.pathname, now = options.now || new Date()
   const item = path.match(/^\/api\/platform\/businesses\/([^/]+)$/), resend = path.match(/^\/api\/platform\/businesses\/([^/]+)\/first-manager-invitation\/resend$/)
-  if (path !== '/api/platform/businesses' && !item && !resend) return null
+  const management=path.match(/^\/api\/platform\/businesses\/([^/]+)\/(suspend|resume|delete|restore|memberships|history|management-attempts\/[^/]+|memberships\/[^/]+\/(?:revoke|reactivate)|invitations\/[^/]+\/(?:cancel|resend))$/)
+  if (path !== '/api/platform/businesses' && !item && !resend && !management) return null
   try {
     requireIdentityContext(request, context)
     assertSameOriginMutation(request)
     const capability = resend ? 'platform.invitations.resend' : request.method === 'POST' && path === '/api/platform/businesses' ? 'platform.businesses.create' : 'platform.businesses.view'
     await requireCurrentPlatformCapability(env.DB, context, capability, now)
+    if (management) {
+      let businessId,parts
+      try { businessId=decodeURIComponent(management[1]);parts=management[2].split('/').map(decodeURIComponent) } catch { throw apiError(400,'INVALID_BUSINESS_PATH','Endereço de empresa inválido.') }
+      const read=(parts[0]==='memberships' && parts.length===1)||['history','management-attempts'].includes(parts[0])
+      if (request.method!==(read?'GET':'POST')) return response({error:{code:'METHOD_NOT_ALLOWED',message:'Método não permitido.'}},405)
+      if (read) {
+        let data,required=parts[0]==='memberships'?'platform.memberships.view':'platform.businesses.view'
+        await requireCurrentPlatformCapability(env.DB,context,required,now)
+        if (parts[0]==='memberships') data=await listPlatformMemberships(env.DB,businessId,now)
+        else if (parts[0]==='history') data=await listPlatformHistory(env.DB,businessId,Object.fromEntries(url.searchParams))
+        else {data=await getPlatformManagementAttempt(env.DB,context.accountId,businessId,parts[1]);required=MANAGEMENT_CAPABILITIES[data.result.operation]}
+        await requireCurrentPlatformCapability(env.DB,context,required,now)
+        return response(data)
+      }
+      const target={businessId,operation:parts.length===1?parts[0]:`${parts[0]==='memberships'?'membership':'invitation'}.${parts[2]}`,...(parts[0]==='memberships'?{userId:parts[1]}:parts[0]==='invitations'?{invitationId:parts[1]}:{})}
+      return response(await performBusinessManagement(env,context,target,await readJson(request),{...options,now,idempotencyKey:request.headers.get('Idempotency-Key')}))
+    }
     if (path === '/api/platform/businesses' && request.method === 'GET') {
       const data = await listPlatformBusinesses(env.DB, { ...Object.fromEntries(url.searchParams), now })
       await requireCurrentPlatformCapability(env.DB, context, capability, now)
