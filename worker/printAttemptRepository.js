@@ -290,29 +290,35 @@ export const resolveUnknownPrintAttempt = async (db, businessId, jobId, attemptI
   }
   const at = timestamp(now)
   const actor = String(actorLabel || '').trim() || 'Operador'
-  const nextStatus = resolution === 'manual_printed'
-    ? (Number(job.copies_printed) + 1 >= Number(job.copies_requested) ? 'printed' : 'processing')
-    : 'pending'
   const nextCopies = resolution === 'manual_printed'
     ? Math.min(Number(job.copies_requested), Number(job.copies_printed) + 1)
     : Number(job.copies_printed)
+  const hasRemainingCopy = resolution === 'manual_printed' && nextCopies < Number(job.copies_requested)
+  const nextStatus = resolution === 'manual_printed'
+    ? (hasRemainingCopy ? 'pending' : 'printed')
+    : 'pending'
   await db.batch([
     db.prepare(`UPDATE print_job_attempts SET
       resolution = ?, resolution_actor_label = ?, resolved_at = ?, updated_at = ?
       WHERE id = ? AND business_id = ? AND status = 'unknown' AND resolution IS NULL`)
       .bind(resolution, actor, at, at, attemptId, businessId),
     db.prepare(`UPDATE print_jobs SET
-      status = ?, copies_printed = ?, station_id = CASE WHEN ? = 'manual_not_printed' THEN NULL ELSE station_id END,
-      processing_started_at = CASE WHEN ? = 'manual_not_printed' THEN NULL ELSE processing_started_at END,
-      processed_at = ?, available_at = CASE WHEN ? = 'manual_not_printed' THEN ? ELSE available_at END,
+      status = ?, copies_printed = ?,
+      station_id = CASE WHEN ? = 'manual_not_printed' OR ? = 1 THEN NULL ELSE station_id END,
+      processing_started_at = CASE WHEN ? = 'manual_not_printed' OR ? = 1 THEN NULL ELSE processing_started_at END,
+      processed_at = CASE WHEN ? = 'printed' THEN ? ELSE NULL END,
+      available_at = CASE WHEN ? = 'pending' THEN ? ELSE available_at END,
+      second_copy_requested_at = CASE WHEN ? = 1 THEN COALESCE(second_copy_requested_at, ?) ELSE second_copy_requested_at END,
       last_error_code = NULL, last_error_message = NULL, action_actor_label = ?, action_at = ?
       WHERE changes() = 1 AND id = ? AND business_id = ? AND status = 'requires_attention'
         AND EXISTS (
           SELECT 1 FROM print_job_attempts
           WHERE id = ? AND business_id = ? AND resolution = ? AND resolved_at = ?
         )`)
-      .bind(nextStatus, nextCopies, resolution, resolution, at, resolution, at, actor, at,
-        jobId, businessId, attemptId, businessId, resolution, at),
+      .bind(nextStatus, nextCopies, resolution, hasRemainingCopy ? 1 : 0,
+        resolution, hasRemainingCopy ? 1 : 0, nextStatus, at, nextStatus, at,
+        hasRemainingCopy ? 1 : 0, at, actor, at,
+        jobId, businessId, attempt.id, businessId, resolution, at),
     businessEvent(db,businessId,{action:'printing.outcome.resolved',resourceType:'print-job',resourceId:jobId,outcome:resolution,now,onlyIfChanged:true}),
     db.prepare(`UPDATE print_stations SET recovery_job_id = NULL, updated_at = ?
       WHERE business_id = ? AND recovery_job_id = ?
