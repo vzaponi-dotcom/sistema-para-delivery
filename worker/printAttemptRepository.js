@@ -184,8 +184,9 @@ const markComplete = async (db, businessId, attempt, stationId, details, now) =>
       .bind(details.spoolJobId, at, at, at, attempt.id, businessId, stationId),
     db.prepare(`UPDATE print_jobs SET
       copies_printed = MIN(copies_requested, copies_printed + 1),
-      status = CASE WHEN copies_printed + 1 >= copies_requested THEN 'printed' ELSE 'awaiting_second_copy' END,
-      processed_at = ?, last_error_code = NULL, last_error_message = NULL
+      status = CASE WHEN copies_printed + 1 >= copies_requested THEN 'printed' ELSE 'processing' END,
+      processed_at = CASE WHEN copies_printed + 1 >= copies_requested THEN ? ELSE NULL END,
+      last_error_code = NULL, last_error_message = NULL
       WHERE id = ? AND business_id = ? AND station_id = ?
         AND status IN ('awaiting_confirmation', 'requires_attention')
         AND changes() = 1
