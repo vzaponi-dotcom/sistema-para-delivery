@@ -49,7 +49,6 @@ function PrintingOverlays(props) {
   const recoveryNeedsReview = recoveryJob?.status === 'requires_attention'
     || recoveryJob?.lastError?.code === 'PRINT_OUTCOME_UNKNOWN'
   const showRecoveryNotice = recoveryState !== 'normal'
-    && (recoveryPendingCount > 0 || Boolean(recoveryJobId))
   const recoveryNoticeText = recoveryNeedsReview
     ? 'Uma impressão precisa ser revisada antes de continuar a recuperação.'
     : recoveryState === 'active'
