@@ -268,7 +268,7 @@ export const resolveUnknownPrintAttempt = async (db, businessId, jobId, attemptI
   const fallbackRow = requestedAttemptId
     ? null
     : await db.prepare(`SELECT * FROM print_job_attempts
-        WHERE business_id = ? AND job_id = ? AND status = 'unknown' AND resolution IS NULL
+        WHERE business_id = ? AND job_id = ? AND status = 'unknown'
         ORDER BY copy_number DESC, attempt_number DESC, created_at DESC, id DESC LIMIT 1`)
       .bind(businessId, jobId).first()
   const attempt = requestedAttemptId
