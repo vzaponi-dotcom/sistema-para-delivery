@@ -218,7 +218,11 @@ test('unknown submission outcomes require explicit one-time human resolution', a
   await resolveUnknownPrintAttempt(db, businessId, 'job-1', printedAttempt.id, 'manual_printed', 'Outro operador', new Date(now.getTime() + 1000))
   const printed = await loadPrintJob(db, businessId, 'job-1')
   assert.equal(printed.copiesPrinted, 1)
-  assert.equal(printed.status, 'awaiting_second_copy')
+  assert.equal(printed.status, 'processing')
+  const continuationAttempt = await createPrintJobAttempt(db, businessId, {
+    jobId: 'job-1', stationId: 'kitchen', copyNumber: 2,
+  }, new Date(now.getTime() + 1000))
+  assert.equal(continuationAttempt.copyNumber, 2)
 
   const retryAttempt = await createPrintJobAttempt(db, businessId, {
     jobId: 'job-2', stationId: 'kitchen', copyNumber: 1,
@@ -232,6 +236,24 @@ test('unknown submission outcomes require explicit one-time human resolution', a
     jobId: 'job-2', stationId: 'kitchen', copyNumber: 1,
   }, new Date(now.getTime() + 1000))
   assert.equal(secondAttempt.attemptNumber, 2)
+})
+
+test('manual resolution can recover the unresolved attempt from the job when the UI has a stale snapshot', async () => {
+  const db = setup()
+  const attempt = await createPrintJobAttempt(db, businessId, {
+    jobId: 'job-1', stationId: 'kitchen', copyNumber: 1,
+  }, now)
+  await markPrintAttemptSubmitting(db, businessId, attempt.id, 'kitchen', now)
+  await markPrintAttemptUnknown(db, businessId, attempt.id, 'kitchen', 'QZ_CONNECTION_LOST', now)
+
+  const resolved = await resolveUnknownPrintAttempt(
+    db, businessId, 'job-1', null, 'manual_printed', 'Caixa 1', now,
+  )
+  assert.equal(resolved.id, attempt.id)
+  assert.equal(resolved.resolution, 'manual_printed')
+  const job = await loadPrintJob(db, businessId, 'job-1')
+  assert.equal(job.copiesPrinted, 1)
+  assert.equal(job.status, 'processing')
 })
 
 test('unknown attempts ignore late automatic progress and completion until manual resolution', async () => {
