@@ -76,8 +76,10 @@ function PrintingOverlays(props) {
           <strong>Impressão requer atenção</strong>
           <span>{recoveryNoticeText}</span>
         </div>
-        {recoveryNeedsReview && onOpenPrintQueue ? (
-          <Button type="button" variant="secondary" onClick={handleGlobalRecoveryAction}>Revisar impressão</Button>
+        {recoveryNeedsReview ? (
+          onOpenPrintQueue
+            ? <Button type="button" variant="secondary" onClick={handleGlobalRecoveryAction}>Revisar impressão</Button>
+            : null
         ) : recoveryState !== 'active' ? (
           <Button
             type="button"
