@@ -16,7 +16,7 @@ Celular, tablet e demais dispositivos apenas solicitam ou acompanham jobs. Somen
 
 Em **Pedidos > Impressão**, atualize a lista de impressoras e selecione explicitamente `MPT-II`. A fila encontrada identifica a configuração salva; ela não demonstra que a impressora está ligada, conectada ou com papel.
 
-A estação principal mantém o consumidor físico elegível mesmo se a aba ficar em segundo plano ou a janela for minimizada. O navegador ainda pode reduzir a frequência de timers em background, mas o Mesiva não pausa deliberadamente a impressão por `document.visibilityState`. A revalidação periódica do transporte também consulta novamente o estado atual do QZ/impressora para sair de estados transitórios como `verifying` quando o equipamento voltar a responder `OK`.
+A estação principal mantém o consumidor físico elegível mesmo se a aba ficar em segundo plano ou a janela for minimizada. O ciclo crítico de impressão (revalidação física, heartbeat e busca do próximo job) usa um **Web Worker dedicado** com cadência de 2 s, evitando depender dos timers da aba oculta; ambientes sem Worker usam o intervalo tradicional como fallback. O refresh visual da aplicação continua limitado à aba visível. A revalidação periódica do transporte consulta novamente o estado atual do QZ/impressora para sair de estados transitórios como `verifying` quando o equipamento voltar a responder `OK`.
 
 ## Verdade operacional observável
 
