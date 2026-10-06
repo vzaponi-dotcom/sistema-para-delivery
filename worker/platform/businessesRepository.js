@@ -1,6 +1,7 @@
 import { apiError } from '../http.js'
+import { COMPANY_STATUS_FILTERS } from '../../shared/companyAccess.js'
 
-const select = `SELECT b.id,b.name,b.created_at,b.access_status,h.id AS invitation_id,h.expires_at,h.delivery_status,h.revoked_at,h.consumed_at,
+const select = `SELECT b.id,b.name,b.created_at,b.access_status,b.lifecycle_status,b.management_revision,h.id AS invitation_id,h.expires_at,h.delivery_status,h.revoked_at,h.consumed_at,
   u.id AS member_id,u.display_name,COALESCE(a.email_normalized,u.login_normalized) AS login_normalized,u.membership_state,u.active AS member_active
   FROM businesses b LEFT JOIN company_invitations h ON h.id = (SELECT id FROM company_invitations
     WHERE business_id = b.id AND purpose = 'first_manager' ORDER BY created_at DESC,id DESC LIMIT 1)
@@ -14,11 +15,11 @@ const select = `SELECT b.id,b.name,b.created_at,b.access_status,h.id AS invitati
 const invalidPage = () => apiError(400, 'INVALID_BUSINESS_PAGE', 'Busca ou página inválida.')
 function project(row, now) {
   const accepted = row.consumed_at || ['active', 'inactive'].includes(row.membership_state)
-  return { id: row.id, name: row.name, createdAt: row.created_at, accessStatus: row.access_status,
+  return { id: row.id, name: row.name, createdAt: row.created_at, accessStatus: row.access_status, lifecycleStatus: row.lifecycle_status, managementRevision: row.management_revision,
     firstManager: row.member_id ? { id: row.member_id, name: row.display_name, email: row.login_normalized, membershipState: row.membership_state, active: row.member_active === 1, source: row.invitation_id ? 'invitation' : 'membership' } : null,
     invitation: row.invitation_id ? { id: row.invitation_id, expiresAt: row.expires_at, deliveryStatus: row.delivery_status,
       status: accepted ? 'accepted' : row.revoked_at ? 'revoked' : Date.parse(row.expires_at) <= now.getTime() ? 'expired' : 'pending',
-      canResend: row.access_status === 'pending' && row.membership_state === 'invited' && row.member_active === 1 } : null }
+      canResend: row.lifecycle_status === 'enabled' && row.access_status === 'pending' && row.membership_state === 'invited' && row.member_active === 1 } : null }
 }
 const encodeCursor = data => btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(data)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
 function validCursorTimestamp(value) {
@@ -27,24 +28,27 @@ function validCursorTimestamp(value) {
   const canonical = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value) ? `${value.replace(' ', 'T')}.000Z` : value
   return new Date(canonical).toISOString() === canonical
 }
-function decodeCursor(cursor, query) {
+function decodeCursor(cursor, query, status) {
   try {
     if (typeof cursor !== 'string' || cursor.length > 2000 || !/^[A-Za-z0-9_-]+$/.test(cursor)) throw invalidPage()
     const data = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(atob(cursor.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0))))
-    if (Object.keys(data).sort().join(',') !== 'createdAt,id,query' || data.query !== query || typeof data.id !== 'string'
+    if (!['createdAt,id,query','createdAt,id,query,status'].includes(Object.keys(data).sort().join(',')) || (data.status ?? 'visible') !== status || data.query !== query || typeof data.id !== 'string'
       || !data.id || data.id.length > 200 || !validCursorTimestamp(data.createdAt)) throw invalidPage()
     return data
   } catch { throw invalidPage() }
 }
-export async function listPlatformBusinesses(db, { query = '', cursor = null, limit = 20, now = new Date() } = {}) {
-  if (typeof query !== 'string' || Array.from(query.trim()).length > 200 || !Number.isSafeInteger(Number(limit)) || Number(limit) < 1 || Number(limit) > 50) throw invalidPage()
+export async function listPlatformBusinesses(db, { query = '', cursor = null, status = 'visible', limit = 20, now = new Date() } = {}) {
+  if (!COMPANY_STATUS_FILTERS.includes(status) || typeof query !== 'string' || Array.from(query.trim()).length > 200 || !Number.isSafeInteger(Number(limit)) || Number(limit) < 1 || Number(limit) > 50) throw invalidPage()
   query = query.trim(); limit = Number(limit)
   const clauses = [], values = []
-  if (query) { clauses.push("b.name LIKE ? ESCAPE '\\'"); values.push(`%${query.replace(/[\\%_]/g, c => `\\${c}`)}%`) }
-  if (cursor !== null) { const page = decodeCursor(cursor, query); clauses.push('(b.created_at < ? OR (b.created_at = ? AND b.id < ?))'); values.push(page.createdAt, page.createdAt, page.id) }
+  if (status === 'visible') clauses.push("b.lifecycle_status!='deleted'")
+  else if (['active','pending'].includes(status)) { clauses.push("b.lifecycle_status='enabled' AND b.access_status=?"); values.push(status) }
+  else if (status !== 'all') { clauses.push('b.lifecycle_status=?'); values.push(status) }
+  if (query) { const pattern=`%${query.replace(/[\\%_]/g,c=>`\\${c}`)}%`; clauses.push("(b.name LIKE ? ESCAPE '\\' OR EXISTS(SELECT 1 FROM users searched JOIN accounts linked_account ON linked_account.id=searched.account_id WHERE searched.business_id=b.id AND linked_account.email_normalized LIKE ? ESCAPE '\\'))"); values.push(pattern,pattern) }
+  if (cursor !== null) { const page = decodeCursor(cursor, query,status); clauses.push('(b.created_at < ? OR (b.created_at = ? AND b.id < ?))'); values.push(page.createdAt, page.createdAt, page.id) }
   const { results } = await db.prepare(`${select} ${clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''} ORDER BY b.created_at DESC,b.id DESC LIMIT ?`).bind(...values, limit + 1).all()
   const items = results.slice(0, limit), last = items.at(-1)
-  return { items: items.map(row => project(row, now)), nextCursor: results.length > limit ? encodeCursor({ createdAt: last.created_at, id: last.id, query }) : null }
+  return { items: items.map(row => project(row, now)), nextCursor: results.length > limit ? encodeCursor({ createdAt: last.created_at, id: last.id, query, status }) : null }
 }
 export async function getPlatformBusiness(db, businessId, now = new Date()) {
   if (typeof businessId !== 'string' || !businessId || businessId.length > 200) throw apiError(404, 'BUSINESS_NOT_FOUND', 'Empresa não encontrada.')

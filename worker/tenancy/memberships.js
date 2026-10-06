@@ -3,13 +3,14 @@ import { loadAccountSessionRow, prepareSessionSnapshotAssertion, contextChanged 
 import { prepareIdentityAssertion, commitIdentityStatements } from '../identity/transactions.js'
 import { prepareAuditEvent } from '../access/audit.js'
 import { loadRoleGrants } from '../access/roles.js'
+import { ELIGIBLE_MANAGER_SQL as capableManager } from './membershipEligibility.js'
 export { listEligibleBusinesses } from './eligibleBusinesses.js'
 
 export async function prepareCompanyIssuer(db, context, { businessId, purpose = 'team', capability = null }, now = new Date()) {
   const row = await loadAccountSessionRow(db, context?.identitySessionId, now)
   if (!row || row.account_id !== context.accountId || row.context_id !== context.contextId) throw contextChanged()
   const granted = new Set(JSON.parse(row.role_grants_json)), platformGranted = new Set(JSON.parse(row.platform_grants_json))
-  const allowed = purpose === 'first_manager'
+  const allowed = purpose === 'first_manager' || purpose === 'team' && capability === 'platform.invitations.resend' && row.scope === 'platform'
     ? row.scope === 'platform' && platformGranted.has(capability || 'platform.businesses.create')
     : row.scope === 'business' && row.business_id === businessId && granted.has(capability || 'access.users.manage')
   if (!allowed) throw apiError(403, 'FORBIDDEN', 'Você não pode administrar estes acessos.')
@@ -43,9 +44,6 @@ export async function listCompanyMembers(db, context, now = new Date()) {
   return { users: results.map((row) => projectMember(row, now)), roles: summaries }
 }
 
-const capableManager = `u.active = 1 AND u.membership_state = 'active' AND a.active = 1 AND a.email_verified_at IS NOT NULL
-  AND c.version = 1 AND r.active = 1 AND EXISTS (SELECT 1 FROM role_capabilities rc WHERE rc.business_id = u.business_id AND rc.role_id = u.role_id AND rc.capability = 'access.users.manage')`
-
 export async function updateMembership(db, context, userId, input, now = new Date()) {
   const started = performance.now()
   const issuer = await prepareCompanyIssuer(db, context, { businessId: context.businessId }, now)
@@ -77,6 +75,7 @@ export async function updateMembership(db, context, userId, input, now = new Dat
     prepareIdentityAssertion(db, crypto.randomUUID(), 'SELECT EXISTS(SELECT 1 FROM roles WHERE business_id = ? AND id = ? AND active = 1 AND version = ?)', [context.businessId, roleId, role.version]),
     prepareIdentityAssertion(db, crypto.randomUUID(), managerPredicate, managerValues),
     db.prepare('UPDATE users SET display_name = ?,role_id = ?,active = ?,membership_state = ?,updated_at = ? WHERE business_id = ? AND id = ?').bind(name.trim(), roleId, active, membershipState, timestamp, context.businessId, userId),
+    db.prepare('UPDATE businesses SET management_revision=management_revision+1 WHERE id=?').bind(context.businessId),
   ]
   if (Object.hasOwn(input, 'roleId') || Object.hasOwn(input, 'active')) statements.push(
     db.prepare('UPDATE identity_sessions SET revoked_at = COALESCE(revoked_at,?) WHERE business_id = ? AND user_id = ?').bind(timestamp, context.businessId, userId),

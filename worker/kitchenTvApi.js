@@ -1,3 +1,4 @@
+import { multiCompanyEnabled } from './tenancy/routePolicy.js'
 import {
   clearKitchenTvPairingRequestCookie,
   createKitchenTvCredential,
@@ -149,7 +150,7 @@ const reportInput = (body) => {
 async function authenticatedTv(request, env) {
   const token = readKitchenTvSessionToken(request)
   if (!token) throw unauthorized()
-  const access = await loadKitchenTvSessionByHash(env.DB, await hashKitchenTvToken(token))
+  const access = await loadKitchenTvSessionByHash(env.DB, await hashKitchenTvToken(token),undefined,{requireActive:multiCompanyEnabled(env)})
   if (!access) throw unauthorized()
   return { token, access }
 }
@@ -265,7 +266,7 @@ export async function handleKitchenTvPublicApi(request, env, url = new URL(reque
     }
 
     const sessionCredential = await createKitchenTvCredential()
-    const access = await activateKitchenTvApprovedRequest(env.DB, requestHash, sessionCredential.tokenHash, now)
+    const access = await activateKitchenTvApprovedRequest(env.DB, requestHash, sessionCredential.tokenHash, now,{requireActive:multiCompanyEnabled(env)})
     if (!access) throw pairingExpired()
     const legacySessionTokenFallback = needsLegacySessionTokenFallback(request)
     const headers = new Headers()
@@ -281,6 +282,7 @@ export async function handleKitchenTvPublicApi(request, env, url = new URL(reque
     const { access } = await authenticatedTv(request, env)
     const report = reportInput(await readJson(request))
     await reportKitchenTvDisplay(env.DB, access.businessId, report, now)
+    await authenticatedTv(request,env)
     return json({ reported: true })
   }
 
@@ -288,6 +290,7 @@ export async function handleKitchenTvPublicApi(request, env, url = new URL(reque
     const { token, access } = await authenticatedTv(request, env)
     const state = await loadKitchenTvState(env.DB, access.businessId)
     const touched = await touchKitchenTvSession(env.DB, access.businessId, now, 300_000)
+    await authenticatedTv(request,env)
     return json({ serverNow: now.toISOString(), ...state }, touched
       ? { headers: { 'set-cookie': kitchenTvSessionCookie(token) } }
       : undefined)

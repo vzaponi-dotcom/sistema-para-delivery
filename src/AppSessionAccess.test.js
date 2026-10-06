@@ -66,7 +66,7 @@ test('platform My Account Back restores the administrative list without selectin
   const session = { authenticated: true, authMode: 'multi_company', scope: 'platform', contextId: 'platform-context', account: { id: 'account', displayName: 'Ana', email: 'ana@example.test' }, platformCapabilities: ['platform.businesses.view'], capabilities: [] }
   globalThis.fetch = async path => {
     calls.push(path)
-    const payload = path === '/api/auth/session' ? session : path === '/api/platform/businesses' ? { items: [], nextCursor: null } : null
+    const payload = path === '/api/auth/session' ? session : ['/api/platform/businesses','/api/platform/businesses?limit=20'].includes(path) ? { items: [], nextCursor: null } : null
     assert.ok(payload, `Unexpected ${path}`)
     return { ok: true, json: async () => payload }
   }

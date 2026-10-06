@@ -23,7 +23,7 @@ test('failed resend holds scope guard until canonical detail has been read', asy
 test('activated company takes precedence over delivery failure and cannot resend initial invitation', async t => {
   const h = await workspaceHarness(t), { default: Detail } = await h.load('/src/domains/platform/ui/CompanyDetail.jsx')
   const renderer = await h.render(Detail, { businessId: 'A', canResend: true, api: { getBusiness: async () => ({ id: 'A', name: 'Cozinha A', accessStatus: 'active', firstManager: { name: 'Ana', email: 'ana@example.test' }, invitation: { status: 'accepted', deliveryStatus: 'rejected', canResend: true }, history: [] }), resendFirstManagerInvitation: () => assert.fail('activated resend') } })
-  assert.match(nodeText(renderer.root), /Acesso ativado/)
+  assert.match(nodeText(renderer.root), /Ativa/)
   assert.equal(buttonNamed(renderer.root, 'Reenviar convite'), undefined)
   assert.doesNotMatch(nodeText(renderer.root), /Falha de envio/)
 })

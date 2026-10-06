@@ -26,7 +26,7 @@ test('private administrator requires ownership; repeat preserves active credenti
   const before = f.sqlite.prepare('SELECT * FROM account_credentials WHERE account_id=?').get(f.accounts.admin)
   for (let n = 0; n < 2; n++) assert.equal((await preparePlatformAdministrator(f.db, { name: 'Admin', email: 'admin@example.test', ownershipVerified: true, now: f.now })).activated, true)
   assert.deepEqual(f.sqlite.prepare('SELECT * FROM account_credentials WHERE account_id=?').get(f.accounts.admin), before)
-  assert.equal(f.sqlite.prepare('SELECT count(*) n FROM platform_grants WHERE account_id=?').get(f.accounts.admin).n, 3)
+  assert.equal(f.sqlite.prepare('SELECT count(*) n FROM platform_grants WHERE account_id=?').get(f.accounts.admin).n, 8)
 })
 test('new bootstrap activates admin and manager; readiness/finalization preserve unlisted global accounts and history', async t => {
   const f = await createTenancyFixture(t)

@@ -414,7 +414,7 @@ export async function saveBusinessProfile(db, businessId, input, resolvedLogoVal
   }
 
   if (changed) {
-    statements.push(db.prepare('UPDATE businesses SET name = ?, updated_at = ? WHERE id = ?')
+    statements.push(db.prepare('UPDATE businesses SET name = ?, updated_at = ?, management_revision=management_revision+1 WHERE id = ?')
       .bind(data.name, updatedAt, businessId))
   }
 

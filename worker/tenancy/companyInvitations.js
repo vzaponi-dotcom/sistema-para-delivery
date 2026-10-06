@@ -20,23 +20,23 @@ const changedInvitation = () => apiError(409, 'INVITATION_CHANGED', 'O convite m
 
 export async function prepareMembershipInvitation(db, {
   businessId, accountEmail, displayName, roleId, issuer, purpose = 'team', userId = null, now = new Date(),
-  dailyLimit = 80, issuerCapability = null, expectedInvitationId = null, creatingBusiness = false, monotonicNow = () => performance.now(),
+  dailyLimit = 80, issuerCapability = null, expectedInvitationId = null, creatingBusiness = false, auditOwner = 'issuer', monotonicNow = () => performance.now(),
 }) {
   const started = monotonicNow()
-  if (!['first_manager', 'team'].includes(purpose)) throw invalidCompanyInvitation()
+  if (!['first_manager', 'team'].includes(purpose) || !['issuer','management'].includes(auditOwner)) throw invalidCompanyInvitation()
   accountEmail = normalizeAccessEmail(accountEmail)
   if (typeof displayName !== 'string' || !displayName.trim() || Array.from(displayName.trim()).length > 200) throw apiError(400, 'INVALID_USER_INPUT', 'Informe um nome com até 200 caracteres.')
   const issuing = await prepareCompanyIssuer(db, issuer, { businessId, purpose, capability: issuerCapability }, now)
-  let role = await db.prepare(`SELECT r.id,r.version,r.code,r.is_builtin,b.access_status FROM roles r JOIN businesses b ON b.id = r.business_id
+  let role = await db.prepare(`SELECT r.id,r.version,r.code,r.is_builtin,b.access_status,b.lifecycle_status FROM roles r JOIN businesses b ON b.id = r.business_id
     WHERE r.business_id = ? AND r.id = ? AND r.active = 1`).bind(businessId, roleId).first()
   // Only the private provisioner can prepare the built-in first manager before defaults are committed.
   // The role/business assertion below still requires the real rows in the same atomic batch.
   if (!role && creatingBusiness && purpose === 'first_manager' && roleId === `${businessId}:manager`
     && !await db.prepare('SELECT id FROM businesses WHERE id = ?').bind(businessId).first()) {
-    role = { id: roleId, version: 1, code: 'manager', is_builtin: 1, access_status: 'pending' }
+    role = { id: roleId, version: 1, code: 'manager', is_builtin: 1, access_status: 'pending', lifecycle_status: 'enabled' }
   }
   if (!role) throw apiError(404, 'ROLE_NOT_FOUND', 'Perfil não encontrado.')
-  if ((purpose === 'team' && role.access_status !== 'active') || (purpose === 'first_manager' && (role.access_status !== 'pending' || role.code !== 'manager' || role.is_builtin !== 1))) throw invalidCompanyInvitation()
+  if (role.lifecycle_status !== 'enabled' || (purpose === 'team' && role.access_status !== 'active') || (purpose === 'first_manager' && (role.access_status !== 'pending' || role.code !== 'manager' || role.is_builtin !== 1))) throw invalidCompanyInvitation()
   const account = await findAccountByEmail(db, accountEmail)
   if (account && account.active !== 1) throw apiError(409, 'ACCOUNT_UNAVAILABLE', 'Não foi possível convidar este e-mail.')
   const existing = await db.prepare('SELECT * FROM users WHERE business_id = ? AND login_normalized = ?').bind(businessId, accountEmail).first()
@@ -51,7 +51,7 @@ export async function prepareMembershipInvitation(db, {
   const creation = prepareAccountCreation(db, { email: accountEmail, displayName, now })
   const statements = [issuing.statement,
     prepareIdentityAssertion(db, crypto.randomUUID(), `SELECT EXISTS(SELECT 1 FROM roles r JOIN businesses b ON b.id = r.business_id
-      WHERE r.business_id = ? AND r.id = ? AND r.version = ? AND r.active = 1 AND b.access_status = ?
+      WHERE r.business_id = ? AND r.id = ? AND r.version = ? AND r.active = 1 AND b.access_status = ? AND b.lifecycle_status = 'enabled'
       AND (? != 'first_manager' OR (r.code = 'manager' AND r.is_builtin = 1)))`, [businessId, roleId, role.version, role.access_status, purpose]),
     ...creation.statements,
     prepareIdentityAssertion(db, crypto.randomUUID(), 'SELECT EXISTS(SELECT 1 FROM accounts WHERE email_normalized = ? AND active = 1)', [accountEmail]),
@@ -71,10 +71,13 @@ export async function prepareMembershipInvitation(db, {
     db.prepare(`INSERT INTO company_invitations(id,business_id,account_id,user_id,email_normalized,role_id,expected_role_version,
       issued_by_account_id,issuer_scope,purpose,token_hash,created_at,expires_at)
       SELECT ?,u.business_id,u.account_id,u.id,?,u.role_id,?,?,?,?,?,?,? FROM users u WHERE u.business_id = ? AND u.id = ?`)
-      .bind(invitationId, accountEmail, role.version, issuer.accountId, purpose === 'team' ? 'business' : 'platform', purpose, await sha256Hex(token), timestamp, expiresAt, businessId, userId),
+      .bind(invitationId, accountEmail, role.version, issuer.accountId, issuing.snapshot.scope, purpose, await sha256Hex(token), timestamp, expiresAt, businessId, userId),
   )
-  if (purpose === 'team') statements.push(prepareAuditEvent(db, issuing.context, { action: expectedInvitationId ? 'access.invitation.resent' : 'access.user.created', resourceType: 'user', resourceId: userId, now }))
-  else statements.push(preparePlatformAudit(db, issuer, { action: expectedInvitationId ? 'invitation.resent' : 'invitation.issued', businessId, now }))
+  if (auditOwner === 'issuer') {
+    if (!creatingBusiness) statements.push(db.prepare('UPDATE businesses SET management_revision=management_revision+1 WHERE id=?').bind(businessId))
+    if (issuing.snapshot.scope === 'business') statements.push(prepareAuditEvent(db, issuing.context, { action: expectedInvitationId ? 'access.invitation.resent' : 'access.user.created', resourceType: 'user', resourceId: userId, now }))
+    else statements.push(preparePlatformAudit(db, issuer, { action: expectedInvitationId ? 'invitation.resent' : 'invitation.issued', businessId, now }))
+  }
   const commitNow = new Date(now.getTime() + Math.max(0, Math.floor(monotonicNow() - started)))
   statements[0] = prepareSessionSnapshotAssertion(db, issuing.snapshot, commitNow)
   return { statements, value: { invitationId, subjectId: invitationId, token, expiresAt, userId, businessId, email: accountEmail, displayName: displayName.trim(), purpose } }
@@ -88,11 +91,13 @@ const invitationSelect = `SELECT h.*,b.name AS business_name,r.name AS role_name
   LEFT JOIN account_credentials c ON c.account_id = a.id
   JOIN accounts issuer ON issuer.id = h.issued_by_account_id
   WHERE h.token_hash = ? AND h.expires_at > ? AND h.consumed_at IS NULL AND h.revoked_at IS NULL
-  AND a.active = 1 AND u.active = 1 AND u.membership_state = 'invited' AND u.role_id = h.role_id
+  AND a.active = 1 AND b.lifecycle_status = 'enabled' AND u.active = 1 AND u.membership_state = 'invited' AND u.role_id = h.role_id
   AND r.active = 1 AND r.version = h.expected_role_version AND issuer.active = 1 AND issuer.email_verified_at IS NOT NULL
-  AND ((h.purpose = 'team' AND b.access_status = 'active' AND EXISTS (SELECT 1 FROM users iu JOIN roles ir ON ir.id = iu.role_id AND ir.business_id = iu.business_id
+  AND (h.issuer_scope!='platform' OR EXISTS(SELECT 1 FROM platform_grants WHERE account_id=h.issued_by_account_id AND capability='platform.businesses.view'))
+  AND ((h.purpose = 'team' AND b.access_status = 'active' AND ((h.issuer_scope='business' AND EXISTS (SELECT 1 FROM users iu JOIN roles ir ON ir.id = iu.role_id AND ir.business_id = iu.business_id
     JOIN role_capabilities rc ON rc.business_id = ir.business_id AND rc.role_id = ir.id AND rc.capability = 'access.users.manage'
     WHERE iu.account_id = h.issued_by_account_id AND iu.business_id = h.business_id AND iu.active = 1 AND iu.membership_state = 'active' AND ir.active = 1))
+    OR (h.issuer_scope='platform' AND EXISTS(SELECT 1 FROM platform_grants WHERE account_id=h.issued_by_account_id AND capability='platform.invitations.resend'))))
     OR (h.purpose = 'first_manager' AND b.access_status = 'pending' AND r.code = 'manager' AND r.is_builtin = 1
       AND EXISTS (SELECT 1 FROM platform_grants WHERE account_id = h.issued_by_account_id AND capability IN ('platform.businesses.create','platform.invitations.resend'))))
   AND ((a.email_verified_at IS NULL AND c.account_id IS NULL) OR (a.email_verified_at IS NOT NULL AND c.version = 1))`
@@ -132,6 +137,7 @@ export async function acceptCompanyInvitation(db, { token, password, context = n
       ]),
       db.prepare("UPDATE users SET membership_state = 'active',email_verified_at = ?,updated_at = ? WHERE business_id = ? AND id = ?").bind(timestamp, timestamp, row.business_id, row.user_id),
       db.prepare("UPDATE businesses SET access_status = 'active',updated_at = ? WHERE id = ? AND access_status = 'pending'").bind(timestamp, row.business_id),
+      db.prepare('UPDATE businesses SET management_revision=management_revision+1 WHERE id=?').bind(row.business_id),
       db.prepare('UPDATE company_invitations SET consumed_at = ? WHERE id = ?').bind(timestamp, row.id),
       prepareIdentityAudit(db, { accountId: row.account_id, action: 'invitation.accepted', now: commitNow }),
       prepareAuditEvent(db, { businessId: row.business_id, actorType: 'system' }, { action: 'access.invitation.accepted', resourceType: 'user', resourceId: row.user_id, now: commitNow }),
@@ -147,7 +153,7 @@ export async function acceptCompanyInvitation(db, { token, password, context = n
 }
 
 export async function deliverPersistedCompanyInvitation(db, env, message, { deliver = deliverIdentityMessage, now = new Date(), fetchImpl } = {}) {
-  const row = await db.prepare('SELECT h.account_id,h.issued_by_account_id,h.purpose,b.name,r.name AS role_name FROM company_invitations h JOIN businesses b ON b.id = h.business_id JOIN roles r ON r.id = h.role_id AND r.business_id = h.business_id WHERE h.id = ? AND h.business_id = ?').bind(message.invitationId, message.businessId).first()
+  const row = await db.prepare('SELECT h.account_id,h.issued_by_account_id,h.issuer_scope,b.name,r.name AS role_name FROM company_invitations h JOIN businesses b ON b.id = h.business_id JOIN roles r ON r.id = h.role_id AND r.business_id = h.business_id WHERE h.id = ? AND h.business_id = ?').bind(message.invitationId, message.businessId).first()
   if (!row) throw invalidCompanyInvitation()
   let result
   try { result = await deliver(env, { ...message, purpose: 'company_invitation', businessName: row.name, roleName: row.role_name }, { fetchImpl }) } catch { result = { status: 'uncertain' } }
@@ -155,8 +161,8 @@ export async function deliverPersistedCompanyInvitation(db, env, message, { deli
   const providerId = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(result?.providerId || '') ? result.providerId : null
   const update = db.prepare("UPDATE company_invitations SET delivery_status = ?,provider_id = ?,revoked_at = CASE WHEN ? = 'rejected' THEN COALESCE(revoked_at,?) ELSE revoked_at END WHERE id = ? AND business_id = ?")
     .bind(status, providerId, status, now.toISOString(), message.invitationId, message.businessId)
-  const event = row.purpose === 'first_manager'
-    ? preparePlatformAudit(db, { scope: 'platform', accountId: row.issued_by_account_id }, { action: `invitation.delivery.${status}`, businessId: message.businessId, result: status === 'accepted' ? 'success' : 'failure', now })
+  const event = row.issuer_scope === 'platform'
+    ? preparePlatformAudit(db, { scope: 'platform', accountId: row.issued_by_account_id }, { action: `invitation.delivery.${status}`, businessId: message.businessId, resourceType: 'invitation', resourceId: message.invitationId, result: status === 'accepted' ? 'success' : 'failure', now })
     : prepareAuditEvent(db, { businessId: message.businessId, actorType: 'system' }, { action: `access.email.company_invitation.delivery.${status}`, resourceType: 'user', resourceId: message.userId, outcome: status === 'accepted' ? 'success' : 'failure', now })
   await db.batch([update, event])
   return { status, expiresAt: message.expiresAt }

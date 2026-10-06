@@ -121,6 +121,27 @@ Novas empresas são provisionadas pelo painel Mesiva. O primeiro Gerente recebe 
 
 Gerentes e Operadores são vínculos empresariais. Administrador Mesiva é uma concessão global de plataforma.
 
+### Gestão de empresas
+
+Este procedimento requer a migration `0041_platform_company_management.sql` e o bundle correspondente à gestão administrativa. Verifique a release efetivamente publicada antes de assumir disponibilidade em produção. O endereço oficial permanece `https://app.mesiva.com.br`; a separação em domínio administrativo tem entrega própria.
+
+No painel **Administração Mesiva → Empresas**, use nome/e-mail e o filtro de situação, depois **Gerenciar**. Os detalhes possuem **Visão geral**, **Pessoas e convites** (mediante permissão) e **Histórico**. Datas do histórico seguem São Paulo. Permissões são grants persistidos: a atualização concede os novos grants apenas às contas identificadas em `platform_bootstraps`, preservando permissões delegadas anteriores.
+
+**Configuração pendente** identifica um cadastro antigo cujo acesso por conta Mesiva ainda não foi configurado (`access_status=legacy`). Esse rótulo aparece na lista e no card de acesso dos detalhes; é uma indicação de situação, sem ação de clique.
+
+- **Suspender acesso** bloqueia toda a empresa e revoga suas sessões operacionais, convites pendentes e pareamentos da TV. Contas globais, senhas, vínculos e dados permanecem; outras empresas continuam acessíveis.
+- **Reativar acesso** exige uma pessoa elegível com `access.users.manage` em empresa já ativada. Se necessário, reative um vínculo na aba de pessoas antes de liberar a empresa. Para cadastro pendente, **Retomar ativação** mantém o primeiro acesso pendente e exige reenvio explícito de convite.
+- **Revogar acesso** afeta somente a pessoa na empresa selecionada. Não é permitido remover a última pessoa administradora elegível de uma operação habilitada: prepare um substituto ou suspenda a empresa primeiro. **Reativar vínculo** conserva o perfil; **Permitir novo convite** não ativa quem nunca aceitou.
+- **Cancelar convite** invalida o link sem apagar o vínculo. **Reenviar convite** cria outro link e invalida os anteriores, sujeito ao intervalo de 60 segundos e limite do ambiente. Envio aceito pelo serviço não confirma recebimento no e-mail. O resultado aceito, rejeitado ou não confirmado permanece na aba de pessoas e no histórico administrativo, associado ao convite e ao responsável pelo envio.
+- **Excluir empresa** exige motivo e nome atual digitado. Remove o cadastro da consulta padrão e bloqueia o acesso; pedidos, clientes, catálogo, financeiro, auditoria, impressões e R2 permanecem preservados. Não existe purga automática.
+- Para recuperar, filtre **Excluídas**, abra a empresa e selecione **Restaurar empresa**. Ela volta **Suspensa**; depois, retome acesso/ativação explicitamente. Sessões, links e pareamentos anteriores não voltam a funcionar; a TV exige novo pareamento.
+
+Confirmações usam a revisão atual do cadastro. Se aparecer conflito, revise os dados e confirme novamente. Em perda de resposta, use **Verificar resultado**: essa consulta não repete a ação. Se não houver confirmação, **Tentar a mesma operação** é uma decisão explícita que preserva a chave original; nunca reenviar automaticamente um convite ou criar outra tentativa para contornar a incerteza.
+
+Suspensão/exclusão não cancela pedidos, pagamentos ou papel já encaminhado ao QZ/spooler e não recupera dados já recebidos por um dispositivo desconectado. Preserve decisões humanas e resultados físicos desconhecidos; não reenviar impressões automaticamente ao retomar acesso.
+
+Rollback para um bundle anterior a este controle pode ignorar `lifecycle_status` ao permitir novos logins. Não usar esse bundle para reabrir operação de empresas suspensas/excluídas; revise compatibilidade de autenticação, schema e estado administrativo antes de rollback, pelo runbook de release.
+
 ## 7. Recuperação de acesso
 
 A recuperação normal usa **Esqueci minha senha** e e-mail.

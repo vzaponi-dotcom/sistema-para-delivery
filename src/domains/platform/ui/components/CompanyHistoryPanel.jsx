@@ -1,0 +1,10 @@
+import { useEffect, useState } from 'react'
+import Button from '../../../../shared/ui/Button.jsx'
+import { formatDate, platformEventLabel } from '../companyStatus.js'
+
+export default function CompanyHistoryPanel({company,api}) {
+  const [cursor,setCursor]=useState(null),[retry,setRetry]=useState(0),[state,setState]=useState({loading:true})
+  useEffect(()=>{let live=true;const controller=new AbortController();setState({loading:true,owner:api});void api.listHistory(company.id,{cursor},{signal:controller.signal}).then(data=>{if(live)setState({owner:api,items:data.items||[],nextCursor:data.nextCursor,loading:false})}).catch(error=>{if(live)setState({owner:api,error:error.message,loading:false})});return()=>{live=false;controller.abort()}},[api,company.id,company.managementRevision,cursor,retry])
+  const visible=state.owner===api?state:{loading:true}
+  return <section className="platform-card platform-history"><h2>Histórico administrativo</h2><p className="platform-muted">Horário de São Paulo.</p>{visible.loading?<p role="status">Carregando histórico…</p>:visible.error?<div role="alert"><p>{visible.error}</p><Button onClick={()=>setRetry(v=>v+1)}>Tentar novamente</Button></div>:<>{!visible.items?.length?<p>Nenhuma atualização registrada.</p>:<ol className="platform-timeline">{visible.items.map(event=><li key={event.id}><strong>{platformEventLabel(event.action)}</strong><time>{formatDate(event.occurredAt)} · {event.actorName||'Responsável não registrado'}</time>{event.reason&&<p>{event.reason}</p>}{event.resourceLabel&&<small className="platform-muted">{event.resourceType==='user'?'Vínculo':event.resourceType==='invitation'?'Convite':'Empresa'}: {event.resourceLabel}</small>}{event.result!=='success'&&<p>{event.result==='denied'?'Ação negada':'Ação não concluída'}</p>}</li>)}</ol>}<div className="platform-form-actions">{cursor&&<Button variant="secondary" onClick={()=>setCursor(null)}>Mais recentes</Button>}{visible.nextCursor&&<Button variant="secondary" onClick={()=>setCursor(visible.nextCursor)}>Eventos anteriores</Button>}</div></>}</section>
+}

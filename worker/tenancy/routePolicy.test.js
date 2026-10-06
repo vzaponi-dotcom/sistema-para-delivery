@@ -12,3 +12,6 @@ test('known entry points distinguish public identity, TV device authentication, 
   assert.equal(classifyApiRoute('POST', '/api/access/invitations/accept'), 'unknown')
   assert.equal(classifyApiRoute('GET', '/api/unknown'), 'unknown')
 })
+test('management reads and actions remain in platform scope',()=>{
+  for (const suffix of ['suspend','resume','delete','restore','memberships','memberships/user/revoke','memberships/user/reactivate','invitations/invite/cancel','invitations/invite/resend','history','management-attempts/key']) assert.equal(classifyApiRoute('POST',`/api/platform/businesses/company/${suffix}`),'platform')
+})

@@ -31,7 +31,7 @@ const bootstrapEnvironment = (environment = 'staging') => {
 const adminPredicate = `SELECT EXISTS(SELECT 1 FROM platform_bootstraps p JOIN accounts a ON a.id=p.account_id
   JOIN account_credentials c ON c.account_id=a.id WHERE p.environment=? AND a.id=? AND a.active=1
   AND a.email_verified_at IS NOT NULL AND c.version=1 AND c.password_verifier=? AND c.revision=?
-  AND (SELECT count(*) FROM platform_grants g WHERE g.account_id=a.id AND g.capability IN ('platform.businesses.view','platform.businesses.create','platform.invitations.resend'))=3)`
+  AND (SELECT count(*) FROM platform_grants g WHERE g.account_id=a.id AND g.capability IN ('${PLATFORM_CAPABILITIES.join("','")}'))=${PLATFORM_CAPABILITIES.length})`
 
 export async function preparePlatformAdministrator(db, { name, email, ownershipVerified, now = new Date(), environment = 'staging', dailyLimit = 80 }) {
   ownership(ownershipVerified)
