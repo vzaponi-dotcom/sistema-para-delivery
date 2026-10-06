@@ -134,6 +134,7 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
       }
       pageCacheRef.current.set(key, nextPage)
       setOperationalPage(nextPage)
+      setSelectedJob((current) => current ? nextPage.jobs.find((job) => job?.id === current.id) ?? current : null)
       setSummary(normalizePrintQueueSummary(summaryPayload?.summary || buildPrintQueueSummary(operationalPayload?.jobs)))
       prefetchAdjacentPages(nextPage.pageInfo, controller.signal)
     } catch (error) {
