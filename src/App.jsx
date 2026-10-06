@@ -873,6 +873,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
         authenticated={operationalAccess && authState === 'authenticated'}
         canExecutePrinting={canExecutePrinting}
         canDiscardPrinting={canDiscardPrinting}
+        onOpenPrintQueue={canViewPrintQueue ? () => requestNavigation('print-queue') : undefined}
         onError={showApiError}
         onSuccess={showSuccessMessage}
       />
