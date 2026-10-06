@@ -66,7 +66,6 @@ test('QZ two-copy job submits and confirms copy 1 then copy 2 in one execution',
       },
       markSubmitting: async (attemptId) => {
         sequence.push(['submit', attemptId])
-        return { id: attemptId }
       },
       sendBytes: async (bytes, { jobName }) => {
         sequence.push(['send', bytes[0], jobName])
