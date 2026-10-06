@@ -10,7 +10,7 @@ function PrintingOverlays(props) {
     authenticated,
     canExecutePrinting,
     canDiscardPrinting,
-    onOpenPrintQueue,
+    onReviewPrintJob,
   } = props
   const state = usePrintingOverlays(props)
 
@@ -60,7 +60,7 @@ function PrintingOverlays(props) {
 
   const handleGlobalRecoveryAction = () => {
     if (recoveryNeedsReview) {
-      onOpenPrintQueue?.()
+      onReviewPrintJob?.(recoveryJobId)
       return
     }
     if (recoveryState === 'pending') {
@@ -82,7 +82,7 @@ function PrintingOverlays(props) {
           <span>{recoveryNoticeText}</span>
         </div>
         {recoveryNeedsReview ? (
-          onOpenPrintQueue
+          onReviewPrintJob
             ? <Button type="button" variant="secondary" onClick={handleGlobalRecoveryAction}>Revisar impressão</Button>
             : null
         ) : recoveryState !== 'active' || recoveryActiveIdle ? (
