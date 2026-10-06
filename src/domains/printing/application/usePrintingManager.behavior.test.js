@@ -164,7 +164,7 @@ test('manual not-printed recovery never strands the station active when physical
   assert.ok(start >= 0 && end > start)
   const block = managerSource.slice(start, end)
   assert.match(block, /getExplicitPort/)
-  assert.match(block, /printerHealthRef\.current\.state === 'ready'/)
+  assert.match(block, /printerHealthRef\.current\.state !== 'ready'/)
   assert.match(block, /transitionRecovery\('resume'\)/)
   assert.match(block, /printNextRecovery\(\)/)
   assert.match(block, /if \(!continued\)[\s\S]*transitionRecovery\('defer'\)/)
