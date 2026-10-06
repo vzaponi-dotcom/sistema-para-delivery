@@ -5,17 +5,19 @@ import { readFile } from 'node:fs/promises'
 const overlays = await readFile(new URL('./domains/printing/ui/PrintingOverlays.jsx', import.meta.url), 'utf8')
 const hook = await readFile(new URL('./domains/printing/application/usePrintingOverlays.js', import.meta.url), 'utf8')
 
-test('recovery UI only becomes actionable for a physically ready printer and includes the approved copy-by-copy actions', () => {
+test('recovery UI stays actionable for a physically ready printer and advances job by job', () => {
   for (const label of [
     'Impressora disponível novamente',
-    'Como a impressora não possui corte automático, as vias serão impressas uma de cada vez.',
+    'Os trabalhos serão recuperados um por vez. Pedidos configurados com duas vias imprimirão as duas em sequência.',
     'Imprimir agora',
     'Agora não',
     'Descartar todas',
-    'Via impressa',
-    'Separe o papel antes de continuar.',
+    'Trabalho concluído',
+    'Pronto para continuar com o próximo trabalho pendente.',
     'Imprimir próxima',
     'Parar por agora',
+    'Retomar recuperação',
+    'Revisar impressão',
   ]) assert.match(overlays, new RegExp(label))
   assert.match(overlays, /recoveryPromptEligible\s*&&\s*physicalPrinterReady/)
   assert.match(overlays, /recoveryPendingCount/)
