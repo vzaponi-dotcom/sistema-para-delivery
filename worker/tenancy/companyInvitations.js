@@ -27,16 +27,16 @@ export async function prepareMembershipInvitation(db, {
   accountEmail = normalizeAccessEmail(accountEmail)
   if (typeof displayName !== 'string' || !displayName.trim() || Array.from(displayName.trim()).length > 200) throw apiError(400, 'INVALID_USER_INPUT', 'Informe um nome com até 200 caracteres.')
   const issuing = await prepareCompanyIssuer(db, issuer, { businessId, purpose, capability: issuerCapability }, now)
-  let role = await db.prepare(`SELECT r.id,r.version,r.code,r.is_builtin,b.access_status FROM roles r JOIN businesses b ON b.id = r.business_id
+  let role = await db.prepare(`SELECT r.id,r.version,r.code,r.is_builtin,b.access_status,b.lifecycle_status FROM roles r JOIN businesses b ON b.id = r.business_id
     WHERE r.business_id = ? AND r.id = ? AND r.active = 1`).bind(businessId, roleId).first()
   // Only the private provisioner can prepare the built-in first manager before defaults are committed.
   // The role/business assertion below still requires the real rows in the same atomic batch.
   if (!role && creatingBusiness && purpose === 'first_manager' && roleId === `${businessId}:manager`
     && !await db.prepare('SELECT id FROM businesses WHERE id = ?').bind(businessId).first()) {
-    role = { id: roleId, version: 1, code: 'manager', is_builtin: 1, access_status: 'pending' }
+    role = { id: roleId, version: 1, code: 'manager', is_builtin: 1, access_status: 'pending', lifecycle_status: 'enabled' }
   }
   if (!role) throw apiError(404, 'ROLE_NOT_FOUND', 'Perfil não encontrado.')
-  if ((purpose === 'team' && role.access_status !== 'active') || (purpose === 'first_manager' && (role.access_status !== 'pending' || role.code !== 'manager' || role.is_builtin !== 1))) throw invalidCompanyInvitation()
+  if (role.lifecycle_status !== 'enabled' || (purpose === 'team' && role.access_status !== 'active') || (purpose === 'first_manager' && (role.access_status !== 'pending' || role.code !== 'manager' || role.is_builtin !== 1))) throw invalidCompanyInvitation()
   const account = await findAccountByEmail(db, accountEmail)
   if (account && account.active !== 1) throw apiError(409, 'ACCOUNT_UNAVAILABLE', 'Não foi possível convidar este e-mail.')
   const existing = await db.prepare('SELECT * FROM users WHERE business_id = ? AND login_normalized = ?').bind(businessId, accountEmail).first()
@@ -51,7 +51,7 @@ export async function prepareMembershipInvitation(db, {
   const creation = prepareAccountCreation(db, { email: accountEmail, displayName, now })
   const statements = [issuing.statement,
     prepareIdentityAssertion(db, crypto.randomUUID(), `SELECT EXISTS(SELECT 1 FROM roles r JOIN businesses b ON b.id = r.business_id
-      WHERE r.business_id = ? AND r.id = ? AND r.version = ? AND r.active = 1 AND b.access_status = ?
+      WHERE r.business_id = ? AND r.id = ? AND r.version = ? AND r.active = 1 AND b.access_status = ? AND b.lifecycle_status = 'enabled'
       AND (? != 'first_manager' OR (r.code = 'manager' AND r.is_builtin = 1)))`, [businessId, roleId, role.version, role.access_status, purpose]),
     ...creation.statements,
     prepareIdentityAssertion(db, crypto.randomUUID(), 'SELECT EXISTS(SELECT 1 FROM accounts WHERE email_normalized = ? AND active = 1)', [accountEmail]),
@@ -88,7 +88,7 @@ const invitationSelect = `SELECT h.*,b.name AS business_name,r.name AS role_name
   LEFT JOIN account_credentials c ON c.account_id = a.id
   JOIN accounts issuer ON issuer.id = h.issued_by_account_id
   WHERE h.token_hash = ? AND h.expires_at > ? AND h.consumed_at IS NULL AND h.revoked_at IS NULL
-  AND a.active = 1 AND u.active = 1 AND u.membership_state = 'invited' AND u.role_id = h.role_id
+  AND a.active = 1 AND b.lifecycle_status = 'enabled' AND u.active = 1 AND u.membership_state = 'invited' AND u.role_id = h.role_id
   AND r.active = 1 AND r.version = h.expected_role_version AND issuer.active = 1 AND issuer.email_verified_at IS NOT NULL
   AND ((h.purpose = 'team' AND b.access_status = 'active' AND EXISTS (SELECT 1 FROM users iu JOIN roles ir ON ir.id = iu.role_id AND ir.business_id = iu.business_id
     JOIN role_capabilities rc ON rc.business_id = ir.business_id AND rc.role_id = ir.id AND rc.capability = 'access.users.manage'

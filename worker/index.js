@@ -39,6 +39,7 @@ import { handlePlatformBusinessesApi } from './platform/businessesApi.js'
 import { classifyApiRoute, multiCompanyEnabled, resolveRequestContext } from './tenancy/routePolicy.js'
 import { requireBusinessContext } from './tenancy/businessContext.js'
 import { authenticateAccountRequest, contextChanged } from './identity/sessions.js'
+import { withBusinessSessionGuard } from './tenancy/guardedBusinessDb.js'
 
 // Shared with the infrastructure CLI; never sourced from a request or CLI flag.
 export const BUSINESS_ID = 'amor-e-sabor'
@@ -163,7 +164,7 @@ const authenticatedApi = async (request, env) => {
 }
 
 const dispatchAuthenticatedApi = async (request, env, session, context, url) => {
-  env = { ...env, DB: withAuditContext(env.DB, context) }
+  env = { ...env, DB: withAuditContext(multiCompanyEnabled(env) ? withBusinessSessionGuard(env.DB, session) : env.DB, context) }
   const effectsJson = (payload, init) => json(projectMutationEffects(payload, context.granted), init)
 
   const accessResponse = await handleAccessApi(request, env, context, url)

@@ -65,7 +65,7 @@ export async function setKitchenTvRequestedModality(db, businessId, modality, no
 
 export async function reportKitchenTvDisplay(db, businessId, report, now = new Date()) {
   const reportedAt = now.toISOString()
-  await db.prepare(`INSERT INTO kitchen_tv_display_control (
+  const statement = db.prepare(`INSERT INTO kitchen_tv_display_control (
       business_id, revision, requested_page, updated_at,
       reported_revision, reported_page, reported_page_count,
       reported_viewport_width, reported_viewport_height,
@@ -90,7 +90,7 @@ export async function reportKitchenTvDisplay(db, businessId, report, now = new D
       JSON.stringify(report.visibleOrderIds),
       reportedAt,
     )
-    .run()
+  await commitIdentityStatements(db,[prepareIdentityAssertion(db,crypto.randomUUID(),"SELECT EXISTS(SELECT 1 FROM businesses WHERE id=? AND lifecycle_status='enabled')",[businessId]),statement])
   return loadKitchenTvControl(db, businessId)
 }
 
@@ -148,3 +148,4 @@ export async function restoreKitchenTvOrder(db, businessId, orderId, now = new D
     .bind(businessId, orderId),{action:'kitchen-tv.order.restored',resourceType:'order',resourceId:orderId,now}).run()
   return true
 }
+import { prepareIdentityAssertion, commitIdentityStatements } from './identity/transactions.js'

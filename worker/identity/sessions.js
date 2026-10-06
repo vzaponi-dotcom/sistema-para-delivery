@@ -28,7 +28,7 @@ const sessionSelect = `SELECT s.id,s.account_id,s.credential_revision,s.family_i
 const eligibility = `a.active = 1 AND a.email_verified_at IS NOT NULL AND c.version = 1 AND c.revision = s.credential_revision
   AND s.revoked_at IS NULL AND f.revoked_at IS NULL AND f.current_identity_session_id = s.id
   AND s.expires_at > ? AND f.expires_at = s.expires_at
-  AND (s.scope = 'identity' OR (s.scope = 'business' AND b.access_status = 'active' AND u.active = 1
+  AND (s.scope = 'identity' OR (s.scope = 'business' AND b.access_status = 'active' AND b.lifecycle_status = 'enabled' AND u.active = 1
     AND u.membership_state = 'active' AND r.active = 1 AND bs.revoked_at IS NULL AND bs.expires_at = s.expires_at)
     OR (s.scope = 'platform' AND EXISTS (SELECT 1 FROM platform_grants g WHERE g.account_id = s.account_id AND g.capability = 'platform.businesses.view')))`
 
@@ -75,14 +75,14 @@ export async function prepareAccountSession(db, {
     const member = await db.prepare(`SELECT u.id,u.role_id,r.version,
       ${roleGrantsSql} AS grants_json FROM users u JOIN roles r ON r.id = u.role_id AND r.business_id = u.business_id
       JOIN businesses b ON b.id = u.business_id WHERE u.business_id = ? AND u.account_id = ?
-      AND u.active = 1 AND u.membership_state = 'active' AND r.active = 1 AND b.access_status = 'active'`).bind(businessId, accountId).first()
+      AND u.active = 1 AND u.membership_state = 'active' AND r.active = 1 AND b.access_status = 'active' AND b.lifecycle_status = 'enabled'`).bind(businessId, accountId).first()
     if (!member) throw forbidden()
     userId = member.id
     businessSessionId = crypto.randomUUID()
     statements.push(prepareIdentityAssertion(db, crypto.randomUUID(), `SELECT EXISTS(SELECT 1 FROM users u
       JOIN roles r ON r.id = u.role_id AND r.business_id = u.business_id JOIN businesses b ON b.id = u.business_id
       WHERE u.id = ? AND u.business_id = ? AND u.account_id = ? AND u.active = 1 AND u.membership_state = 'active'
-      AND u.role_id = ? AND r.version = ? AND r.active = 1 AND b.access_status = 'active' AND ${roleGrantsSql} = ?)`,
+      AND u.role_id = ? AND r.version = ? AND r.active = 1 AND b.access_status = 'active' AND b.lifecycle_status = 'enabled' AND ${roleGrantsSql} = ?)`,
     [userId, businessId, accountId, member.role_id, member.version, member.grants_json]))
     statements.push(db.prepare(`INSERT INTO sessions(id,business_id,token_hash,created_at,expires_at,last_seen_at,user_id,device_mode)
       VALUES (?,?,?,?,?,?,?,?)`).bind(businessSessionId, businessId, await sha256Hex(randomIdentityToken()), timestamp, expiresAt, timestamp, userId, deviceMode))

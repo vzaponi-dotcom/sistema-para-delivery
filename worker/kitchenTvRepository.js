@@ -80,15 +80,16 @@ export async function approveKitchenTvPairingCode(db, code, businessId, now = ne
   return mapPairingRequest(results?.[1]?.results?.[0])
 }
 
-export async function activateKitchenTvApprovedRequest(db, requestHash, sessionHash, now = new Date()) {
+export async function activateKitchenTvApprovedRequest(db, requestHash, sessionHash, now = new Date(), { requireActive = false } = {}) {
   const pairedAt = now.toISOString()
   const results = await db.batch([
     db.prepare(`UPDATE kitchen_tv_pairing_requests
       SET consumed_at = ?
       WHERE request_token_hash = ? AND approved_business_id IS NOT NULL
         AND consumed_at IS NULL AND expires_at > ?
+        AND EXISTS (SELECT 1 FROM businesses b WHERE b.id=approved_business_id AND b.lifecycle_status='enabled' AND (?=0 OR b.access_status='active'))
       RETURNING approved_business_id`)
-      .bind(pairedAt, requestHash, pairedAt),
+      .bind(pairedAt, requestHash, pairedAt,requireActive ? 1 : 0),
     db.prepare(`INSERT INTO kitchen_tv_access (
         business_id, pairing_token_hash, pairing_expires_at, session_token_hash,
         session_issued_at, paired_at, last_seen_at, revoked_at, created_at, updated_at
@@ -111,10 +112,11 @@ export async function activateKitchenTvApprovedRequest(db, requestHash, sessionH
   return businessId ? loadKitchenTvAccess(db, businessId) : null
 }
 
-export async function loadKitchenTvSessionByHash(db, sessionHash, businessId) {
+export async function loadKitchenTvSessionByHash(db, sessionHash, businessId, { requireActive = false } = {}) {
   const businessClause = businessId === undefined ? '' : ' AND business_id = ?'
   const statement = db.prepare(`${SELECT_ACCESS}
-    WHERE session_token_hash = ? AND revoked_at IS NULL${businessClause}`)
+    WHERE session_token_hash = ? AND revoked_at IS NULL${businessClause}
+    AND EXISTS (SELECT 1 FROM businesses b WHERE b.id=kitchen_tv_access.business_id AND b.lifecycle_status='enabled' ${requireActive ? "AND b.access_status='active'" : ''})`)
   const row = businessId === undefined
     ? await statement.bind(sessionHash).first()
     : await statement.bind(sessionHash, businessId).first()
@@ -127,15 +129,16 @@ export async function touchKitchenTvSession(db, businessId, now = new Date(), mi
   const result = await db.prepare(`UPDATE kitchen_tv_access
     SET last_seen_at = ?, updated_at = ?
     WHERE business_id = ? AND session_token_hash IS NOT NULL AND revoked_at IS NULL
+      AND EXISTS (SELECT 1 FROM businesses b WHERE b.id=kitchen_tv_access.business_id AND b.lifecycle_status='enabled')
       AND (last_seen_at IS NULL OR last_seen_at <= ?)`)
     .bind(seenAt, seenAt, businessId, threshold)
     .run()
   return Number(result?.meta?.changes ?? 0) > 0
 }
 
-export async function revokeKitchenTvAccess(db, businessId, now = new Date()) {
+export function prepareKitchenTvAccessRevocation(db, businessId, now = new Date()) {
   const revokedAt = now.toISOString()
-  await db.batch([
+  return [
     db.prepare(`UPDATE kitchen_tv_access SET
         pairing_token_hash = NULL,
         pairing_expires_at = NULL,
@@ -144,11 +147,16 @@ export async function revokeKitchenTvAccess(db, businessId, now = new Date()) {
         revoked_at = ?,
         updated_at = ?
       WHERE business_id = ?`)
-      .bind(revokedAt, revokedAt, businessId),businessEvent(db,businessId,{action:'settings.kitchen-tv.revoked',resourceType:'settings',resourceId:'kitchen-tv',now,onlyIfChanged:true}),
+      .bind(revokedAt, revokedAt, businessId),
     db.prepare(`UPDATE kitchen_tv_pairing_requests
       SET consumed_at = ?
       WHERE approved_business_id = ? AND consumed_at IS NULL`)
       .bind(revokedAt, businessId),
-  ])
+  ]
+}
+
+export async function revokeKitchenTvAccess(db, businessId, now = new Date()) {
+  const statements = prepareKitchenTvAccessRevocation(db,businessId,now)
+  await db.batch([statements[0],businessEvent(db,businessId,{action:'settings.kitchen-tv.revoked',resourceType:'settings',resourceId:'kitchen-tv',now,onlyIfChanged:true}),statements[1]])
   return loadKitchenTvAccess(db, businessId)
 }
