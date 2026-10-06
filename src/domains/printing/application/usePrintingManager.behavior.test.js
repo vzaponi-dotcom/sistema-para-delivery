@@ -153,8 +153,9 @@ test('unknown-outcome confirmation tolerates a stale UI attempt and continues a 
   const block = managerSource.slice(start, end)
   assert.doesNotMatch(block, /!attempt\?\.id/)
   assert.match(block, /resolvePrintOutcome\(job\.id, attempt\?\.id \?\? null, 'manual_printed'\)/)
-  assert.match(block, /resolvedJob\?\.status === 'processing'/)
-  assert.match(block, /executeClaimedJob\(resolvedJob/)
+  assert.match(block, /resolvedJob\?\.status === 'pending'/)
+  assert.match(block, /claimPrintJob\(resolvedJob\.id, station\.id\)/)
+  assert.match(block, /executeClaimedJob\(claimed\.job/)
 })
 
 test('one shared operation gate rejects overlapping physical workflows and releases after completion', async () => {
