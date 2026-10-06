@@ -786,7 +786,7 @@ export const usePrintingManager = ({ api = legacyPrintingApi, businessId, authen
 
       if (
         wasRecoveryAffinity
-        && ['printed', 'discarded'].includes(finalJob?.status)
+        && (['printed', 'discarded'].includes(finalJob?.status) || continuation?.status === 'printed')
         && Number(refreshed?.summary?.safeBacklog || 0) === 0
         && current?.id
         && current.recoveryState === 'deferred'
