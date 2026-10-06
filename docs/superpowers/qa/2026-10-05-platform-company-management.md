@@ -77,8 +77,18 @@ Teste de regressão reproduziu os dois indicadores antes da correção e confirm
 
 Validação após esses ajustes: `npm test -- --test-concurrency=4` aprovado, 3607/3607 sem falhas/cancelamentos/skips; arquitetura, lint e build aprovados (avisos já registrados). `git diff --check` aprovado. Apenas apresentação/texto do frontend e documentação foram alterados; schema e Worker mantêm a evidência anterior. Sem push/publicação.
 
+## Preparação do PR e staging — 06/10/2026
+
+Após o aceite manual local, incorporada a master `a63d56b5`, que já continha a recuperação de impressão QZ, na branch de trabalho. O merge foi automático em `src/App.jsx`; conferida a composição de gestão com o comportamento de impressão existente. Essa incorporação não é merge da entrega na master.
+
+O workflow de staging passou a aceitar `codex/administracao-empresas` somente por `workflow_dispatch`, preservando PR aberto, CI aprovado para o SHA exato, head atual e isolamento de recursos staging. O teste da expressão real do gate ficou vermelho antes da inclusão e verde depois, rejeitando push dessa branch e outra branch `codex/` não autorizada; testes de gates/release: 58/58. A produção continua manual e master-only.
+
+Versão combinada com a master: suíte inteira `npm test -- --test-concurrency=4`, 3622/3622 sem falhas/cancelamentos/skips. Arquitetura, lint e build aprovados; dry-runs Worker de produção/staging aprovados. Nenhuma dependência, banco persistente existente ou configuração de produção foi alterada para essas verificações.
+
+O gate Spec B D1 travou com o Worker temporário ativo na primeira repetição Windows. O supervisor daquela execução foi identificado e encerrado sem afetar os servidores/bancos existentes; runner encerrou com código 13, sem resultado de aprovação. Repetição isolada aprovada: runtime Worker/D1 local, 41 migrations, nove checks de transação e preservação/upgrade/clean install de impressão. As entradas do probe e as migrations não haviam mudado desde o último gate aprovado. O guia AGENTS foi esclarecido para passar globs por `rg -g` no PowerShell, após buscas com glob no caminho falharem nesse ambiente.
+
 ## Publicação e limitações
 
-Código concluído e validado localmente; o usuário pediu explicitamente manter sem push para testes manuais locais antes de prosseguir. CI de PR/master, staging para o SHA da entrega, aceite humano, merge e produção ainda precisam seguir o [runbook](../../release-and-migration-runbook.md). Nenhum deploy/migration remoto, push ou merge foi executado nesta sessão.
+Código concluído e validado localmente. Inicialmente o usuário pediu manter sem push para testes manuais; em 06/10/2026 confirmou “eu validei, tudo certo” e autorizou o próximo passo: push, PR, CI e homologação em staging. CI de PR/master, staging para o SHA da entrega, aceite humano, merge e produção seguem o [runbook](../../release-and-migration-runbook.md). O aceite local não autoriza integração na master nem produção.
 
 Não voltar a um bundle que ignore o ciclo administrativo depois de suspender/excluir empresas. A compatibilidade de rollback de acesso precisa ser revisada junto de bundle/schema/dados. O novo domínio administrativo não integra esta primeira entrega.

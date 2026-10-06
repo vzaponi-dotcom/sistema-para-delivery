@@ -8,7 +8,7 @@ Estado: especificação aprovada pelo usuário em 05/10/2026. O usuário escolhe
 
 Permitir que a administração Mesiva acompanhe as empresas, suspenda seu acesso, administre vínculos e convites e exclua/restaure cadastros sem perder o histórico operacional. A pessoa administradora precisa identificar a situação atual, compreender o alcance de uma ação e verificar seu resultado.
 
-A primeira entrega reúne a interface e as regras de gestão, mantendo o painel nas rotas atuais `/mesiva/empresas`. A segunda entrega será a separação em `admin.mesiva.com.br` e uma versão administrativa de homologação, com especificação própria. Não alterar DNS, origens de autenticação, cookies ou workflows de deploy nesta entrega.
+A primeira entrega reúne a interface e as regras de gestão, mantendo o painel nas rotas atuais `/mesiva/empresas`. A segunda entrega será a separação em `admin.mesiva.com.br` e uma versão administrativa de homologação, com especificação própria. Não alterar DNS, origens de autenticação ou cookies nesta entrega. Após o aceite local de 06/10/2026, a homologação autorizada permite admitir somente a branch desta entrega no workflow manual de staging, preservando PR aberto, CI, SHA atual e limites de produção.
 
 O painel administrativo opera no contexto `platform`. Ele não concede acesso operacional implícito a pedidos, clientes, financeiro ou impressão. Homologação continua ligada somente ao Worker/D1/R2 de staging, com dados fictícios; gestão real usa os cadastros da produção.
 

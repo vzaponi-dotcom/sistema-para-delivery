@@ -4,13 +4,13 @@
 
 **Goal:** Entregar a lista e a página de gestão aprovadas, com suspensão, vínculos, convites, exclusão recuperável, restauração e histórico.
 
-**Architecture:** O domínio `platform` coordena a interface e as mutations administrativas; `worker/platform` aplica capabilities atuais e transações D1. O ciclo administrativo permanece independente da ativação inicial, e helpers de tenancy mantêm os bloqueios de sessão, vínculo, convite e TV. Não mudar domínios/deploy nesta entrega.
+**Architecture:** O domínio `platform` coordena a interface e as mutations administrativas; `worker/platform` aplica capabilities atuais e transações D1. O ciclo administrativo permanece independente da ativação inicial, e helpers de tenancy mantêm os bloqueios de sessão, vínculo, convite e TV. Domínios têm entrega própria. Após o aceite local e autorização de homologação em 06/10/2026, apenas esta branch foi admitida para staging manual, preservando os gates de publicação.
 
 **Tech Stack:** React/React Router/Vite existentes, Worker/D1/R2, Node.js 22, `node:test`, harness React e adaptador SQLite já presentes; sem dependências novas.
 
 **Spec:** [Especificação aprovada](../specs/2026-10-05-platform-company-management-design.md).
 
-Estado: plano aprovado e concluído localmente, com execução inline e revisão independente, conforme escolha do usuário em 05/10/2026. Tarefas 1–8 e a rodada de correções da revisão concluídas; suíte completa final: 3606/3606. Branch: `codex/administracao-empresas`. Mantida local, sem push, para testes manuais conforme pedido do usuário. Evidências e limitações no [QA](../qa/2026-10-05-platform-company-management.md).
+Estado: plano aprovado e concluído, com execução inline e revisão independente, conforme escolha do usuário em 05/10/2026. Tarefas 1–8 e a rodada de correções da revisão concluídas; versão combinada com a master: 3622/3622 testes. Branch: `codex/administracao-empresas`. Aceite manual local e autorização de push/PR/CI/staging recebidos em 06/10/2026; merge na master e produção permanecem etapas próprias. Evidências e limitações no [QA](../qa/2026-10-05-platform-company-management.md).
 
 ## Global Constraints
 

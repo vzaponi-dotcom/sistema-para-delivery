@@ -37,7 +37,7 @@ Pontos de entrada, não lista completa. Depois, siga imports, regras, adaptadore
 ## Trabalho e economia de contexto
 - Confira branch e `git status`; preserve alterações de outros chats/usuário. Para nova entrega independente, prefira worktree e branch `codex/<tarefa>` da `master` remota atualizada; reutilize um ambiente adequado existente.
 - Mantenha um objetivo por PR e o escopo solicitado. Não edite o mesmo checkout em paralelo; separe portas e persistência para testes simultâneos.
-- Comece pelo mapa e por buscas específicas com `rg --files`/`rg -n`, limitadas à área. Leia trechos relevantes antes de arquivos inteiros; siga dependências e amplie a busca quando a evidência exigir.
+- Comece pelo mapa e por buscas específicas com `rg --files`/`rg -n`, limitadas à área. No PowerShell, passe globs de arquivos por `-g` (ex.: `rg -n texto scripts/infra -g '*gate*'`), sem usar um caminho literal com `*`. Leia trechos relevantes antes de arquivos inteiros; siga dependências e amplie a busca quando a evidência exigir.
 - Consulte apenas documentos pertinentes; não carregue todos os runbooks, planos ou arquivos do repositório para uma tarefa localizada. Evite reler conteúdo já compreendido sem mudança ou dúvida.
 - Filtre saídas extensas para os erros, trechos e resumos necessários, mantendo contexto suficiente para diagnóstico. Não imprima bundles, lockfiles, base64 ou logs completos sem necessidade.
 - Agrupe leituras/buscas independentes; mantenha edições e operações dependentes em sequência. Não repita comandos ou verificações aprovados no mesmo estado sem mudança relevante, falha ou dúvida nova.
