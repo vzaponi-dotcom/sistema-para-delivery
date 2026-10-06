@@ -10,7 +10,7 @@
 
 **Spec:** [Especificação aprovada](../specs/2026-10-05-platform-company-management-design.md).
 
-Estado: plano aprovado e em execução inline, com revisão independente ao final, conforme escolha do usuário em 05/10/2026. Tarefas 1–8 concluídas localmente; revisão independente em andamento. Branch: `codex/administracao-empresas`.
+Estado: plano aprovado e concluído localmente, com execução inline e revisão independente, conforme escolha do usuário em 05/10/2026. Tarefas 1–8 e a rodada de correções da revisão concluídas; suíte completa final: 3606/3606. Branch: `codex/administracao-empresas`. Mantida local, sem push, para testes manuais conforme pedido do usuário. Evidências e limitações no [QA](../qa/2026-10-05-platform-company-management.md).
 
 ## Global Constraints
 

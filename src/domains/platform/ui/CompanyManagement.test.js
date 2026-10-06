@@ -61,3 +61,9 @@ test('confirmation stays mounted and pending until the canonical detail refresh 
   await act(async()=>finishRead({...company,lifecycleStatus:'suspended',managementRevision:1}))
   assert.equal(renderer.root.findAllByProps({role:'dialog'}).length,0)
 })
+
+for (const [deliveryStatus,label] of [['accepted','Envio aceito pelo serviço'],['rejected','Envio rejeitado'],['uncertain','Envio não confirmado']]) test(`people panel shows persisted ${deliveryStatus} delivery after reopening`,async t=>{
+  const h=await workspaceHarness(t),{default:Panel}=await h.load('/src/domains/platform/ui/components/CompanyMembersPanel.jsx')
+  const renderer=await h.render(Panel,{company:{id:'A',managementRevision:1,lifecycleStatus:'enabled'},grants:new Set(),api:{listMemberships:async()=>({users:[{id:'person',displayName:'Pessoa',email:'person@example.test',roleName:'Operador',active:true,membershipState:'invited',invitation:{id:'invite',status:deliveryStatus==='rejected'?'revoked':'pending',deliveryStatus}}]})}})
+  assert.match(nodeText(renderer.root),new RegExp(label))
+})

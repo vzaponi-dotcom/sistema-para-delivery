@@ -48,3 +48,16 @@ test('complete Worker routes administrative mutations through platform authentic
   assert.equal(result.status,200)
   assert.equal(f.sqlite.prepare('SELECT lifecycle_status FROM businesses WHERE id=?').get(f.businesses.A).lifecycle_status,'suspended')
 })
+
+test('history pagination orders mixed SQLite and ISO dates chronologically with id tie-break',async t=>{
+  const f=await createManagementFixture(t)
+  const insert=f.sqlite.prepare('INSERT INTO platform_audit_events(id,account_id,business_id,action,result,created_at) VALUES(?,?,?,?,?,?)')
+  for (const [id,date] of [['new','2026-10-02 18:00:00'],['same-z','2026-10-02T12:00:00.000Z'],['same-a','2026-10-02 12:00:00'],['old','2026-10-01T22:00:00.000Z']]) insert.run(id,f.accounts.admin,f.businesses.A,'business.created','success',date)
+  let cursor=null
+  const ids=[]
+  do {
+    const page=await listPlatformHistory(f.db,f.businesses.A,{limit:1,cursor})
+    ids.push(...page.items.map(item=>item.id));cursor=page.nextCursor
+  } while(cursor)
+  assert.deepEqual(ids,['new','same-z','same-a','old'])
+})

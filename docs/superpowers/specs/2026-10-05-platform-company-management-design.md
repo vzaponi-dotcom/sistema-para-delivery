@@ -2,7 +2,7 @@
 
 Data: 05/10/2026. Branch: `codex/administracao-empresas`.
 
-Estado: especificação aprovada pelo usuário em 05/10/2026. O usuário escolheu o layout de lista com página dedicada de detalhes e a exclusão recuperável. Este documento define a primeira entrega; não descreve funcionalidades já publicadas. O [plano de implementação](../plans/2026-10-05-platform-company-management.md) detalha tarefas e verificações e aguarda sua própria revisão.
+Estado: especificação aprovada pelo usuário em 05/10/2026. O usuário escolheu o layout de lista com página dedicada de detalhes e a exclusão recuperável. Este documento define a primeira entrega; não descreve funcionalidades já publicadas. O [plano de implementação](../plans/2026-10-05-platform-company-management.md) foi aprovado e concluído localmente, com revisão independente e evidências no [QA](../qa/2026-10-05-platform-company-management.md). Publicação aguarda os testes manuais e autorização posterior.
 
 ## 1. Objetivo e limites
 
