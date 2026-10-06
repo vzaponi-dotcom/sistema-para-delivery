@@ -158,6 +158,22 @@ test('unknown-outcome confirmation tolerates a stale UI attempt and continues a 
   assert.match(block, /executeClaimedJob\(claimed\.job/)
 })
 
+test('manual not-printed recovery never strands the station active when physical readiness is not restored yet', () => {
+  const start = managerSource.indexOf('const confirmUnknownNotPrinted = useCallback')
+  const end = managerSource.indexOf('const acknowledgeSecondCopyPrompt = useCallback', start)
+  assert.ok(start >= 0 && end > start)
+  const block = managerSource.slice(start, end)
+  assert.match(block, /getExplicitPort/)
+  assert.match(block, /printerHealthRef\.current\.state === 'ready'/)
+  assert.match(block, /transitionRecovery\('resume'\)/)
+  assert.match(block, /printNextRecovery\(\)/)
+  assert.match(block, /if \(!continued\)[\s\S]*transitionRecovery\('defer'\)/)
+  assert.ok(
+    block.indexOf('getExplicitPort') < block.indexOf("transitionRecovery('resume')"),
+    'physical transport must be revalidated before recovery becomes active',
+  )
+})
+
 test('one shared operation gate rejects overlapping physical workflows and releases after completion', async () => {
   assert.equal(typeof runExclusivePrintOperation, 'function')
   let activeOwner = null
