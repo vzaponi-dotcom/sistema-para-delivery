@@ -174,12 +174,17 @@ test('first correlated COMPLETE counts once and duplicate COMPLETE is idempotent
   const afterFirstComplete = await loadPrintJob(db, businessId, 'job-1')
   assert.equal(complete.status, 'complete')
   assert.equal(afterFirstComplete.copiesPrinted, 1)
-  assert.equal(afterFirstComplete.status, 'awaiting_second_copy')
+  assert.equal(afterFirstComplete.status, 'processing')
+
+  const secondAttempt = await createPrintJobAttempt(db, businessId, {
+    jobId: 'job-1', stationId: 'kitchen', copyNumber: 2,
+  }, now)
+  assert.equal(secondAttempt.copyNumber, 2)
 
   await recordPrintAttemptEvent(db, businessId, attempt.id, 'kitchen', qzEvent(attempt, 'COMPLETE', { spoolJobId: 41 }), now)
   const afterDuplicate = await loadPrintJob(db, businessId, 'job-1')
   assert.equal(afterDuplicate.copiesPrinted, 1)
-  assert.equal(afterDuplicate.status, 'awaiting_second_copy')
+  assert.equal(afterDuplicate.status, 'processing')
 })
 
 test('COMPLETE without a persisted submission point cannot count a copy', async () => {
