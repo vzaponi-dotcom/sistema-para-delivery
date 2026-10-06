@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPrintingApi } from '../infrastructure/printingApi.js'
+import { createPrintExecutionTicker } from '../infrastructure/printExecutionTicker.js'
 const legacyPrintingApi = createPrintingApi()
 import { getOrCreateLocalPrintStationId, rememberOriginOrderId } from '../infrastructure/printingLocalPreferences.js'
 import { detectPrintStationPlatform } from './printingPlatform.js'
@@ -142,6 +143,9 @@ export const usePrintingManager = ({ api = legacyPrintingApi, businessId, authen
     getCertificate: api.getQzCertificate,
     signPayload: api.signQzPayload,
   }) : null), [businessId, api, isQz])
+  const printExecutionTicker = useMemo(() => createPrintExecutionTicker({
+    intervalMs: PRINT_JOB_POLL_MS,
+  }), [])
   const [localStation, setLocalStation] = useState(null)
   const [stations, setStations] = useState([])
   const [jobs, setJobs] = useState([])
@@ -935,18 +939,8 @@ export const usePrintingManager = ({ api = legacyPrintingApi, businessId, authen
     if (!authenticated || !isOnline) return undefined
     const sync = () => {
       const ownsPoll = captureAccess()
-      if (!ownsPoll()) return
-      if (visiblePage()) void refresh().catch((error) => { if (ownsPoll()) reportError(error) })
-      if (busyJobIdRef.current || !supported) return
-      const station = localStationRef.current
-      if (!station?.id || !qzTransport.readPrinterName(station.id)) return
-      void initializeBackgroundPhysicalTransport({
-        authenticated,
-        isOnline,
-        isQz,
-        station,
-        initializeQz: resolveConfiguredQzPrinter,
-      }).catch((error) => { if (ownsPoll()) reportError(error) })
+      if (!ownsPoll() || !visiblePage()) return
+      void refresh().catch((error) => { if (ownsPoll()) reportError(error) })
     }
     const timer = globalThis.setInterval?.(sync, PRINT_STATE_POLL_MS)
     const handleVisibility = () => { if (visiblePage()) sync() }
@@ -958,22 +952,45 @@ export const usePrintingManager = ({ api = legacyPrintingApi, businessId, authen
       document?.removeEventListener?.('visibilitychange', handleVisibility)
       globalThis.removeEventListener?.('focus', handleFocus)
     }
-  }, [authenticated, captureAccess, isOnline, isQz, refresh, reportError, resolveConfiguredQzPrinter, supported, api, qzTransport])
+  }, [authenticated, captureAccess, isOnline, refresh, reportError, api, qzTransport])
 
   useEffect(() => {
-    const eligible = () => canSendPrintStationHeartbeat({
-      authenticated,
-      isOnline,
-      browserOnline: browserOnline(),
-      isQz,
-      station: localStationRef.current,
-    })
-    if (!eligible()) return undefined
-
+    if (!authenticated || !isOnline || !supported || !isQz) return undefined
     let cancelled = false
+    let tickInFlight = false
+    let lastPhysicalProbeAt = 0
+    let lastHeartbeatAt = 0
+
+    const ownsTick = captureAccess()
+
+    const revalidatePhysicalTransport = async () => {
+      if (!ownsTick() || busyJobIdRef.current) return
+      const station = localStationRef.current
+      if (!station?.id || !qzTransport.readPrinterName(station.id)) return
+      try {
+        await initializeBackgroundPhysicalTransport({
+          authenticated,
+          isOnline,
+          isQz,
+          station,
+          initializeQz: resolveConfiguredQzPrinter,
+        })
+      } catch (error) {
+        if (ownsTick()) reportError(error)
+      }
+    }
+
     const heartbeat = async () => {
       const station = localStationRef.current
-      if (!station || !eligible() || heartbeatInFlightRef.current) return
+      const eligible = canSendPrintStationHeartbeat({
+        authenticated,
+        isOnline,
+        browserOnline: browserOnline(),
+        isQz,
+        station,
+      })
+      if (!station || !eligible || heartbeatInFlightRef.current || !ownsTick()) return
+
       heartbeatInFlightRef.current = true
       const sequence = ++heartbeatSequenceRef.current
       const health = buildPrintStationHeartbeatHealth({
@@ -984,26 +1001,16 @@ export const usePrintingManager = ({ api = legacyPrintingApi, businessId, authen
       })
       try {
         const response = await api.heartbeatPrintStation(station.id, health)
-        if (!cancelled && sequence === heartbeatSequenceRef.current && response?.station) updateLocalStation(response.station)
+        if (!cancelled && ownsTick() && sequence === heartbeatSequenceRef.current && response?.station) {
+          updateLocalStation(response.station)
+        }
       } catch (error) {
-        if (!cancelled && sequence === heartbeatSequenceRef.current) reportError(error)
+        if (!cancelled && ownsTick() && sequence === heartbeatSequenceRef.current) reportError(error)
       } finally {
         if (sequence === heartbeatSequenceRef.current) heartbeatInFlightRef.current = false
       }
     }
 
-    void heartbeat()
-    const timer = globalThis.setInterval?.(() => { void heartbeat() }, STATION_HEARTBEAT_MS)
-    return () => {
-      cancelled = true
-      heartbeatSequenceRef.current += 1
-      heartbeatInFlightRef.current = false
-      if (timer) globalThis.clearInterval?.(timer)
-    }
-  }, [authenticated, configuredPrinterName, isOnline, isQz, localStation?.id, localStation?.isPrimary, localStation?.platform, reportError, transportReady, updateLocalStation, api, qzTransport])
-
-  useEffect(() => {
-    if (!authenticated || !isOnline || !supported || !isQz) return undefined
     const consumeNext = async () => {
       const station = localStationRef.current
       if (!canConsumeAutomaticPrintJob({
@@ -1033,14 +1040,44 @@ export const usePrintingManager = ({ api = legacyPrintingApi, businessId, authen
         if (QZ_BLOCKING_ERROR_CODES.has(error?.code)) updateBlocked(true)
         updateTransportReady(false)
         reportError(error)
-        try { await refresh() } catch { /* next state poll will recover */ }
+        try { await refresh() } catch { /* next execution tick will recover */ }
       } finally {
         releasePrintOperation(owner)
       }
     }
-    const timer = globalThis.setInterval?.(() => { void consumeNext() }, PRINT_JOB_POLL_MS)
-    return () => { if (timer) globalThis.clearInterval?.(timer) }
-  }, [acquirePrintOperation, authenticated, executeClaimedJob, isOnline, isQz, ownsPrintOperation, refresh, releasePrintOperation, reportError, supported, businessId, updateBlocked, updateTransportReady, api, qzTransport])
+
+    const tick = async () => {
+      if (cancelled || tickInFlight || !ownsTick()) return
+      tickInFlight = true
+      try {
+        const now = Date.now()
+        if (now - lastPhysicalProbeAt >= PRINT_STATE_POLL_MS) {
+          lastPhysicalProbeAt = now
+          await revalidatePhysicalTransport()
+        }
+        if (now - lastHeartbeatAt >= STATION_HEARTBEAT_MS) {
+          lastHeartbeatAt = now
+          await heartbeat()
+        }
+        await consumeNext()
+      } finally {
+        tickInFlight = false
+      }
+    }
+
+    void tick()
+    const stopTicker = printExecutionTicker.start(() => { void tick() })
+    return () => {
+      cancelled = true
+      heartbeatSequenceRef.current += 1
+      heartbeatInFlightRef.current = false
+      stopTicker()
+    }
+  }, [
+    acquirePrintOperation, api, authenticated, captureAccess, executeClaimedJob, isOnline, isQz,
+    ownsPrintOperation, printExecutionTicker, qzTransport, refresh, releasePrintOperation, reportError,
+    resolveConfiguredQzPrinter, supported, updateBlocked, updateLocalStation, updateTransportReady,
+  ])
 
   const latestJobByOrderId = useMemo(() => {
     const latest = new Map()
