@@ -3,6 +3,7 @@ import { loadAccountSessionRow, prepareSessionSnapshotAssertion, contextChanged 
 import { prepareIdentityAssertion, commitIdentityStatements } from '../identity/transactions.js'
 import { prepareAuditEvent } from '../access/audit.js'
 import { loadRoleGrants } from '../access/roles.js'
+import { ELIGIBLE_MANAGER_SQL as capableManager } from './membershipEligibility.js'
 export { listEligibleBusinesses } from './eligibleBusinesses.js'
 
 export async function prepareCompanyIssuer(db, context, { businessId, purpose = 'team', capability = null }, now = new Date()) {
@@ -42,9 +43,6 @@ export async function listCompanyMembers(db, context, now = new Date()) {
   for (const role of roles) summaries.push({ id: role.id, code: role.code, name: role.name, active: role.active === 1, isBuiltin: role.is_builtin === 1, capabilities: [...await loadRoleGrants(db, context.businessId, role.id)].sort() })
   return { users: results.map((row) => projectMember(row, now)), roles: summaries }
 }
-
-const capableManager = `u.active = 1 AND u.membership_state = 'active' AND a.active = 1 AND a.email_verified_at IS NOT NULL
-  AND c.version = 1 AND r.active = 1 AND EXISTS (SELECT 1 FROM role_capabilities rc WHERE rc.business_id = u.business_id AND rc.role_id = u.role_id AND rc.capability = 'access.users.manage')`
 
 export async function updateMembership(db, context, userId, input, now = new Date()) {
   const started = performance.now()
