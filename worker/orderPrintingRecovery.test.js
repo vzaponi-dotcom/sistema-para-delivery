@@ -240,6 +240,7 @@ test('recovery keeps a two-copy job atomic before claiming the next pending job'
   assert.equal(completed.copiesPrinted, 2)
   assert.equal(db.sqlite.prepare('SELECT recovery_job_id FROM print_stations WHERE id = ?').get('kitchen').recovery_job_id, null)
 
+  await setPrintRecoveryState(db, businessId, 'kitchen', 'active', now)
   const secondClaim = await claimNextRecoveryPrintJob(db, businessId, 'kitchen', now)
   assert.equal(secondClaim.id, 'second')
 })
