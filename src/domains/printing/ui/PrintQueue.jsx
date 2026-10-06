@@ -62,7 +62,7 @@ const cacheKeyForQuery = (query) => JSON.stringify([
   query.page, query.pageSize, query.sortBy, query.sortDir, query.status, query.trigger, query.search,
 ])
 
-function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, queryState, onQueryChange, canExecutePrinting = true, canDiscardPrinting = true, canForcePrinting = false, isOnline = true }) {
+function PrintQueue({ orders = [], printing, reviewJobId = null, onReviewJobConsumed, onOpenPrintingSettings, onToast, queryState, onQueryChange, canExecutePrinting = true, canDiscardPrinting = true, canForcePrinting = false, isOnline = true }) {
   const { getPrintJobs, getPrintQueueSummary } = useContextApi(createPrintingApi)
   const station = printing?.localStation ?? null
   const query = queryState
@@ -150,6 +150,16 @@ function PrintQueue({ orders = [], printing, onOpenPrintingSettings, onToast, qu
   useEffect(() => {
     setSearchInput(query.search)
   }, [query.search])
+
+  useEffect(() => {
+    if (!reviewJobId) return
+    const managerJobs = Array.isArray(printing?.jobs) ? printing.jobs : []
+    const pageJobs = Array.isArray(operationalPage.jobs) ? operationalPage.jobs : []
+    const target = [...managerJobs, ...pageJobs].find((job) => job?.id === reviewJobId)
+    if (!target) return
+    setSelectedJob(target)
+    onReviewJobConsumed?.(reviewJobId)
+  }, [onReviewJobConsumed, operationalPage.jobs, printing?.jobs, reviewJobId])
 
   useEffect(() => {
     if (searchInput === query.search) return undefined
