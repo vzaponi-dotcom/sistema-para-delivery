@@ -11,6 +11,7 @@ test('platform can resend team invitation without operational membership and rep
   const initial=await prepareMembershipInvitation(f.db,{businessId:f.businesses.A,accountEmail:'invitee@example.test',displayName:'Nova pessoa',roleId:`${f.businesses.A}:operator`,issuer:f.contexts.aliceA,now:f.now})
   await commitIdentityStatements(f.db,initial.statements)
   const messages=[],at=new Date(f.now.getTime()+61000),target={businessId:f.businesses.A,operation:'invitation.resend',invitationId:initial.value.invitationId},input={reason:'Novo convite solicitado',expectedRevision:0},key=crypto.randomUUID()
+  input.expectedRevision=1
   const options={idempotencyKey:key,now:at,deliver:async (_env,message)=>{messages.push(message);return {status:'uncertain'}}}
   const result=await performBusinessManagement(env(f),f.contexts.admin,target,input,options)
   await performBusinessManagement(env(f),f.contexts.admin,target,input,options)
@@ -26,7 +27,7 @@ test('cancel expired invitation preserves invited membership and invalidates old
   const prepared=await prepareMembershipInvitation(f.db,{businessId:f.businesses.A,accountEmail:'second@example.test',displayName:'Convidado',roleId:`${f.businesses.A}:operator`,issuer:f.contexts.aliceA,now:f.now})
   await commitIdentityStatements(f.db,prepared.statements)
   f.sqlite.prepare('UPDATE company_invitations SET expires_at=? WHERE id=?').run(new Date(f.now.getTime()+1).toISOString(),prepared.value.invitationId)
-  await performBusinessManagement(env(f),f.contexts.admin,{businessId:f.businesses.A,operation:'invitation.cancel',invitationId:prepared.value.invitationId},{reason:'Convite cancelado',expectedRevision:0},{idempotencyKey:crypto.randomUUID(),now:new Date(f.now.getTime()+1000)})
+  await performBusinessManagement(env(f),f.contexts.admin,{businessId:f.businesses.A,operation:'invitation.cancel',invitationId:prepared.value.invitationId},{reason:'Convite cancelado',expectedRevision:1},{idempotencyKey:crypto.randomUUID(),now:new Date(f.now.getTime()+1000)})
   assert.equal(f.sqlite.prepare('SELECT membership_state FROM users WHERE id=?').get(prepared.value.userId).membership_state,'invited')
   assert.ok(f.sqlite.prepare('SELECT revoked_at FROM company_invitations WHERE id=?').get(prepared.value.invitationId).revoked_at)
 })

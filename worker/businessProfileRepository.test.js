@@ -21,6 +21,12 @@ const changed = () => ({
   },
 })
 const input = (mutationId = 'profile-1', expectedRevision = 1, data = changed()) => ({ mutationId, expectedRevision, data })
+
+test('profile changes invalidate an older administrative company confirmation',async t=>{
+  const f=createSettingsDb();t.after(f.close)
+  await saveBusinessProfile(f.db,BUSINESS,input(),undefined,NOW)
+  assert.equal(f.sqlite.prepare('SELECT management_revision FROM businesses WHERE id=?').get(BUSINESS).management_revision,1)
+})
 const logo = Object.freeze({
   objectKey: 'businesses/amor-e-sabor/logo/logo-1.webp',
   contentType: 'image/webp',

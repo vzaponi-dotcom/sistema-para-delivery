@@ -2,7 +2,7 @@ import { useState } from 'react'
 import Modal from '../../../../shared/ui/Modal.jsx'
 import Button from '../../../../shared/ui/Button.jsx'
 
-export const managementActionCopy={
+const managementActionCopy={
   suspend:{title:'Suspender acesso da empresa?',label:'Suspender acesso',confirm:'Confirmar suspensão',message:'Toda a equipe perderá o acesso a esta empresa. Sessões, convites pendentes e pareamentos da TV serão revogados. Os dados serão preservados.'},
   resume:{title:'Retomar acesso da empresa?',label:'Reativar acesso',confirm:'Confirmar retomada',message:'A empresa voltará a permitir acesso ou ativação inicial, conforme seu cadastro. Sessões, links e pareamentos revogados continuarão inválidos.'},
   delete:{title:'Excluir empresa?',label:'Excluir empresa',confirm:'Confirmar exclusão',message:'A empresa perderá o acesso e sairá da lista principal. Os dados serão preservados e você poderá restaurá-la pelo filtro Excluídas.'},

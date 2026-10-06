@@ -1,5 +1,5 @@
 import { apiError } from '../http.js'
-import { eligibleManagerSelect } from '../tenancy/membershipEligibility.js'
+import { loadEligibleManagers } from '../tenancy/membershipEligibility.js'
 import { validManagementKey } from './managementTransactions.js'
 import { projectInvitationDelivery } from './invitationManagement.js'
 
@@ -10,7 +10,7 @@ async function companyRow(db,businessId) {
 }
 
 export async function listPlatformMemberships(db,businessId,now=new Date()) {
-  const company=await companyRow(db,businessId),{results:managers}=await db.prepare(eligibleManagerSelect).bind(businessId).all(),ids=new Set(managers.map(m=>m.id))
+  const company=await companyRow(db,businessId),managers=await loadEligibleManagers(db,businessId),ids=new Set(managers.map(m=>m.id))
   const {results}=await db.prepare(`SELECT u.id,u.display_name,u.active,u.membership_state,u.role_id,r.name AS role_name,r.active AS role_active,a.email_normalized,a.active AS account_active,
     h.id AS invite_id,h.purpose,h.expires_at,h.delivery_status,h.revoked_at,h.consumed_at FROM users u JOIN accounts a ON a.id=u.account_id
     JOIN roles r ON r.id=u.role_id AND r.business_id=u.business_id LEFT JOIN company_invitations h ON h.id=(SELECT id FROM company_invitations WHERE business_id=u.business_id AND user_id=u.id ORDER BY created_at DESC,id DESC LIMIT 1)

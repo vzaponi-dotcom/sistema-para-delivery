@@ -72,3 +72,6 @@ jobs:
 
       - name: Validate operation profile D1 clean install and upgrade
         run: node scripts/infra/operation-profile-d1-gate.mjs
+
+      - name: Validate company management D1 clean install and upgrade
+        run: node scripts/infra/company-management-d1-gate.mjs

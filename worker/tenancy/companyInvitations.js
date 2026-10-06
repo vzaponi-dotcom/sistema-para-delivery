@@ -74,6 +74,7 @@ export async function prepareMembershipInvitation(db, {
       .bind(invitationId, accountEmail, role.version, issuer.accountId, issuing.snapshot.scope, purpose, await sha256Hex(token), timestamp, expiresAt, businessId, userId),
   )
   if (auditOwner === 'issuer') {
+    if (!creatingBusiness) statements.push(db.prepare('UPDATE businesses SET management_revision=management_revision+1 WHERE id=?').bind(businessId))
     if (issuing.snapshot.scope === 'business') statements.push(prepareAuditEvent(db, issuing.context, { action: expectedInvitationId ? 'access.invitation.resent' : 'access.user.created', resourceType: 'user', resourceId: userId, now }))
     else statements.push(preparePlatformAudit(db, issuer, { action: expectedInvitationId ? 'invitation.resent' : 'invitation.issued', businessId, now }))
   }
@@ -136,6 +137,7 @@ export async function acceptCompanyInvitation(db, { token, password, context = n
       ]),
       db.prepare("UPDATE users SET membership_state = 'active',email_verified_at = ?,updated_at = ? WHERE business_id = ? AND id = ?").bind(timestamp, timestamp, row.business_id, row.user_id),
       db.prepare("UPDATE businesses SET access_status = 'active',updated_at = ? WHERE id = ? AND access_status = 'pending'").bind(timestamp, row.business_id),
+      db.prepare('UPDATE businesses SET management_revision=management_revision+1 WHERE id=?').bind(row.business_id),
       db.prepare('UPDATE company_invitations SET consumed_at = ? WHERE id = ?').bind(timestamp, row.id),
       prepareIdentityAudit(db, { accountId: row.account_id, action: 'invitation.accepted', now: commitNow }),
       prepareAuditEvent(db, { businessId: row.business_id, actorType: 'system' }, { action: 'access.invitation.accepted', resourceType: 'user', resourceId: row.user_id, now: commitNow }),

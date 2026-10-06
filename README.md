@@ -89,6 +89,8 @@ A configuração canônica em `wrangler.jsonc` mantém:
 
 Uma conta pode ter vínculos operacionais com empresas. A administração global Mesiva é separada desses vínculos; o contexto autenticado determina a empresa acessada.
 
+O painel **Administração Mesiva → Empresas** permite buscar cadastros, acompanhar pessoas/convites e histórico e, conforme as capabilities de plataforma, suspender acesso, revogar vínculos e excluir empresas de forma recuperável. A restauração mantém a empresa suspensa até uma retomada explícita. Veja o [procedimento de gestão de empresas](docs/operations/multi-company-production.md#gestão-de-empresas).
+
 Ações e dados são controlados por **capabilities**. O nome do perfil não substitui as permissões efetivamente concedidas. Recebimentos exigem `payments.receive`, além das permissões da superfície, e são autorizados no Worker.
 
 Referências de implementação: `shared/settingsAccess.js`, `src/app/access.js`, `worker/access/authorization.js` e `worker/access/roles.js`.

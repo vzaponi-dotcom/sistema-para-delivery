@@ -12,7 +12,7 @@ export async function prepareBusinessLifecycleChange(db,prepared,target,input,no
   const statements=[]
   if (target.operation==='resume' && company.access_status==='active') {
     if (!await hasEligibleManager(db,company.id)) throw apiError(409,'LAST_MANAGER','Reative pelo menos uma pessoa com permissão para gerenciar a equipe antes de liberar a empresa.')
-    statements.push(prepareEligibleManagerAssertion(db,company.id))
+    statements.push(await prepareEligibleManagerAssertion(db,company.id))
   }
   statements.push(db.prepare('UPDATE businesses SET lifecycle_status=? WHERE id=?').bind(transition.to,company.id))
   if (['suspend','delete'].includes(target.operation)) {

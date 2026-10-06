@@ -75,6 +75,7 @@ export async function updateMembership(db, context, userId, input, now = new Dat
     prepareIdentityAssertion(db, crypto.randomUUID(), 'SELECT EXISTS(SELECT 1 FROM roles WHERE business_id = ? AND id = ? AND active = 1 AND version = ?)', [context.businessId, roleId, role.version]),
     prepareIdentityAssertion(db, crypto.randomUUID(), managerPredicate, managerValues),
     db.prepare('UPDATE users SET display_name = ?,role_id = ?,active = ?,membership_state = ?,updated_at = ? WHERE business_id = ? AND id = ?').bind(name.trim(), roleId, active, membershipState, timestamp, context.businessId, userId),
+    db.prepare('UPDATE businesses SET management_revision=management_revision+1 WHERE id=?').bind(context.businessId),
   ]
   if (Object.hasOwn(input, 'roleId') || Object.hasOwn(input, 'active')) statements.push(
     db.prepare('UPDATE identity_sessions SET revoked_at = COALESCE(revoked_at,?) WHERE business_id = ? AND user_id = ?').bind(timestamp, context.businessId, userId),
