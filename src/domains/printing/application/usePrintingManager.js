@@ -748,19 +748,82 @@ export const usePrintingManager = ({ api = legacyPrintingApi, businessId, authen
     return response
   }, [refresh, api, qzTransport])
 
-  const confirmUnknownPrinted = useCallback(async (job, attempt, { refreshManager = true } = {}) => {
-    if (!job?.id || !attempt?.id) throw printerError('PRINT_ATTEMPT_NOT_FOUND', 'A tentativa de impressão não foi encontrada.')
-    const response = await api.resolvePrintOutcome(job.id, attempt.id, 'manual_printed')
-    if (refreshManager) await refresh()
-    return response
-  }, [refresh, api, qzTransport])
+  const confirmUnknownPrinted = useCallback((job, attempt, { refreshManager = true } = {}) => runExclusivePrintOperation({
+    acquire: acquirePrintOperation,
+    release: releasePrintOperation,
+    operation: async () => {
+      if (!job?.id) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
+      const owns = captureAccess()
+      const station = localStationRef.current
+      const wasRecoveryAffinity = Boolean(
+        station?.id && (station.recoveryState ?? 'normal') !== 'normal' && station.recoveryJobId === job.id,
+      )
+      const response = await api.resolvePrintOutcome(job.id, attempt?.id ?? null, 'manual_printed')
+      if (!owns()) return null
+      const resolvedJob = response?.job ?? null
+      let continuation = null
+
+      if (
+        resolvedJob?.status === 'pending'
+        && Number(resolvedJob?.copiesPrinted || 0) < Number(resolvedJob?.copiesRequested || 0)
+        && isQz && station?.id && station?.isPrimary && station?.platform === 'windows'
+      ) {
+        await getExplicitPort()
+        if (!owns()) return null
+        const claimed = await api.claimPrintJob(resolvedJob.id, station.id)
+        if (!owns()) return null
+        continuation = await executeClaimedJob(claimed.job, null, {
+          clearBlockOnSuccess: true,
+          preparePort: getExplicitPort,
+        })
+        if (!owns()) return continuation
+      }
+
+      const refreshed = refreshManager ? await refresh() : null
+      if (!owns()) return null
+      const current = localStationRef.current
+      const finalJob = refreshed?.jobs?.find((candidate) => candidate?.id === job.id) ?? response?.job ?? null
+
+      if (
+        wasRecoveryAffinity
+        && ['printed', 'discarded'].includes(finalJob?.status)
+        && Number(refreshed?.summary?.safeBacklog || 0) === 0
+        && current?.id
+        && current.recoveryState === 'deferred'
+        && !current.recoveryJobId
+      ) {
+        const recovered = await api.setPrintStationRecovery(current.id, 'normal')
+        if (!owns()) return null
+        if (recovered?.station) updateLocalStation(recovered.station)
+      }
+
+      return continuation ? { ...response, continuation } : response
+    },
+  }), [
+    acquirePrintOperation, api, captureAccess, executeClaimedJob, getExplicitPort, isQz,
+    refresh, releasePrintOperation, updateLocalStation,
+  ])
 
   const confirmUnknownNotPrinted = useCallback(async (job, attempt, { refreshManager = true } = {}) => {
-    if (!job?.id || !attempt?.id) throw printerError('PRINT_ATTEMPT_NOT_FOUND', 'A tentativa de impressão não foi encontrada.')
-    const response = await api.resolvePrintOutcome(job.id, attempt.id, 'manual_not_printed')
-    if (refreshManager) await refresh()
+    if (!job?.id) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
+    const station = localStationRef.current
+    const wasRecoveryAffinity = Boolean(
+      station?.id && (station.recoveryState ?? 'normal') !== 'normal' && station.recoveryJobId === job.id,
+    )
+    const response = await api.resolvePrintOutcome(job.id, attempt?.id ?? null, 'manual_not_printed')
+    const refreshed = refreshManager ? await refresh() : null
+    if (
+      wasRecoveryAffinity
+      && refreshed
+      && localStationRef.current?.id
+      && localStationRef.current?.recoveryState === 'deferred'
+      && localStationRef.current?.recoveryJobId === job.id
+    ) {
+      await transitionRecovery('resume')
+      return printNextRecovery()
+    }
     return response
-  }, [refresh, api, qzTransport])
+  }, [api, printNextRecovery, refresh, transitionRecovery])
 
   const acknowledgeSecondCopyPrompt = useCallback(async (job) => {
     const station = localStationRef.current
