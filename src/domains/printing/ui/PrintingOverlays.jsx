@@ -48,11 +48,12 @@ function PrintingOverlays(props) {
     : null
   const recoveryNeedsReview = recoveryJob?.status === 'requires_attention'
     || recoveryJob?.lastError?.code === 'PRINT_OUTCOME_UNKNOWN'
+  const recoveryActiveIdle = recoveryState === 'active' && !printing?.busyJobId
   const showRecoveryNotice = recoveryState !== 'normal'
   const recoveryNoticeText = recoveryNeedsReview
     ? 'Uma impressão precisa ser revisada antes de continuar a recuperação.'
     : recoveryState === 'active'
-      ? 'Recuperação de impressão em andamento.'
+      ? (recoveryActiveIdle ? 'A recuperação está aguardando continuação.' : 'Recuperação de impressão em andamento.')
       : recoveryPendingCount > 0
         ? `${recoveryPendingCount} ${recoveryPendingCount === 1 ? 'trabalho pendente' : 'trabalhos pendentes'} na recuperação de impressão.`
         : 'A recuperação de impressão está pausada.'
@@ -66,7 +67,11 @@ function PrintingOverlays(props) {
       void handleStartRecovery()
       return
     }
-    if (recoveryState === 'deferred') void handleNextRecovery()
+    if (recoveryState === 'deferred') {
+      void handleNextRecovery()
+      return
+    }
+    if (recoveryState === 'active') void handleNextRecovery()
   }
 
   return <>
@@ -80,13 +85,13 @@ function PrintingOverlays(props) {
           onOpenPrintQueue
             ? <Button type="button" variant="secondary" onClick={handleGlobalRecoveryAction}>Revisar impressão</Button>
             : null
-        ) : recoveryState !== 'active' ? (
+        ) : recoveryState !== 'active' || recoveryActiveIdle ? (
           <Button
             type="button"
             onClick={handleGlobalRecoveryAction}
             disabled={recoveryBusy || !physicalPrinterReady || !canExecutePrinting}
           >
-            Retomar recuperação
+            {recoveryActiveIdle ? 'Continuar recuperação' : 'Retomar recuperação'}
           </Button>
         ) : null}
       </aside>
