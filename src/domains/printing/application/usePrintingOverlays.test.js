@@ -28,6 +28,14 @@ test('App delegates origin-order persistence to the Printing manager', () => {
   assert.match(appSource, /printing\.rememberOriginOrder\(order\.id\)/)
 })
 
+test('global recovery notice remains available outside the print queue', async () => {
+  const source = await readFile(new URL('../ui/PrintingOverlays.jsx', import.meta.url), 'utf8')
+  assert.match(source, /printing-recovery-global-notice/)
+  assert.match(source, /Retomar recuperação/)
+  assert.match(source, /Revisar impressão/)
+  assert.match(appSource, /onOpenPrintQueue=\{canViewPrintQueue \? \(\) => requestNavigation\('print-queue'\) : undefined\}/)
+})
+
 test('deferred recovery keeps affinity with copy 2 before another queued job', async () => {
   const { selectSecondCopyPromptCandidate } = await import('./usePrintingOverlays.js')
   const station = {
