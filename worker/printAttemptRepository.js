@@ -301,7 +301,7 @@ export const resolveUnknownPrintAttempt = async (db, businessId, jobId, attemptI
     db.prepare(`UPDATE print_job_attempts SET
       resolution = ?, resolution_actor_label = ?, resolved_at = ?, updated_at = ?
       WHERE id = ? AND business_id = ? AND status = 'unknown' AND resolution IS NULL`)
-      .bind(resolution, actor, at, at, attemptId, businessId),
+      .bind(resolution, actor, at, at, attempt.id, businessId),
     db.prepare(`UPDATE print_jobs SET
       status = ?, copies_printed = ?,
       station_id = CASE WHEN ? = 'manual_not_printed' OR ? = 1 THEN NULL ELSE station_id END,
@@ -325,7 +325,7 @@ export const resolveUnknownPrintAttempt = async (db, businessId, jobId, attemptI
         AND EXISTS (SELECT 1 FROM print_jobs WHERE id = ? AND business_id = ? AND status IN ('printed', 'discarded'))`)
       .bind(at, businessId, jobId, jobId, businessId),
   ])
-  return requireAttempt(db, businessId, attemptId)
+  return requireAttempt(db, businessId, attempt.id)
 }
 
 export const listPrintJobAttempts = async (db, businessId, jobId) => {
