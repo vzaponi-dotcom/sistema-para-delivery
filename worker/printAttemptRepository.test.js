@@ -218,11 +218,8 @@ test('unknown submission outcomes require explicit one-time human resolution', a
   await resolveUnknownPrintAttempt(db, businessId, 'job-1', printedAttempt.id, 'manual_printed', 'Outro operador', new Date(now.getTime() + 1000))
   const printed = await loadPrintJob(db, businessId, 'job-1')
   assert.equal(printed.copiesPrinted, 1)
-  assert.equal(printed.status, 'processing')
-  const continuationAttempt = await createPrintJobAttempt(db, businessId, {
-    jobId: 'job-1', stationId: 'kitchen', copyNumber: 2,
-  }, new Date(now.getTime() + 1000))
-  assert.equal(continuationAttempt.copyNumber, 2)
+  assert.equal(printed.status, 'pending')
+  assert.ok(printed.secondCopyRequestedAt)
 
   const retryAttempt = await createPrintJobAttempt(db, businessId, {
     jobId: 'job-2', stationId: 'kitchen', copyNumber: 1,
@@ -253,7 +250,8 @@ test('manual resolution can recover the unresolved attempt from the job when the
   assert.equal(resolved.resolution, 'manual_printed')
   const job = await loadPrintJob(db, businessId, 'job-1')
   assert.equal(job.copiesPrinted, 1)
-  assert.equal(job.status, 'processing')
+  assert.equal(job.status, 'pending')
+  assert.ok(job.secondCopyRequestedAt)
 })
 
 test('unknown attempts ignore late automatic progress and completion until manual resolution', async () => {
