@@ -10,6 +10,14 @@ test('company lifecycle overrides accepted invitation in administrative status',
   assert.equal(companyStatus({accessStatus:'active',lifecycleStatus:'suspended',invitation:{status:'accepted'}}).access,'Suspensa')
 })
 
+test('company detail presents the status once within the company access card',async t=>{
+  const h=await workspaceHarness(t),{default:Detail}=await h.load('/src/domains/platform/ui/CompanyDetail.jsx')
+  const renderer=await h.render(Detail,{businessId:'old-company',api:{getBusiness:async()=>({id:'old-company',name:'Empresa antiga',accessStatus:'legacy',lifecycleStatus:'enabled',managementRevision:0})}})
+  const badges=renderer.root.findAll(node=>node.type==='span'&&node.props.className?.split(' ').includes('platform-badge'))
+  assert.equal(badges.length,1,'status should not be duplicated in the page header')
+  assert.match(nodeText(badges[0].parent),/Acesso da empresa/)
+})
+
 test('late management completion from a previous context cannot publish success into the new context',async t=>{
   const h=await workspaceHarness(t),{default:Detail}=await h.load('/src/domains/platform/ui/CompanyDetail.jsx'),guards=[]
   let finish

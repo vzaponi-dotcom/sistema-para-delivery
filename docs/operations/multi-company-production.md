@@ -127,6 +127,8 @@ Este procedimento requer a migration `0041_platform_company_management.sql` e o 
 
 No painel **Administração Mesiva → Empresas**, use nome/e-mail e o filtro de situação, depois **Gerenciar**. Os detalhes possuem **Visão geral**, **Pessoas e convites** (mediante permissão) e **Histórico**. Datas do histórico seguem São Paulo. Permissões são grants persistidos: a atualização concede os novos grants apenas às contas identificadas em `platform_bootstraps`, preservando permissões delegadas anteriores.
 
+**Configuração pendente** identifica um cadastro antigo cujo acesso por conta Mesiva ainda não foi configurado (`access_status=legacy`). Esse rótulo aparece na lista e no card de acesso dos detalhes; é uma indicação de situação, sem ação de clique.
+
 - **Suspender acesso** bloqueia toda a empresa e revoga suas sessões operacionais, convites pendentes e pareamentos da TV. Contas globais, senhas, vínculos e dados permanecem; outras empresas continuam acessíveis.
 - **Reativar acesso** exige uma pessoa elegível com `access.users.manage` em empresa já ativada. Se necessário, reative um vínculo na aba de pessoas antes de liberar a empresa. Para cadastro pendente, **Retomar ativação** mantém o primeiro acesso pendente e exige reenvio explícito de convite.
 - **Revogar acesso** afeta somente a pessoa na empresa selecionada. Não é permitido remover a última pessoa administradora elegível de uma operação habilitada: prepare um substituto ou suspenda a empresa primeiro. **Reativar vínculo** conserva o perfil; **Permitir novo convite** não ativa quem nunca aceitou.

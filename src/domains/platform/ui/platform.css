@@ -52,7 +52,7 @@
 .platform-empty { padding: 32px; text-align: center; }
 .platform-title-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
 .platform-title-row > .page-header { margin-bottom: 0; min-width: 0; }
-.platform-title-row > .platform-badge { flex-shrink: 0; }
+.platform-company-detail > .platform-title-row { margin-top: 24px; }
 .platform-search { padding: 0; border: 0; background: transparent; }
 .platform-search-status { min-width: 210px; }
 .platform-company-state > small { display: block; margin-top: 6px; }

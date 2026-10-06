@@ -35,7 +35,7 @@ export default function CompanyDetail({businessId,api=platformApi,accountId,cont
   const activeTab=tabs.some(([key])=>key===tab)?tab:'overview'
   return <section ref={rootRef} className="platform-company-detail">
     <Button variant="secondary" disabled={disabled} onClick={()=>onNavigate?.('/mesiva/empresas')}>Voltar às empresas</Button>
-    <div className="platform-title-row"><PageHeader eyebrow="Administração Mesiva" title={company?.name||'Cadastro da empresa'} description="Cadastro, pessoas e acesso da empresa." />{company&&<span className={`platform-badge ${status.activated?'is-active':''} ${lifecycle==='deleted'?'is-muted':''}`}>{status.access}</span>}</div>
+    <div className="platform-title-row"><PageHeader eyebrow="Administração Mesiva" title={company?.name||'Cadastro da empresa'} description="Cadastro, pessoas e acesso da empresa." /></div>
     {visible.loading&&<p role="status">Carregando cadastro…</p>}{visible.error&&<div role="alert"><p>{visible.error}</p><Button onClick={()=>setReload(v=>v+1)}>Tentar novamente</Button></div>}
     {!isOnline&&<p role="status" className="platform-feedback">Sem conexão. As ações administrativas estão temporariamente bloqueadas.</p>}
     {notice&&<p role="status" className="platform-feedback">{notice}</p>}

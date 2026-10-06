@@ -69,6 +69,14 @@ Sete regressões reproduziram os problemas antes das mudanças. O registro de en
 
 Não há achados menores adiados; os dois achados entraram na única rodada de correções, após reclassificação pelo impacto de auditoria.
 
+## Ajustes após comentários da prévia local
+
+Os comentários do usuário apontaram um indicador de situação duplicado e distante do conteúdo, ausência de espaço entre voltar/título e a expressão confusa “Acesso anterior”. O indicador permanece somente no card **Acesso da empresa**, com 24 px entre o botão de voltar e o cabeçalho. O estado anterior agora aparece como **Configuração pendente**, explicado por “Acesso por conta Mesiva ainda não configurado.”; regras de acesso e dados não mudaram.
+
+Teste de regressão reproduziu os dois indicadores antes da correção e confirmou apenas um dentro do card depois dela. Testes pertinentes de lista/detalhes/gestão: 13/13. Navegador desktop e mobile 360 × 780: um indicador, respiro medido de 24 px, sem transbordamento horizontal. O viewport foi restaurado; a prévia permanece com o mesmo banco em memória, sem reiniciar o servidor nem perder os testes manuais já realizados. Documentação operacional esclarecida para explicar o novo rótulo.
+
+Validação após esses ajustes: `npm test -- --test-concurrency=4` aprovado, 3607/3607 sem falhas/cancelamentos/skips; arquitetura, lint e build aprovados (avisos já registrados). `git diff --check` aprovado. Apenas apresentação/texto do frontend e documentação foram alterados; schema e Worker mantêm a evidência anterior. Sem push/publicação.
+
 ## Publicação e limitações
 
 Código concluído e validado localmente; o usuário pediu explicitamente manter sem push para testes manuais locais antes de prosseguir. CI de PR/master, staging para o SHA da entrega, aceite humano, merge e produção ainda precisam seguir o [runbook](../../release-and-migration-runbook.md). Nenhum deploy/migration remoto, push ou merge foi executado nesta sessão.
