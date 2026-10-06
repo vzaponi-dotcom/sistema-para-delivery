@@ -65,6 +65,7 @@ export function usePrintingOverlays({
   const recoveryPromptSeenRef = useRef(false)
   const pausedRecoverySecondCopyJobIdRef = useRef(null)
   const previousRecoveryStateRef = useRef(null)
+  const previousRecoveryJobIdRef = useRef(null)
   const onErrorRef = useRef(onError)
   const onSuccessRef = useRef(onSuccess)
   onErrorRef.current = onError
@@ -90,14 +91,24 @@ export function usePrintingOverlays({
     recoveryPromptSeenRef.current = false
     pausedRecoverySecondCopyJobIdRef.current = null
     previousRecoveryStateRef.current = null
+    previousRecoveryJobIdRef.current = null
   }, [authenticated])
 
   useEffect(() => {
     if (!authenticated) return
     const recoveryJobId = localStation?.recoveryJobId ?? null
+    const previousRecoveryJobId = previousRecoveryJobIdRef.current
+    previousRecoveryJobIdRef.current = recoveryJobId
     const hasRecoveryAffinity = recoveryState !== 'normal' && Boolean(recoveryJobId)
     const resumedRecovery = previousRecoveryStateRef.current === 'deferred' && recoveryState === 'active'
     previousRecoveryStateRef.current = recoveryState
+    if (
+      recoveryState === 'deferred'
+      && previousRecoveryJobId
+      && !recoveryJobId
+      && physicalPrinterReady
+      && recoveryPendingCount > 0
+    ) setRecoveryDialogMode('progress')
     if (resumedRecovery) pausedRecoverySecondCopyJobIdRef.current = null
     if (recoveryState === 'normal') pausedRecoverySecondCopyJobIdRef.current = null
 
@@ -143,10 +154,12 @@ export function usePrintingOverlays({
     orders,
     printerBlocked,
     printing?.acknowledgeSecondCopyPrompt,
+    recoveryPendingCount,
     recoveryState,
     secondCopyPromptJobId,
     transportKind,
     transportReady,
+    physicalPrinterReady,
   ])
 
   useEffect(() => {
