@@ -40,7 +40,7 @@ A resolução de `qz.print()` apenas informa que a chamada de transporte termino
 - **Aguardando confirmação:** a via foi submetida e a estação aguarda `JOB COMPLETE`. Não crie outra via enquanto a confirmação não chegar.
 - **Resultado desconhecido:** a observação foi perdida ou não foi possível correlacionar o resultado após a submissão. Eventos automáticos tardios não alteram esse estado. A pessoa responsável escolhe uma vez: **A via foi impressa** para contabilizar a via, ou **Não foi impressa — reenviar** depois de confirmar o risco de duplicidade para criar um reenvio explícito.
 - **Requer atenção por falha conhecida:** use somente a ação explícita disponibilizada para o job. Não há retry silencioso.
-- **Aguardando 2ª via:** em jobs de duas vias, a primeira `COMPLETE` conta apenas a primeira. **Imprimir 2ª via** envia exatamente a segunda via no mesmo job; cancelar o aviso não a descarta.
+- **Duas vias:** quando o job solicita duas vias, cada via continua exigindo sua própria confirmação `JOB COMPLETE`, mas a segunda é enviada automaticamente logo após a confirmação da primeira. Não há decisão humana entre 1ª e 2ª via no fluxo normal. Estados legados `awaiting_second_copy` continuam tratáveis pela fila para compatibilidade e recuperação.
 
 Pedido Mesa/consumo local automático usa uma via. Delivery e Retirada seguem a regra central ou a quantidade expressa do job. Uma reimpressão manual de histórico pode escolher uma ou duas vias, inclusive para Mesa.
 
@@ -50,8 +50,8 @@ Enquanto a impressora estiver offline, stale ou em verificação, o consumidor a
 
 Quando uma transição real de `OFFLINE`/stale para `OK` encontra backlog seguro, o sistema abre uma recuperação pendente uma única vez. O operador decide:
 
-1. **Imprimir agora** inicia a recuperação e reclama/envia exatamente uma via segura.
-2. Depois do resultado dessa via, **Imprimir próxima** processa somente mais uma via.
+1. **Imprimir agora** inicia a recuperação e reclama um trabalho seguro. Se ele possuir duas vias, as duas são enviadas em sequência, cada uma com confirmação própria do spooler.
+2. Depois do resultado desse trabalho, **Imprimir próxima** processa somente o próximo trabalho seguro.
 3. **Parar por agora** deixa a recuperação como adiada; atualizar, focar a página ou receber heartbeat não reabre nem dispara a recuperação.
 
 Não use o retorno da conexão para despejar backlog. Jobs submetidos, em `SPOOLING`, aguardando confirmação ou com resultado desconhecido não são descartados nem reimpressos pela recuperação automática. Uma nova transição offline→OK pode criar um novo ciclo somente quando houver novo backlog seguro.
