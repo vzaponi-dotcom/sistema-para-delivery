@@ -2,6 +2,7 @@ import Button from '../../../shared/ui/Button'
 import ConfirmationDialog from '../../../shared/ui/ConfirmationDialog'
 import Modal from '../../../shared/ui/Modal'
 import { usePrintingOverlays } from '../application/usePrintingOverlays.js'
+import './printing-overlays.css'
 
 function PrintingOverlays(props) {
   const {
@@ -9,6 +10,7 @@ function PrintingOverlays(props) {
     authenticated,
     canExecutePrinting,
     canDiscardPrinting,
+    onOpenPrintQueue,
   } = props
   const state = usePrintingOverlays(props)
 
@@ -40,12 +42,59 @@ function PrintingOverlays(props) {
     handleOriginSecondCopyRequest,
   } = state
 
+  const recoveryJobId = printing?.localStation?.recoveryJobId ?? null
+  const recoveryJob = Array.isArray(printing?.jobs)
+    ? printing.jobs.find((job) => job?.id === recoveryJobId) ?? null
+    : null
+  const recoveryNeedsReview = recoveryJob?.status === 'requires_attention'
+    || recoveryJob?.lastError?.code === 'PRINT_OUTCOME_UNKNOWN'
+  const showRecoveryNotice = recoveryState !== 'normal'
+    && (recoveryPendingCount > 0 || Boolean(recoveryJobId))
+  const recoveryNoticeText = recoveryNeedsReview
+    ? 'Uma impressão precisa ser revisada antes de continuar a recuperação.'
+    : recoveryState === 'active'
+      ? 'Recuperação de impressão em andamento.'
+      : recoveryPendingCount > 0
+        ? `${recoveryPendingCount} ${recoveryPendingCount === 1 ? 'trabalho pendente' : 'trabalhos pendentes'} na recuperação de impressão.`
+        : 'A recuperação de impressão está pausada.'
+
+  const handleGlobalRecoveryAction = () => {
+    if (recoveryNeedsReview) {
+      onOpenPrintQueue?.()
+      return
+    }
+    if (recoveryState === 'pending') {
+      void handleStartRecovery()
+      return
+    }
+    if (recoveryState === 'deferred') void handleNextRecovery()
+  }
+
   return <>
+    {showRecoveryNotice && (
+      <aside className="printing-recovery-global-notice" role="status" aria-live="polite">
+        <div className="printing-recovery-global-copy">
+          <strong>Impressão requer atenção</strong>
+          <span>{recoveryNoticeText}</span>
+        </div>
+        {recoveryNeedsReview && onOpenPrintQueue ? (
+          <Button type="button" variant="secondary" onClick={handleGlobalRecoveryAction}>Revisar impressão</Button>
+        ) : recoveryState !== 'active' ? (
+          <Button
+            type="button"
+            onClick={handleGlobalRecoveryAction}
+            disabled={recoveryBusy || !physicalPrinterReady || !canExecutePrinting}
+          >
+            Retomar recuperação
+          </Button>
+        ) : null}
+      </aside>
+    )}
     {recoveryPromptEligible && physicalPrinterReady && recoveryDialogMode === 'prompt' && (
       <Modal title="Impressora disponível novamente" onClose={() => { void handleDeferRecovery() }}>
         <div className="form-stack">
           <p>{`Há ${recoveryPendingCount} trabalhos aguardando impressão.`}</p>
-          <p>Como a impressora não possui corte automático, as vias serão impressas uma de cada vez.</p>
+          <p>Os trabalhos serão recuperados um por vez. Pedidos configurados com duas vias imprimirão as duas em sequência.</p>
           <div className="form-actions">
             <Button type="button" variant="secondary" onClick={() => { void handleDeferRecovery() }} disabled={recoveryBusy}>Agora não</Button>
             <Button type="button" variant="secondary" onClick={openRecoveryDiscardConfirmation} disabled={recoveryBusy || !canDiscardPrinting}>Descartar todas</Button>
@@ -57,8 +106,8 @@ function PrintingOverlays(props) {
 
     {recoveryDialogMode === 'progress' && physicalPrinterReady && recoveryState === 'deferred' && recoveryPendingCount > 0 && (
       <ConfirmationDialog
-        title="Via impressa"
-        message="Separe o papel antes de continuar."
+        title="Trabalho concluído"
+        message="Pronto para continuar com o próximo trabalho pendente."
         confirmLabel="Imprimir próxima"
         cancelLabel="Parar por agora"
         confirmVariant="secondary"
