@@ -36,6 +36,13 @@ test('global recovery notice remains available outside the print queue', async (
   assert.match(appSource, /onOpenPrintQueue=\{canViewPrintQueue \? \(\) => requestNavigation\('print-queue'\) : undefined\}/)
 })
 
+test('active but idle recovery remains manually continuable from the global notice', async () => {
+  const source = await readFile(new URL('../ui/PrintingOverlays.jsx', import.meta.url), 'utf8')
+  assert.match(source, /recoveryState === 'active' && !printing\?\.busyJobId/)
+  assert.match(source, /Continuar recuperação/)
+  assert.match(source, /if \(recoveryState === 'active'\) void handleNextRecovery\(\)/)
+})
+
 test('deferred recovery keeps affinity with copy 2 before another queued job', async () => {
   const { selectSecondCopyPromptCandidate } = await import('./usePrintingOverlays.js')
   const station = {
