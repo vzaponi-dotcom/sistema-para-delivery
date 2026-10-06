@@ -167,7 +167,7 @@ test('manual not-printed recovery never strands the station active when physical
   assert.match(block, /printerHealthRef\.current\.state !== 'ready'/)
   assert.match(block, /transitionRecovery\('resume'\)/)
   assert.match(block, /printNextRecovery\(\)/)
-  assert.match(block, /if \(!continued\)[\s\S]*transitionRecovery\('defer'\)/)
+  assert.match(block, /if \(!continued[\s\S]*transitionRecovery\('defer'\)/)
   assert.ok(
     block.indexOf('getExplicitPort') < block.indexOf("transitionRecovery('resume')"),
     'physical transport must be revalidated before recovery becomes active',
