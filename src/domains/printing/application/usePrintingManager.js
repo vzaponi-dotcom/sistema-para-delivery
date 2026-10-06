@@ -964,9 +964,9 @@ export const usePrintingManager = ({ api = legacyPrintingApi, businessId, authen
     const ownsTick = captureAccess()
 
     const revalidatePhysicalTransport = async () => {
-      if (!ownsTick() || busyJobIdRef.current) return
+      if (!ownsTick() || busyJobIdRef.current) return false
       const station = localStationRef.current
-      if (!station?.id || !qzTransport.readPrinterName(station.id)) return
+      if (!station?.id || !qzTransport.readPrinterName(station.id)) return false
       try {
         await initializeBackgroundPhysicalTransport({
           authenticated,
@@ -978,6 +978,7 @@ export const usePrintingManager = ({ api = legacyPrintingApi, businessId, authen
       } catch (error) {
         if (ownsTick()) reportError(error)
       }
+      return true
     }
 
     const heartbeat = async () => {
@@ -989,7 +990,7 @@ export const usePrintingManager = ({ api = legacyPrintingApi, businessId, authen
         isQz,
         station,
       })
-      if (!station || !eligible || heartbeatInFlightRef.current || !ownsTick()) return
+      if (!station || !eligible || heartbeatInFlightRef.current || !ownsTick()) return false
 
       heartbeatInFlightRef.current = true
       const sequence = ++heartbeatSequenceRef.current
@@ -1009,6 +1010,7 @@ export const usePrintingManager = ({ api = legacyPrintingApi, businessId, authen
       } finally {
         if (sequence === heartbeatSequenceRef.current) heartbeatInFlightRef.current = false
       }
+      return true
     }
 
     const consumeNext = async () => {
@@ -1052,12 +1054,10 @@ export const usePrintingManager = ({ api = legacyPrintingApi, businessId, authen
       try {
         const now = Date.now()
         if (now - lastPhysicalProbeAt >= PRINT_STATE_POLL_MS) {
-          lastPhysicalProbeAt = now
-          await revalidatePhysicalTransport()
+          if (await revalidatePhysicalTransport()) lastPhysicalProbeAt = Date.now()
         }
         if (now - lastHeartbeatAt >= STATION_HEARTBEAT_MS) {
-          lastHeartbeatAt = now
-          await heartbeat()
+          if (await heartbeat()) lastHeartbeatAt = Date.now()
         }
         await consumeNext()
       } finally {
