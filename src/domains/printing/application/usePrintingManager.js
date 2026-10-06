@@ -812,18 +812,30 @@ export const usePrintingManager = ({ api = legacyPrintingApi, businessId, authen
     )
     const response = await api.resolvePrintOutcome(job.id, attempt?.id ?? null, 'manual_not_printed')
     const refreshed = refreshManager ? await refresh() : null
+    const current = localStationRef.current
     if (
       wasRecoveryAffinity
       && refreshed
-      && localStationRef.current?.id
-      && localStationRef.current?.recoveryState === 'deferred'
-      && localStationRef.current?.recoveryJobId === job.id
+      && current?.id
+      && current.recoveryState === 'deferred'
+      && current.recoveryJobId === job.id
     ) {
+      try {
+        await getExplicitPort()
+      } catch {
+        return response
+      }
+      if (printerHealthRef.current.state !== 'ready' || !transportReadyRef.current) return response
+
       await transitionRecovery('resume')
-      return printNextRecovery()
+      const continued = await printNextRecovery()
+      if (!continued && localStationRef.current?.recoveryState === 'active') {
+        await transitionRecovery('defer')
+      }
+      return continued ?? response
     }
     return response
-  }, [api, printNextRecovery, refresh, transitionRecovery])
+  }, [api, getExplicitPort, printNextRecovery, refresh, transitionRecovery])
 
   const acknowledgeSecondCopyPrompt = useCallback(async (job) => {
     const station = localStationRef.current
