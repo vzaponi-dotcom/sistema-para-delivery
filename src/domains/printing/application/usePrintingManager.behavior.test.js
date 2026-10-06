@@ -146,6 +146,17 @@ test('manager installs spooler monitoring before QZ jobs and routes QZ execution
   assert.match(managerSource, /station\?\.recoveryState/)
 })
 
+test('unknown-outcome confirmation tolerates a stale UI attempt and continues a remaining copy automatically', () => {
+  const start = managerSource.indexOf('const confirmUnknownPrinted = useCallback')
+  const end = managerSource.indexOf('const confirmUnknownNotPrinted = useCallback', start)
+  assert.ok(start >= 0 && end > start)
+  const block = managerSource.slice(start, end)
+  assert.doesNotMatch(block, /!attempt\?\.id/)
+  assert.match(block, /resolvePrintOutcome\(job\.id, attempt\?\.id \?\? null, 'manual_printed'\)/)
+  assert.match(block, /resolvedJob\?\.status === 'processing'/)
+  assert.match(block, /executeClaimedJob\(resolvedJob/)
+})
+
 test('one shared operation gate rejects overlapping physical workflows and releases after completion', async () => {
   assert.equal(typeof runExclusivePrintOperation, 'function')
   let activeOwner = null
