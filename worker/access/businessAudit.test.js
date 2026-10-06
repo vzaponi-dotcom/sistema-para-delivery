@@ -151,37 +151,62 @@ test('HTTP mutators use authenticated identity and denial and logout emit minima
 })
 
 
-for (const submitted of [true,false]) test(`queue timeout atomically audits system uncertainty and replay is inert (submitted=${submitted})`,async t=>{
+test('queue timeout atomically audits submitted physical uncertainty and replay is inert',async t=>{
   const {db,sqlite}=await setup(t),at=now.toISOString()
   sqlite.prepare("INSERT INTO print_stations(id,business_id,name,platform,is_primary,auto_print_enabled,default_copies,created_at,updated_at) VALUES('timeout-station',?,'Printer','windows',1,1,1,?,?)").run(businessId,at,at)
   sqlite.prepare("INSERT INTO print_jobs(id,business_id,type,trigger,status,copies_requested,copies_printed,station_id,snapshot_json,created_at,available_at,processing_started_at) VALUES('timeout-job',?,'test','manual','processing',1,0,'timeout-station','{}',?,?,?)").run(businessId,at,at,at)
-  let attempt
-  if(submitted){
-    attempt=await createPrintJobAttempt(db,businessId,{jobId:'timeout-job',stationId:'timeout-station',copyNumber:1},now)
-    await markPrintAttemptSubmitting(db,businessId,attempt.id,'timeout-station',now)
-  }
+  const attempt=await createPrintJobAttempt(db,businessId,{jobId:'timeout-job',stationId:'timeout-station',copyNumber:1},now)
+  await markPrintAttemptSubmitting(db,businessId,attempt.id,'timeout-station',now)
   const before=sqlite.prepare("SELECT count(*) n FROM audit_events").get().n
   await listPrintJobs(db,businessId,{now})
   assert.equal(sqlite.prepare("SELECT count(*) n FROM audit_events").get().n,before)
+
   sqlite.exec("CREATE TRIGGER reject_audit BEFORE INSERT ON audit_events BEGIN SELECT RAISE(ABORT,'audit unavailable'); END")
   const later=new Date(now.getTime()+180000)
   await assert.rejects(listPrintJobs(db,businessId,{now:later}),/audit unavailable/)
-  assert.equal(sqlite.prepare("SELECT status FROM print_jobs WHERE id='timeout-job'").get().status,submitted?'awaiting_confirmation':'processing')
-  if(submitted)assert.equal(sqlite.prepare('SELECT status FROM print_job_attempts WHERE id=?').get(attempt.id).status,'submitting')
+  assert.equal(sqlite.prepare("SELECT status FROM print_jobs WHERE id='timeout-job'").get().status,'awaiting_confirmation')
+  assert.equal(sqlite.prepare('SELECT status FROM print_job_attempts WHERE id=?').get(attempt.id).status,'submitting')
+
   sqlite.exec("DROP TRIGGER reject_audit; CREATE TRIGGER reject_timeout_job BEFORE UPDATE ON print_jobs WHEN NEW.status='requires_attention' BEGIN SELECT RAISE(ABORT,'job unavailable'); END")
   await assert.rejects(listPrintJobs(db,businessId,{now:later}),/job unavailable/)
   assert.equal(sqlite.prepare("SELECT count(*) n FROM audit_events WHERE action='printing.outcome.observed' AND resource_id='timeout-job'").get().n,0)
-  if(submitted)assert.equal(sqlite.prepare('SELECT status FROM print_job_attempts WHERE id=?').get(attempt.id).status,'submitting')
+  assert.equal(sqlite.prepare('SELECT status FROM print_job_attempts WHERE id=?').get(attempt.id).status,'submitting')
+
   sqlite.exec('DROP TRIGGER reject_timeout_job')
   await listPrintJobs(db,businessId,{now:later})
   await listPrintJobs(db,businessId,{now:new Date(later.getTime()+1000)})
   assert.equal(sqlite.prepare("SELECT status FROM print_jobs WHERE id='timeout-job'").get().status,'requires_attention')
-  if(submitted)assert.equal(sqlite.prepare('SELECT status FROM print_job_attempts WHERE id=?').get(attempt.id).status,'unknown')
+  assert.equal(sqlite.prepare('SELECT status FROM print_job_attempts WHERE id=?').get(attempt.id).status,'unknown')
   const events=sqlite.prepare("SELECT * FROM audit_events WHERE action='printing.outcome.observed' AND resource_id='timeout-job'").all()
   assert.equal(events.length,1)
   assert.equal(events[0].result,'unknown');assert.equal(events[0].actor_type,'system');assert.equal(events[0].actor_user_id,null)
   assert.deepEqual(JSON.parse(events[0].metadata_json),{stationId:'timeout-station'})
 })
+
+test('stale unsubmitted print claim is atomically audited and safely requeued',async t=>{
+  const {db,sqlite}=await setup(t),at=now.toISOString()
+  sqlite.prepare("INSERT INTO print_stations(id,business_id,name,platform,is_primary,auto_print_enabled,default_copies,created_at,updated_at) VALUES('timeout-station',?,'Printer','windows',1,1,1,?,?)").run(businessId,at,at)
+  sqlite.prepare("INSERT INTO print_jobs(id,business_id,type,trigger,status,copies_requested,copies_printed,station_id,snapshot_json,created_at,available_at,processing_started_at) VALUES('timeout-job',?,'test','manual','processing',1,0,'timeout-station','{}',?,?,?)").run(businessId,at,at,at)
+  const later=new Date(now.getTime()+180000)
+
+  sqlite.exec("CREATE TRIGGER reject_audit BEFORE INSERT ON audit_events BEGIN SELECT RAISE(ABORT,'audit unavailable'); END")
+  await assert.rejects(listPrintJobs(db,businessId,{now:later}),/audit unavailable/)
+  assert.equal(sqlite.prepare("SELECT status FROM print_jobs WHERE id='timeout-job'").get().status,'processing')
+
+  sqlite.exec('DROP TRIGGER reject_audit')
+  await listPrintJobs(db,businessId,{now:later})
+  await listPrintJobs(db,businessId,{now:new Date(later.getTime()+1000)})
+  const job=sqlite.prepare("SELECT status,station_id,processing_started_at,last_error_code FROM print_jobs WHERE id='timeout-job'").get()
+  assert.equal(job.status,'pending')
+  assert.equal(job.station_id,null)
+  assert.equal(job.processing_started_at,null)
+  assert.equal(job.last_error_code,null)
+  const events=sqlite.prepare("SELECT * FROM audit_events WHERE action='printing.requeued' AND resource_id='timeout-job'").all()
+  assert.equal(events.length,1)
+  assert.equal(events[0].result,'safe_unsubmitted')
+  assert.equal(events[0].actor_type,'system')
+})
+
 
 test('timeout audit never adopts a stored station from a different tenant',async t=>{
   const {db,sqlite}=await setup(t),at=now.toISOString()
