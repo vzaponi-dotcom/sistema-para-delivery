@@ -420,23 +420,50 @@ test('retry after a failed second copy preserves the first copy and cannot re-en
   assert.equal(secondClaim.copiesPrinted, 1)
 })
 
-test('aging preserves active pending jobs but routes stale processing to requires_attention', async () => {
+test('aging requeues stale processing safely when no physical submission was persisted', async () => {
   const db = makeDb()
   await addStation(db, 'station-a')
   await setPrimaryPrintStation(db, businessA, 'station-a', baseNow)
-
-  const oldPendingAt = new Date(baseNow.getTime() - PRINT_PENDING_MAX_AGE_MS - 1)
-  await addAutomaticJob(db, { id: 'old-pending', orderId: 'o1', createdAt: oldPendingAt })
 
   const processingAt = new Date(baseNow.getTime() - PRINT_PROCESSING_MAX_AGE_MS - 1)
   await addAutomaticJob(db, { id: 'old-processing', orderId: 'o2', createdAt: processingAt })
   await claimPrintJob(db, businessA, 'old-processing', 'station-a', processingAt)
 
+  await listPrintJobs(db, businessA, { now: baseNow })
+  const recovered = await loadPrintJob(db, businessA, 'old-processing')
+  assert.equal(recovered.status, 'pending')
+  assert.equal(recovered.stationId, null)
+  assert.equal(recovered.processingStartedAt, null)
+  assert.equal(recovered.lastError, null)
+
   const claimed = await claimNextAutomaticPrintJob(db, businessA, 'station-a', baseNow)
-  assert.equal(claimed.id, 'old-pending')
+  assert.equal(claimed.id, 'old-processing')
   assert.equal(claimed.status, 'processing')
-  assert.equal((await loadPrintJob(db, businessA, 'old-processing')).status, 'requires_attention')
 })
+
+test('orphan PRINT_OUTCOME_UNKNOWN without a submitted attempt self-heals back to pending', async () => {
+  const db = makeDb()
+  await addStation(db, 'station-a')
+  await setPrimaryPrintStation(db, businessA, 'station-a', baseNow)
+  await addAutomaticJob(db, { id: 'orphan-unknown', orderId: 'o2' })
+  await db.prepare(`UPDATE print_jobs SET
+    status = 'requires_attention', copies_requested = 2, copies_printed = 1,
+    station_id = 'station-a', processing_started_at = ?,
+    last_error_code = 'PRINT_OUTCOME_UNKNOWN',
+    last_error_message = 'O resultado físico da impressão não foi confirmado.'
+    WHERE id = ?`).bind(
+      new Date(baseNow.getTime() - PRINT_PROCESSING_MAX_AGE_MS - 1).toISOString(),
+      'orphan-unknown',
+    ).run()
+
+  await listPrintJobs(db, businessA, { now: baseNow })
+  const recovered = await loadPrintJob(db, businessA, 'orphan-unknown')
+  assert.equal(recovered.status, 'pending')
+  assert.equal(recovered.copiesPrinted, 1)
+  assert.ok(recovered.secondCopyRequestedAt)
+  assert.equal(recovered.lastError, null)
+})
+
 
 test('automatic print waits for availableAt before aging or claim', async () => {
   const future = new Date(baseNow.getTime() + 5 * 60 * 1000)
@@ -451,12 +478,16 @@ test('automatic print waits for availableAt before aging or claim', async () => 
   assert.equal(claimed.id, 'future-available')
 })
 
-test('stale processing becomes canonical physical-outcome attention', async () => {
+test('stale processing becomes canonical physical-outcome attention only after submission intent exists', async () => {
   const db = makeDb()
   await addStation(db, 'station-a')
   await setPrimaryPrintStation(db, businessA, 'station-a', baseNow)
   await addAutomaticJob(db, { id: 'stale-processing' })
   await claimPrintJob(db, businessA, 'stale-processing', 'station-a', baseNow)
+  const attempt = await createPrintJobAttempt(db, businessA, {
+    jobId: 'stale-processing', stationId: 'station-a', copyNumber: 1,
+  }, baseNow)
+  await markPrintAttemptSubmitting(db, businessA, attempt.id, 'station-a', baseNow)
 
   await listPrintJobs(db, businessA, {
     now: new Date(baseNow.getTime() + PRINT_PROCESSING_MAX_AGE_MS + 1),
@@ -465,6 +496,9 @@ test('stale processing becomes canonical physical-outcome attention', async () =
   const stale = await loadPrintJob(db, businessA, 'stale-processing')
   assert.equal(stale.status, 'requires_attention')
   assert.equal(stale.lastError.code, 'PRINT_OUTCOME_UNKNOWN')
+  const page = await listPrintJobs(db, businessA, { now: new Date(baseNow.getTime() + PRINT_PROCESSING_MAX_AGE_MS + 2) })
+  const listed = page.find ? page.find((job) => job.id === 'stale-processing') : page.jobs?.find((job) => job.id === 'stale-processing')
+  assert.equal(listed?.attempt?.id, attempt.id)
 })
 
 test('manual printing leaves a future automatic job pending until its exact availableAt', async () => {
