@@ -264,7 +264,17 @@ export const resolveUnknownPrintAttempt = async (db, businessId, jobId, attemptI
   if (!['manual_printed', 'manual_not_printed'].includes(resolution)) {
     throw repositoryError(400, 'PRINT_ATTEMPT_RESOLUTION_INVALID', 'A resolução manual é inválida.')
   }
-  const attempt = await requireAttempt(db, businessId, attemptId)
+  const requestedAttemptId = String(attemptId || '').trim()
+  const fallbackRow = requestedAttemptId
+    ? null
+    : await db.prepare(`SELECT * FROM print_job_attempts
+        WHERE business_id = ? AND job_id = ? AND status = 'unknown' AND resolution IS NULL
+        ORDER BY copy_number DESC, attempt_number DESC, created_at DESC, id DESC LIMIT 1`)
+      .bind(businessId, jobId).first()
+  const attempt = requestedAttemptId
+    ? await requireAttempt(db, businessId, requestedAttemptId)
+    : mapAttemptRow(fallbackRow)
+  if (!attempt) throw repositoryError(404, 'PRINT_ATTEMPT_NOT_FOUND', 'Tentativa de impressão não encontrada.')
   if (attempt.jobId !== jobId) throw repositoryError(409, 'PRINT_ATTEMPT_JOB_MISMATCH', 'A tentativa não pertence a este trabalho.')
   if (attempt.resolution) {
     if (attempt.resolution !== resolution) throw repositoryError(409, 'PRINT_ATTEMPT_ALREADY_RESOLVED', 'A tentativa já foi resolvida.')
@@ -281,7 +291,7 @@ export const resolveUnknownPrintAttempt = async (db, businessId, jobId, attemptI
   const at = timestamp(now)
   const actor = String(actorLabel || '').trim() || 'Operador'
   const nextStatus = resolution === 'manual_printed'
-    ? (Number(job.copies_printed) + 1 >= Number(job.copies_requested) ? 'printed' : 'awaiting_second_copy')
+    ? (Number(job.copies_printed) + 1 >= Number(job.copies_requested) ? 'printed' : 'processing')
     : 'pending'
   const nextCopies = resolution === 'manual_printed'
     ? Math.min(Number(job.copies_requested), Number(job.copies_printed) + 1)
