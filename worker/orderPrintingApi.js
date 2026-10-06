@@ -319,9 +319,11 @@ export const handlePrintingApi = async (request, env, context, url) => {
   if (resolveOutcomeMatch && request.method === 'POST') {
     assertSameOriginMutation(request)
     const body = await readJson(request)
-    return printingJson({ attempt: await resolveUnknownPrintAttempt(
-      env.DB, businessId, decodeURIComponent(resolveOutcomeMatch[1]), requiredText(body.attemptId, 'attemptId'), body.resolution, actor.displayName,
-    ) })
+    const jobId = decodeURIComponent(resolveOutcomeMatch[1])
+    const attempt = await resolveUnknownPrintAttempt(
+      env.DB, businessId, jobId, body.attemptId ?? null, body.resolution, actor.displayName,
+    )
+    return printingJson({ attempt, job: await loadPrintJob(env.DB, businessId, jobId) })
   }
 
   const secondCopyPromptMatch = url.pathname.match(/^\/api\/printing\/jobs\/([^/]+)\/second-copy-prompt$/)
