@@ -9,7 +9,6 @@ import {
   markPrintAttemptUnknown,
 } from './printAttemptRepository.js'
 import {
-  PRINT_PENDING_MAX_AGE_MS,
   PRINT_PROCESSING_MAX_AGE_MS,
   claimNextAutomaticPrintJob,
   claimPrintJob,
