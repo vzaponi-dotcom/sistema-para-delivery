@@ -552,6 +552,19 @@ test('print queue blocks server mutations while offline with friendly Portuguese
   assert.match(page, /!isOnline/)
 })
 
+test('print queue opens the exact job requested by the global recovery notice', async () => {
+  const page = await readSource('./PrintQueue.jsx')
+  assert.match(page, /reviewJobId/)
+  assert.match(page, /printing\?\.jobs[\s\S]*job\?\.id === reviewJobId/)
+  assert.match(page, /setSelectedJob\(target\)/)
+  assert.match(page, /onReviewJobConsumed\?\.\(reviewJobId\)/)
+})
+
+test('print queue refreshes the selected job snapshot so unknown-attempt actions use current server data', async () => {
+  const page = await readSource('./PrintQueue.jsx')
+  assert.match(page, /setSelectedJob\(\(current\) => current \? nextPage\.jobs\.find\(\(job\) => job\?\.id === current\.id\) \?\? current : null\)/)
+})
+
 test('print queue debounces search input and aborts stale panel reads', async () => {
   const page = await readSource('./PrintQueue.jsx')
   assert.match(page, /SEARCH_DEBOUNCE_MS = 300/)

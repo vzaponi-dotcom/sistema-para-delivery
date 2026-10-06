@@ -8,13 +8,15 @@ import { authenticatedSession } from '../../../test-support/appSessionFixtures.j
 
 const overlayUrl = new URL('./PrintingOverlays.jsx', import.meta.url)
 
-test('PrintingOverlays owns the existing dialog copy without redesign', async () => {
+test('PrintingOverlays owns the recovery and second-copy dialog copy', async () => {
   assert.equal(existsSync(overlayUrl), true)
   if (!existsSync(overlayUrl)) return
   const source = await readFile(overlayUrl, 'utf8')
   for (const label of [
     'Impressora disponível novamente',
-    'Via impressa',
+    'Trabalho concluído',
+    'Retomar recuperação',
+    'Revisar impressão',
     'Descartar ',
     ' trabalhos?',
     '1ª via impressa',

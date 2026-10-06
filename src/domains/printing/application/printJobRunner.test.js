@@ -46,6 +46,53 @@ test('successful first pass of a two-copy job renders and completes only copy 1/
   assert.deepEqual(calls, { renderer: 1, transport: 1, complete: 1, fail: 0 })
 })
 
+test('QZ two-copy job submits and confirms copy 1 then copy 2 in one execution', async () => {
+  const sequence = []
+  const result = await runClaimedPrintJob({
+    job: baseJob,
+    stationId: 'station-1',
+    port: null,
+    completeJob: async () => assert.fail('QZ completion is owned by persisted attempts'),
+    failJob: async () => assert.fail('confirmed two-copy QZ job must not fail'),
+    renderer: (_document, options) => {
+      sequence.push(['render', options.copyNumber, options.totalCopies])
+      return new Uint8Array([options.copyNumber])
+    },
+    transport: async () => assert.fail('QZ controller owns byte submission'),
+    qzAttempt: {
+      createAttempt: async (_jobId, _stationId, copyNumber) => {
+        sequence.push(['create', copyNumber])
+        return { id: `attempt-${copyNumber}`, spoolJobName: `GESTAO-DELIVERY:job-1:COPY:${copyNumber}:ATTEMPT:1` }
+      },
+      markSubmitting: async (attemptId) => {
+        sequence.push(['submit', attemptId])
+      },
+      sendBytes: async (bytes, { jobName }) => {
+        sequence.push(['send', bytes[0], jobName])
+      },
+      awaitOutcome: async (jobName) => {
+        sequence.push(['await', jobName])
+        return { jobId: jobName.includes('COPY:1') ? 11 : 12 }
+      },
+      recordEvent: async (attemptId, _stationId, event) => {
+        sequence.push(['complete', attemptId, event.type])
+        return { id: attemptId, status: 'complete' }
+      },
+      markUnknown: async () => assert.fail('confirmed copy must not become unknown'),
+    },
+  })
+
+  assert.equal(result.status, 'printed')
+  assert.deepEqual(sequence.map((entry) => entry[0]), [
+    'render', 'create', 'submit', 'await', 'send', 'complete',
+    'render', 'create', 'submit', 'await', 'send', 'complete',
+  ])
+  assert.deepEqual(sequence.filter((entry) => entry[0] === 'render'), [
+    ['render', 1, 2],
+    ['render', 2, 2],
+  ])
+})
+
 test('QZ runner never completes from send success and leaves an unknown submitted copy out of the retry path', async () => {
   let completeCalls = 0
   let failCalls = 0

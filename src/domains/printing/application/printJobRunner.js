@@ -23,10 +23,17 @@ export const runClaimedPrintJob = async ({
       ? { copies: 1, copyNumber, totalCopies }
       : { copies: 1 }
     if (qzAttempt) {
-      const result = await executeQzPrintAttempt({ job, stationId, renderer, ...qzAttempt })
-      if (result.status === 'confirmed') return { status: 'printed', attempt: result.attempt }
-      if (result.status === 'unknown') return { status: 'requires_attention', attempt: result.attempt, error: result.error }
-      throw result.error
+      let lastAttempt = null
+      for (let printed = copiesPrinted; printed < totalCopies; printed += 1) {
+        const currentJob = { ...job, copiesPrinted: printed, status: 'processing' }
+        const result = await executeQzPrintAttempt({ job: currentJob, stationId, renderer, ...qzAttempt })
+        lastAttempt = result.attempt || lastAttempt
+        if (result.status === 'unknown') {
+          return { status: 'requires_attention', attempt: result.attempt, error: result.error }
+        }
+        if (result.status !== 'confirmed') throw result.error
+      }
+      return { status: 'printed', attempt: lastAttempt }
     }
 
     const bytes = renderer(job.document, renderOptions)

@@ -104,6 +104,13 @@ export const createQzStatusMonitor = ({ qzApi, printerName, onPrinterStatus, onJ
     else if (TERMINAL_JOB_FAILURES.has(jobStatus)) reject(event)
   }
 
+  const readCurrentStatus = async () => {
+    const current = await qzApi.printers.getStatus()
+    for (const event of Array.isArray(current) ? current : [current]) {
+      if (event) receive(event)
+    }
+  }
+
   return {
     start: async () => {
       if (listening) return
@@ -111,14 +118,16 @@ export const createQzStatusMonitor = ({ qzApi, printerName, onPrinterStatus, onJ
       try {
         await qzApi.printers.startListening(selectedPrinter)
         listening = true
-        const current = await qzApi.printers.getStatus()
-        for (const event of Array.isArray(current) ? current : [current]) {
-          if (event) receive(event)
-        }
+        await readCurrentStatus()
       } catch (error) {
         failPending(error)
         throw error
       }
+    },
+    refreshStatus: async () => {
+      if (!listening) return false
+      await readCurrentStatus()
+      return true
     },
     stop: async () => {
       if (listening) await qzApi.printers.stopListening()

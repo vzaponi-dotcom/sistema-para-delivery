@@ -215,21 +215,18 @@ test('recovery keeps a two-copy job atomic before claiming the next pending job'
     type: 'COMPLETE', jobName: firstAttempt.spoolJobName,
   }, now)
   const afterFirstCopy = await loadPrintJob(db, businessId, 'first')
-  assert.equal(afterFirstCopy.status, 'awaiting_second_copy')
+  assert.equal(afterFirstCopy.status, 'processing')
   assert.equal(afterFirstCopy.copiesPrinted, 1)
   await assert.rejects(
     () => setPrintRecoveryState(db, businessId, 'kitchen', 'normal', now),
     (error) => error.code === 'PRINT_RECOVERY_JOB_UNRESOLVED',
   )
 
-  await setPrintRecoveryState(db, businessId, 'kitchen', 'active', now)
   assert.equal(await claimNextRecoveryPrintJob(db, businessId, 'kitchen', now), null)
   assert.equal((await loadPrintJob(db, businessId, 'second')).status, 'pending')
 
-  const secondCopyClaim = await claimPrintJob(db, businessId, 'first', 'kitchen', now)
-  assert.equal(secondCopyClaim.id, 'first')
   const secondAttempt = await createPrintJobAttempt(db, businessId, {
-    jobId: secondCopyClaim.id, stationId: 'kitchen', copyNumber: 2,
+    jobId: firstClaim.id, stationId: 'kitchen', copyNumber: 2,
   }, now)
   assert.equal(secondAttempt.jobId, 'first')
   assert.equal(secondAttempt.copyNumber, 2)
@@ -243,6 +240,7 @@ test('recovery keeps a two-copy job atomic before claiming the next pending job'
   assert.equal(completed.copiesPrinted, 2)
   assert.equal(db.sqlite.prepare('SELECT recovery_job_id FROM print_stations WHERE id = ?').get('kitchen').recovery_job_id, null)
 
+  await setPrintRecoveryState(db, businessId, 'kitchen', 'active', now)
   const secondClaim = await claimNextRecoveryPrintJob(db, businessId, 'kitchen', now)
   assert.equal(secondClaim.id, 'second')
 })

@@ -38,7 +38,8 @@ const recordPrintAttemptEvent = (attemptId, stationId, event) => request(
   `/api/printing/attempts/${encodeURIComponent(attemptId)}/events`, withJson('POST', { stationId, event }),
 )
 const resolvePrintOutcome = (jobId, attemptId, resolution, actorLabel = 'Operador') => request(
-  `/api/printing/jobs/${encodeURIComponent(jobId)}/resolve-outcome`, withJson('POST', { attemptId, resolution, actorLabel }),
+  `/api/printing/jobs/${encodeURIComponent(jobId)}/resolve-outcome`,
+  withJson('POST', { ...(attemptId ? { attemptId } : {}), resolution, actorLabel }),
 )
 const setPrintStationRecovery = (stationId, state) => request(
   `/api/printing/stations/${encodeURIComponent(stationId)}/recovery`, withJson('POST', { state }),

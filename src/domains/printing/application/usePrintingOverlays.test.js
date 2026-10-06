@@ -28,6 +28,23 @@ test('App delegates origin-order persistence to the Printing manager', () => {
   assert.match(appSource, /printing\.rememberOriginOrder\(order\.id\)/)
 })
 
+test('global recovery notice opens the exact recovery job for review', async () => {
+  const source = await readFile(new URL('../ui/PrintingOverlays.jsx', import.meta.url), 'utf8')
+  assert.match(source, /printing-recovery-global-notice/)
+  assert.match(source, /Retomar recuperação/)
+  assert.match(source, /Revisar impressão/)
+  assert.match(source, /onReviewPrintJob\?\.\(recoveryJobId\)/)
+  assert.match(appSource, /setPrintQueueReviewJobId\(jobId\)[\s\S]*requestNavigation\('print-queue'\)/)
+  assert.match(appSource, /reviewJobId=\{printQueueReviewJobId\}/)
+})
+
+test('active but idle recovery remains manually continuable from the global notice', async () => {
+  const source = await readFile(new URL('../ui/PrintingOverlays.jsx', import.meta.url), 'utf8')
+  assert.match(source, /recoveryState === 'active' && !printing\?\.busyJobId/)
+  assert.match(source, /Continuar recuperação/)
+  assert.match(source, /if \(recoveryState === 'active'\) void handleNextRecovery\(\)/)
+})
+
 test('deferred recovery keeps affinity with copy 2 before another queued job', async () => {
   const { selectSecondCopyPromptCandidate } = await import('./usePrintingOverlays.js')
   const station = {
