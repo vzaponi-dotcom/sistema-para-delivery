@@ -527,9 +527,12 @@ test('operational printing API exposes scoped views and physical attempt routes 
   })
   assert.equal((await unknown.json()).attempt.status, 'unknown')
   const resolved = await jsonRequest(`/api/printing/jobs/${job.id}/resolve-outcome`, 'POST', cookie, {
-    attemptId: attempt.id, resolution: 'manual_not_printed', actorLabel: 'Caixa 1',
+    resolution: 'manual_not_printed', actorLabel: 'Caixa 1',
   })
-  assert.equal((await resolved.json()).attempt.resolution, 'manual_not_printed')
+  const resolvedBody = await resolved.json()
+  assert.equal(resolvedBody.attempt.resolution, 'manual_not_printed')
+  assert.equal(resolvedBody.job.id, job.id)
+  assert.equal(resolvedBody.job.status, 'pending')
 
   const recoveryJob = (await (await jsonRequest('/api/orders/o1/print-jobs', 'POST', cookie, { copies: 1 })).json()).job
   assert.equal((await jsonRequest('/api/printing/stations/s1/recovery', 'POST', cookie, { state: 'pending' })).status, 200)
