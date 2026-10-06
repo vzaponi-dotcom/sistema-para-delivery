@@ -10,7 +10,7 @@ export async function prepareCompanyIssuer(db, context, { businessId, purpose = 
   const row = await loadAccountSessionRow(db, context?.identitySessionId, now)
   if (!row || row.account_id !== context.accountId || row.context_id !== context.contextId) throw contextChanged()
   const granted = new Set(JSON.parse(row.role_grants_json)), platformGranted = new Set(JSON.parse(row.platform_grants_json))
-  const allowed = purpose === 'first_manager'
+  const allowed = purpose === 'first_manager' || purpose === 'team' && capability === 'platform.invitations.resend' && row.scope === 'platform'
     ? row.scope === 'platform' && platformGranted.has(capability || 'platform.businesses.create')
     : row.scope === 'business' && row.business_id === businessId && granted.has(capability || 'access.users.manage')
   if (!allowed) throw apiError(403, 'FORBIDDEN', 'Você não pode administrar estes acessos.')
