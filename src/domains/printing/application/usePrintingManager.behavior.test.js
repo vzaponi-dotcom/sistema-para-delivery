@@ -90,16 +90,22 @@ test('automatic consumer does not claim while QZ or another local transport is n
   assert.equal(canConsumeAutomaticPrintJob(readyAutomaticConsumer()), true)
 })
 
-test('background primary keeps physical consumption eligible and revalidates QZ without forcing UI refresh', () => {
+test('background primary keeps critical print work on the dedicated execution ticker', () => {
   assert.equal(canConsumeAutomaticPrintJob(readyAutomaticConsumer({ visible: false })), true)
+  assert.match(managerSource, /createPrintExecutionTicker/)
+  assert.match(managerSource, /printExecutionTicker\.start/)
 
-  const syncStart = managerSource.indexOf('const sync = () => {')
-  const syncEnd = managerSource.indexOf('const timer = globalThis.setInterval?.(sync, PRINT_STATE_POLL_MS)', syncStart)
-  assert.ok(syncStart >= 0 && syncEnd > syncStart)
-  const syncBlock = managerSource.slice(syncStart, syncEnd)
-  assert.match(syncBlock, /if \(visiblePage\(\)\) void refresh\(\)/)
-  assert.match(syncBlock, /initializeBackgroundPhysicalTransport/)
-  assert.doesNotMatch(syncBlock, /if \(!visiblePage\(\)/)
+  const effectStart = managerSource.indexOf('let lastPhysicalProbeAt = 0')
+  const effectEnd = managerSource.indexOf('const latestJobByOrderId', effectStart)
+  assert.ok(effectStart >= 0 && effectEnd > effectStart)
+  const executionBlock = managerSource.slice(effectStart, effectEnd)
+  assert.match(executionBlock, /initializeBackgroundPhysicalTransport/)
+  assert.match(executionBlock, /heartbeatPrintStation/)
+  assert.match(executionBlock, /claimNextPrintJob/)
+  assert.match(executionBlock, /STATION_HEARTBEAT_MS/)
+  assert.match(executionBlock, /PRINT_STATE_POLL_MS/)
+  assert.doesNotMatch(executionBlock, /setInterval/)
+  assert.doesNotMatch(executionBlock, /visiblePage\(\)/)
 })
 
 test('an existing QZ status monitor is actively refreshed before it is reused', () => {
