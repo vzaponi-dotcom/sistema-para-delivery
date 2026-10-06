@@ -184,8 +184,9 @@ const markComplete = async (db, businessId, attempt, stationId, details, now) =>
       .bind(details.spoolJobId, at, at, at, attempt.id, businessId, stationId),
     db.prepare(`UPDATE print_jobs SET
       copies_printed = MIN(copies_requested, copies_printed + 1),
-      status = CASE WHEN copies_printed + 1 >= copies_requested THEN 'printed' ELSE 'awaiting_second_copy' END,
-      processed_at = ?, last_error_code = NULL, last_error_message = NULL
+      status = CASE WHEN copies_printed + 1 >= copies_requested THEN 'printed' ELSE 'processing' END,
+      processed_at = CASE WHEN copies_printed + 1 >= copies_requested THEN ? ELSE NULL END,
+      last_error_code = NULL, last_error_message = NULL
       WHERE id = ? AND business_id = ? AND station_id = ?
         AND status IN ('awaiting_confirmation', 'requires_attention')
         AND changes() = 1
@@ -263,7 +264,17 @@ export const resolveUnknownPrintAttempt = async (db, businessId, jobId, attemptI
   if (!['manual_printed', 'manual_not_printed'].includes(resolution)) {
     throw repositoryError(400, 'PRINT_ATTEMPT_RESOLUTION_INVALID', 'A resolução manual é inválida.')
   }
-  const attempt = await requireAttempt(db, businessId, attemptId)
+  const requestedAttemptId = String(attemptId || '').trim()
+  const fallbackRow = requestedAttemptId
+    ? null
+    : await db.prepare(`SELECT * FROM print_job_attempts
+        WHERE business_id = ? AND job_id = ? AND status = 'unknown'
+        ORDER BY copy_number DESC, attempt_number DESC, created_at DESC, id DESC LIMIT 1`)
+      .bind(businessId, jobId).first()
+  const attempt = requestedAttemptId
+    ? await requireAttempt(db, businessId, requestedAttemptId)
+    : mapAttemptRow(fallbackRow)
+  if (!attempt) throw repositoryError(404, 'PRINT_ATTEMPT_NOT_FOUND', 'Tentativa de impressão não encontrada.')
   if (attempt.jobId !== jobId) throw repositoryError(409, 'PRINT_ATTEMPT_JOB_MISMATCH', 'A tentativa não pertence a este trabalho.')
   if (attempt.resolution) {
     if (attempt.resolution !== resolution) throw repositoryError(409, 'PRINT_ATTEMPT_ALREADY_RESOLVED', 'A tentativa já foi resolvida.')
@@ -279,36 +290,42 @@ export const resolveUnknownPrintAttempt = async (db, businessId, jobId, attemptI
   }
   const at = timestamp(now)
   const actor = String(actorLabel || '').trim() || 'Operador'
-  const nextStatus = resolution === 'manual_printed'
-    ? (Number(job.copies_printed) + 1 >= Number(job.copies_requested) ? 'printed' : 'awaiting_second_copy')
-    : 'pending'
   const nextCopies = resolution === 'manual_printed'
     ? Math.min(Number(job.copies_requested), Number(job.copies_printed) + 1)
     : Number(job.copies_printed)
+  const hasRemainingCopy = resolution === 'manual_printed' && nextCopies < Number(job.copies_requested)
+  const nextStatus = resolution === 'manual_printed'
+    ? (hasRemainingCopy ? 'pending' : 'printed')
+    : 'pending'
   await db.batch([
     db.prepare(`UPDATE print_job_attempts SET
       resolution = ?, resolution_actor_label = ?, resolved_at = ?, updated_at = ?
       WHERE id = ? AND business_id = ? AND status = 'unknown' AND resolution IS NULL`)
-      .bind(resolution, actor, at, at, attemptId, businessId),
+      .bind(resolution, actor, at, at, attempt.id, businessId),
     db.prepare(`UPDATE print_jobs SET
-      status = ?, copies_printed = ?, station_id = CASE WHEN ? = 'manual_not_printed' THEN NULL ELSE station_id END,
-      processing_started_at = CASE WHEN ? = 'manual_not_printed' THEN NULL ELSE processing_started_at END,
-      processed_at = ?, available_at = CASE WHEN ? = 'manual_not_printed' THEN ? ELSE available_at END,
+      status = ?, copies_printed = ?,
+      station_id = CASE WHEN ? = 'manual_not_printed' OR ? = 1 THEN NULL ELSE station_id END,
+      processing_started_at = CASE WHEN ? = 'manual_not_printed' OR ? = 1 THEN NULL ELSE processing_started_at END,
+      processed_at = CASE WHEN ? = 'printed' THEN ? ELSE NULL END,
+      available_at = CASE WHEN ? = 'pending' THEN ? ELSE available_at END,
+      second_copy_requested_at = CASE WHEN ? = 1 THEN COALESCE(second_copy_requested_at, ?) ELSE second_copy_requested_at END,
       last_error_code = NULL, last_error_message = NULL, action_actor_label = ?, action_at = ?
       WHERE changes() = 1 AND id = ? AND business_id = ? AND status = 'requires_attention'
         AND EXISTS (
           SELECT 1 FROM print_job_attempts
           WHERE id = ? AND business_id = ? AND resolution = ? AND resolved_at = ?
         )`)
-      .bind(nextStatus, nextCopies, resolution, resolution, at, resolution, at, actor, at,
-        jobId, businessId, attemptId, businessId, resolution, at),
+      .bind(nextStatus, nextCopies, resolution, hasRemainingCopy ? 1 : 0,
+        resolution, hasRemainingCopy ? 1 : 0, nextStatus, at, nextStatus, at,
+        hasRemainingCopy ? 1 : 0, at, actor, at,
+        jobId, businessId, attempt.id, businessId, resolution, at),
     businessEvent(db,businessId,{action:'printing.outcome.resolved',resourceType:'print-job',resourceId:jobId,outcome:resolution,now,onlyIfChanged:true}),
     db.prepare(`UPDATE print_stations SET recovery_job_id = NULL, updated_at = ?
       WHERE business_id = ? AND recovery_job_id = ?
         AND EXISTS (SELECT 1 FROM print_jobs WHERE id = ? AND business_id = ? AND status IN ('printed', 'discarded'))`)
       .bind(at, businessId, jobId, jobId, businessId),
   ])
-  return requireAttempt(db, businessId, attemptId)
+  return requireAttempt(db, businessId, attempt.id)
 }
 
 export const listPrintJobAttempts = async (db, businessId, jobId) => {

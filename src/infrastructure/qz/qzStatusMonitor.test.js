@@ -16,14 +16,16 @@ test('QZ printer status classification fails closed outside an explicit OK signa
 const makeQzApi = ({ currentStatus = null } = {}) => {
   const calls = []
   let callback
+  let status = currentStatus
   return {
     calls,
     emit: (event) => callback(event),
+    setCurrentStatus: (next) => { status = next },
     api: {
       printers: {
         setPrinterCallbacks: (next) => { calls.push('callbacks'); callback = next },
         startListening: async (printerName) => { calls.push(`start:${printerName}`) },
-        getStatus: async () => { calls.push('status'); return currentStatus },
+        getStatus: async () => { calls.push('status'); return status },
         stopListening: async () => { calls.push('stop') },
       },
     },
@@ -58,6 +60,28 @@ test('QZ status monitor observes the selected printer before listening and resol
   })
   await monitor.stop()
   assert.deepEqual(fake.calls, ['callbacks', 'start:MPT-II', 'status', 'stop'])
+})
+
+test('QZ status monitor can actively recheck a transient printer state and recover to ready', async () => {
+  const states = []
+  const fake = makeQzApi({
+    currentStatus: { printerName: 'MPT-II', eventType: 'PRINTER', statusText: 'Waiting', severity: 'INFO' },
+  })
+  const monitor = createQzStatusMonitor({
+    qzApi: fake.api,
+    printerName: 'MPT-II',
+    onPrinterStatus: (status) => states.push(status.state),
+  })
+
+  await monitor.start()
+  assert.deepEqual(states, ['verifying'])
+
+  fake.setCurrentStatus({ printerName: 'MPT-II', eventType: 'PRINTER', statusText: 'OK', statusCode: 0 })
+  assert.equal(await monitor.refreshStatus(), true)
+  assert.deepEqual(states, ['verifying', 'ready'])
+  assert.equal(fake.calls.filter((call) => call === 'status').length, 2)
+
+  await monitor.stop()
 })
 
 test('QZ status monitor rejects pending outcomes when stopped or when its connection observation is lost', async () => {

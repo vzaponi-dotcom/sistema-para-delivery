@@ -275,6 +275,23 @@ const agePrintJobs = async (db, businessId, now = new Date()) => {
   const processingCutoff = new Date(at.getTime() - PRINT_PROCESSING_MAX_AGE_MS).toISOString()
 
   await routeIneligibleAutomaticJobsToAttention(db, businessId, at)
+  const unresolvedSubmittedAttempt = `EXISTS (
+    SELECT 1 FROM print_job_attempts a
+    WHERE a.business_id = print_jobs.business_id
+      AND a.job_id = print_jobs.id
+      AND a.submission_started_at IS NOT NULL
+      AND a.resolution IS NULL
+      AND a.status <> 'complete'
+  )`
+  const safeStaleCandidates = `SELECT print_jobs.id FROM print_jobs
+    WHERE print_jobs.business_id = ?
+      AND (
+        (print_jobs.status = 'processing' AND print_jobs.processing_started_at <= ?)
+        OR (print_jobs.status = 'requires_attention' AND print_jobs.last_error_code = 'PRINT_OUTCOME_UNKNOWN')
+      )
+      AND NOT ${unresolvedSubmittedAttempt}`
+  const safeBindings = [businessId, processingCutoff]
+
   const expiredAttempt = `a.business_id = ? AND a.status IN ('submitting', 'spooling', 'printing')
     AND a.resolution IS NULL AND a.submission_started_at <= ?`
   const timeoutCandidates = `SELECT print_jobs.id,
@@ -288,13 +305,24 @@ const agePrintJobs = async (db, businessId, now = new Date()) => {
       OR (status IN ('awaiting_confirmation','processing') AND EXISTS (
         SELECT 1 FROM print_job_attempts a WHERE a.business_id=print_jobs.business_id
           AND a.job_id=print_jobs.id AND a.status='unknown' AND a.resolution IS NULL))
-      OR (status='processing' AND processing_started_at <= ?)
     )`
-  const candidateBindings = [businessId,businessId,processingCutoff,processingCutoff]
+  const candidateBindings = [businessId,businessId,processingCutoff]
   // Polling is not human execution. Stored station associations are validated
   // by the tenant join above, without requiring the timed-out station online.
   const systemDb=withAuditContext(db,{businessId,actorType:'system'})
   await db.batch([
+    prepareAuditSelection(systemDb,businessId,{action:'printing.requeued',resourceType:'print-job',outcome:'safe_unsubmitted',now:at},
+      safeStaleCandidates,safeBindings),
+    db.prepare(`UPDATE print_jobs SET
+      status = 'pending', station_id = NULL, processing_started_at = NULL, processed_at = NULL,
+      second_copy_requested_at = CASE
+        WHEN copies_printed > 0 AND copies_printed < copies_requested
+          THEN COALESCE(second_copy_requested_at, ?)
+        ELSE second_copy_requested_at
+      END,
+      last_error_code = NULL, last_error_message = NULL
+      WHERE id IN (SELECT id FROM (${safeStaleCandidates})) AND business_id = ?`)
+      .bind(processedAt,...safeBindings,businessId),
     prepareAuditSelection(systemDb,businessId,{action:'printing.outcome.observed',resourceType:'print-job',outcome:'unknown',now:at},
       timeoutCandidates,candidateBindings,{stationFromSelection:true}),
     db.prepare(`UPDATE print_job_attempts AS a SET

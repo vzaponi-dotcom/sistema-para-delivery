@@ -72,7 +72,7 @@ test('QZ unavailable is attributed to the primary station', () => {
 
   assert.equal(view.title, 'QZ Tray desconectado na estação principal')
   assert.equal(view.description, 'A estação Cozinha Windows está online, mas o QZ Tray não está disponível.')
-  assert.equal(view.helper, '2 trabalhos aguardando impressão.')
+  assert.equal(view.helper, '2 trabalhos aguardando — QZ Tray desconectado.')
   assert.equal(view.tone, 'danger')
 })
 
@@ -91,6 +91,7 @@ test('printer unavailable refines only causes supported by physical state', () =
   const offline = buildPrintOperationalView(status('printer_unavailable', { physicalState: 'printer_offline' }), { pendingCount: 2 })
   assert.equal(offline.title, 'Impressora indisponível')
   assert.equal(offline.description, 'A impressora está desligada ou desconectada.')
+  assert.equal(offline.helper, '2 trabalhos aguardando — impressora desligada ou desconectada.')
   assert.equal(offline.tone, 'danger')
 
   const attention = buildPrintOperationalView(status('printer_unavailable', { physicalState: 'printer_attention' }))
@@ -106,7 +107,7 @@ test('verifying stays neutral and never invents an offline cause', () => {
     tone: 'neutral',
     title: 'Verificando impressão',
     description: 'Verificando a estação Cozinha Windows.',
-    helper: '2 trabalhos permanecem na fila enquanto o status é verificado.',
+    helper: '2 trabalhos aguardando — verificando a impressão.',
     primaryStationName: 'Cozinha Windows',
   })
 })

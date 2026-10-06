@@ -8,6 +8,12 @@ const pendingPrintHelper = (pendingCount) => (
     : null
 )
 
+const pausedPrintHelper = (pendingCount, reason) => (
+  pendingCount > 0
+    ? `${plural(pendingCount, 'trabalho', 'trabalhos')} aguardando — ${reason}.`
+    : null
+)
+
 const primaryName = (status) => String(status?.primaryStation?.name || '').trim() || null
 const urgencyTone = (pendingCount) => pendingCount > 0 ? 'danger' : 'warning'
 
@@ -69,7 +75,7 @@ export const buildPrintOperationalView = (status = {}, {
       description: primaryStationName
         ? `A estação ${primaryStationName} está online, mas o QZ Tray não está disponível.`
         : 'A estação principal está online, mas o QZ Tray não está disponível.',
-      helper: pendingPrintHelper(pending),
+      helper: pausedPrintHelper(pending, 'QZ Tray desconectado'),
     }
   }
 
@@ -79,7 +85,7 @@ export const buildPrintOperationalView = (status = {}, {
       tone: 'warning',
       title: 'Impressora não configurada',
       description: 'Selecione a impressora desta estação para começar a imprimir.',
-      helper: pendingPrintHelper(pending),
+      helper: pausedPrintHelper(pending, 'impressora não configurada'),
     }
   }
 
@@ -89,12 +95,17 @@ export const buildPrintOperationalView = (status = {}, {
       : status?.physicalState === 'printer_attention'
         ? 'A impressora requer atenção antes de continuar.'
         : 'A estação principal não consegue usar a impressora no momento.'
+    const pausedReason = status?.physicalState === 'printer_offline'
+      ? 'impressora desligada ou desconectada'
+      : status?.physicalState === 'printer_attention'
+        ? 'impressora requer atenção'
+        : 'impressora indisponível'
     return {
       ...base,
       tone: urgencyTone(pending),
       title: 'Impressora indisponível',
       description,
-      helper: pendingPrintHelper(pending),
+      helper: pausedPrintHelper(pending, pausedReason),
     }
   }
 
@@ -106,8 +117,6 @@ export const buildPrintOperationalView = (status = {}, {
     description: primaryStationName
       ? `Verificando a estação ${primaryStationName}.`
       : 'Aguardando informações da estação principal.',
-    helper: pending > 0
-      ? `${plural(pending, 'trabalho', 'trabalhos')} ${pending === 1 ? 'permanece' : 'permanecem'} na fila enquanto o status é verificado.`
-      : null,
+    helper: pausedPrintHelper(pending, 'verificando a impressão'),
   }
 }

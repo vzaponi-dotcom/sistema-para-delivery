@@ -90,6 +90,36 @@ test('automatic consumer does not claim while QZ or another local transport is n
   assert.equal(canConsumeAutomaticPrintJob(readyAutomaticConsumer()), true)
 })
 
+test('background primary keeps critical print work on the dedicated execution ticker', () => {
+  assert.equal(canConsumeAutomaticPrintJob(readyAutomaticConsumer({ visible: false })), true)
+  assert.match(managerSource, /createPrintExecutionTicker/)
+  assert.match(managerSource, /printExecutionTicker\.start/)
+
+  const effectStart = managerSource.indexOf('let lastPhysicalProbeAt = 0')
+  const effectEnd = managerSource.indexOf('const latestJobByOrderId', effectStart)
+  assert.ok(effectStart >= 0 && effectEnd > effectStart)
+  const executionBlock = managerSource.slice(effectStart, effectEnd)
+  assert.match(executionBlock, /initializeBackgroundPhysicalTransport/)
+  assert.match(executionBlock, /heartbeatPrintStation/)
+  assert.match(executionBlock, /claimNextPrintJob/)
+  assert.match(executionBlock, /STATION_HEARTBEAT_MS/)
+  assert.match(executionBlock, /PRINT_STATE_POLL_MS/)
+  assert.doesNotMatch(executionBlock, /setInterval/)
+  assert.doesNotMatch(executionBlock, /visiblePage\(\)/)
+})
+
+test('an existing QZ status monitor is actively refreshed before it is reused', () => {
+  const start = managerSource.indexOf('const ensureQzStatusMonitor = useCallback')
+  const end = managerSource.indexOf('const configureQz = useCallback', start)
+  assert.ok(start >= 0 && end > start)
+  const block = managerSource.slice(start, end)
+  assert.match(block, /qzStatusMonitorRef\.current\.refreshStatus\?\.\(\)/)
+  assert.ok(
+    block.indexOf('refreshStatus?.()') < block.indexOf('return qzStatusMonitorRef.current'),
+    'the current physical state must be rechecked before reusing the monitor',
+  )
+})
+
 test('a non-normal recovery state pauses the normal consumer while the manager uses the dedicated one-copy recovery APIs', () => {
   assert.equal(canConsumeAutomaticPrintJob(readyAutomaticConsumer({ station: { isPrimary: true, autoPrintEnabled: true, recoveryState: 'pending' } })), false)
   assert.equal(canConsumeAutomaticPrintJob(readyAutomaticConsumer({ station: { isPrimary: true, autoPrintEnabled: true, recoveryState: 'active' } })), false)
@@ -114,6 +144,34 @@ test('manager installs spooler monitoring before QZ jobs and routes QZ execution
   assert.match(managerSource, /qzAttemptByNameRef/)
   assert.match(managerSource, /physicalReady: printerHealthRef\.current\.state === 'ready'/)
   assert.match(managerSource, /station\?\.recoveryState/)
+})
+
+test('unknown-outcome confirmation tolerates a stale UI attempt and continues a remaining copy automatically', () => {
+  const start = managerSource.indexOf('const confirmUnknownPrinted = useCallback')
+  const end = managerSource.indexOf('const confirmUnknownNotPrinted = useCallback', start)
+  assert.ok(start >= 0 && end > start)
+  const block = managerSource.slice(start, end)
+  assert.doesNotMatch(block, /!attempt\?\.id/)
+  assert.match(block, /resolvePrintOutcome\(job\.id, attempt\?\.id \?\? null, 'manual_printed'\)/)
+  assert.match(block, /resolvedJob\?\.status === 'pending'/)
+  assert.match(block, /claimPrintJob\(resolvedJob\.id, station\.id\)/)
+  assert.match(block, /executeClaimedJob\(claimed\.job/)
+})
+
+test('manual not-printed recovery never strands the station active when physical readiness is not restored yet', () => {
+  const start = managerSource.indexOf('const confirmUnknownNotPrinted = useCallback')
+  const end = managerSource.indexOf('const acknowledgeSecondCopyPrompt = useCallback', start)
+  assert.ok(start >= 0 && end > start)
+  const block = managerSource.slice(start, end)
+  assert.match(block, /getExplicitPort/)
+  assert.match(block, /printerHealthRef\.current\.state !== 'ready'/)
+  assert.match(block, /transitionRecovery\('resume'\)/)
+  assert.match(block, /printNextRecovery\(\)/)
+  assert.match(block, /if \(!continued[\s\S]*transitionRecovery\('defer'\)/)
+  assert.ok(
+    block.indexOf('getExplicitPort') < block.indexOf("transitionRecovery('resume')"),
+    'physical transport must be revalidated before recovery becomes active',
+  )
 })
 
 test('one shared operation gate rejects overlapping physical workflows and releases after completion', async () => {

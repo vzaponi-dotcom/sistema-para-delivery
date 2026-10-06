@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPrintingApi } from '../infrastructure/printingApi.js'
+import { createPrintExecutionTicker } from '../infrastructure/printExecutionTicker.js'
 const legacyPrintingApi = createPrintingApi()
 import { getOrCreateLocalPrintStationId, rememberOriginOrderId } from '../infrastructure/printingLocalPreferences.js'
 import { detectPrintStationPlatform } from './printingPlatform.js'
@@ -142,6 +143,9 @@ export const usePrintingManager = ({ api = legacyPrintingApi, businessId, authen
     getCertificate: api.getQzCertificate,
     signPayload: api.signQzPayload,
   }) : null), [businessId, api, isQz])
+  const printExecutionTicker = useMemo(() => createPrintExecutionTicker({
+    intervalMs: PRINT_JOB_POLL_MS,
+  }), [])
   const [localStation, setLocalStation] = useState(null)
   const [stations, setStations] = useState([])
   const [jobs, setJobs] = useState([])
@@ -290,7 +294,11 @@ export const usePrintingManager = ({ api = legacyPrintingApi, businessId, authen
   const ensureQzStatusMonitor = useCallback(async (printerName) => {
     const ownsMonitor = captureAccess()
     if (!ownsMonitor()) return null
-    if (qzStatusMonitorRef.current && qzStatusMonitorPrinterRef.current === printerName && qzStatusMonitorOwnerRef.current?.()) return qzStatusMonitorRef.current
+    if (qzStatusMonitorRef.current && qzStatusMonitorPrinterRef.current === printerName && qzStatusMonitorOwnerRef.current?.()) {
+      await qzStatusMonitorRef.current.refreshStatus?.()
+      if (!ownsMonitor()) return null
+      return qzStatusMonitorRef.current
+    }
     await qzStatusMonitorRef.current?.stop?.()
     if (!ownsMonitor()) return null
     updatePrinterHealth({ state: 'verifying' })
@@ -740,19 +748,94 @@ export const usePrintingManager = ({ api = legacyPrintingApi, businessId, authen
     return response
   }, [refresh, api, qzTransport])
 
-  const confirmUnknownPrinted = useCallback(async (job, attempt, { refreshManager = true } = {}) => {
-    if (!job?.id || !attempt?.id) throw printerError('PRINT_ATTEMPT_NOT_FOUND', 'A tentativa de impressão não foi encontrada.')
-    const response = await api.resolvePrintOutcome(job.id, attempt.id, 'manual_printed')
-    if (refreshManager) await refresh()
-    return response
-  }, [refresh, api, qzTransport])
+  const confirmUnknownPrinted = useCallback((job, attempt, { refreshManager = true } = {}) => runExclusivePrintOperation({
+    acquire: acquirePrintOperation,
+    release: releasePrintOperation,
+    operation: async () => {
+      if (!job?.id) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
+      const owns = captureAccess()
+      const station = localStationRef.current
+      const wasRecoveryAffinity = Boolean(
+        station?.id && (station.recoveryState ?? 'normal') !== 'normal' && station.recoveryJobId === job.id,
+      )
+      const response = await api.resolvePrintOutcome(job.id, attempt?.id ?? null, 'manual_printed')
+      if (!owns()) return null
+      const resolvedJob = response?.job ?? null
+      let continuation = null
+
+      if (
+        resolvedJob?.status === 'pending'
+        && Number(resolvedJob?.copiesPrinted || 0) < Number(resolvedJob?.copiesRequested || 0)
+        && isQz && station?.id && station?.isPrimary && station?.platform === 'windows'
+      ) {
+        await getExplicitPort()
+        if (!owns()) return null
+        const claimed = await api.claimPrintJob(resolvedJob.id, station.id)
+        if (!owns()) return null
+        continuation = await executeClaimedJob(claimed.job, null, {
+          clearBlockOnSuccess: true,
+          preparePort: getExplicitPort,
+        })
+        if (!owns()) return continuation
+      }
+
+      const refreshed = refreshManager ? await refresh() : null
+      if (!owns()) return null
+      const current = localStationRef.current
+      const finalJob = refreshed?.jobs?.find((candidate) => candidate?.id === job.id) ?? response?.job ?? null
+
+      if (
+        wasRecoveryAffinity
+        && (['printed', 'discarded'].includes(finalJob?.status) || continuation?.status === 'printed')
+        && Number(refreshed?.summary?.safeBacklog || 0) === 0
+        && current?.id
+        && current.recoveryState === 'deferred'
+        && !current.recoveryJobId
+      ) {
+        const recovered = await api.setPrintStationRecovery(current.id, 'normal')
+        if (!owns()) return null
+        if (recovered?.station) updateLocalStation(recovered.station)
+      }
+
+      return continuation ? { ...response, continuation } : response
+    },
+  }), [
+    acquirePrintOperation, api, captureAccess, executeClaimedJob, getExplicitPort, isQz,
+    refresh, releasePrintOperation, updateLocalStation,
+  ])
 
   const confirmUnknownNotPrinted = useCallback(async (job, attempt, { refreshManager = true } = {}) => {
-    if (!job?.id || !attempt?.id) throw printerError('PRINT_ATTEMPT_NOT_FOUND', 'A tentativa de impressão não foi encontrada.')
-    const response = await api.resolvePrintOutcome(job.id, attempt.id, 'manual_not_printed')
-    if (refreshManager) await refresh()
+    if (!job?.id) throw printerError('PRINT_JOB_NOT_FOUND', 'Trabalho de impressão não encontrado.')
+    const station = localStationRef.current
+    const wasRecoveryAffinity = Boolean(
+      station?.id && (station.recoveryState ?? 'normal') !== 'normal' && station.recoveryJobId === job.id,
+    )
+    const response = await api.resolvePrintOutcome(job.id, attempt?.id ?? null, 'manual_not_printed')
+    const refreshed = refreshManager ? await refresh() : null
+    const current = localStationRef.current
+    if (
+      wasRecoveryAffinity
+      && refreshed
+      && current?.id
+      && current.recoveryState === 'deferred'
+      && current.recoveryJobId === job.id
+    ) {
+      try {
+        await getExplicitPort()
+      } catch {
+        return response
+      }
+      if (printerHealthRef.current.state !== 'ready' || !transportReadyRef.current) return response
+
+      await transitionRecovery('resume')
+      const continued = await printNextRecovery()
+      if (!continued && localStationRef.current?.recoveryState === 'active') {
+        await transitionRecovery('defer')
+      }
+      return continued ?? response
+    }
     return response
-  }, [refresh, api, qzTransport])
+  }, [api, getExplicitPort, printNextRecovery, refresh, transitionRecovery])
 
   const acknowledgeSecondCopyPrompt = useCallback(async (job) => {
     const station = localStationRef.current
@@ -931,18 +1014,8 @@ export const usePrintingManager = ({ api = legacyPrintingApi, businessId, authen
     if (!authenticated || !isOnline) return undefined
     const sync = () => {
       const ownsPoll = captureAccess()
-      if (!visiblePage() || !ownsPoll()) return
+      if (!ownsPoll() || !visiblePage()) return
       void refresh().catch((error) => { if (ownsPoll()) reportError(error) })
-      if (busyJobIdRef.current || !supported) return
-      const station = localStationRef.current
-      if (!station?.id || !qzTransport.readPrinterName(station.id)) return
-      void initializeBackgroundPhysicalTransport({
-        authenticated,
-        isOnline,
-        isQz,
-        station,
-        initializeQz: resolveConfiguredQzPrinter,
-      }).catch((error) => { if (ownsPoll()) reportError(error) })
     }
     const timer = globalThis.setInterval?.(sync, PRINT_STATE_POLL_MS)
     const handleVisibility = () => { if (visiblePage()) sync() }
@@ -954,22 +1027,46 @@ export const usePrintingManager = ({ api = legacyPrintingApi, businessId, authen
       document?.removeEventListener?.('visibilitychange', handleVisibility)
       globalThis.removeEventListener?.('focus', handleFocus)
     }
-  }, [authenticated, captureAccess, isOnline, isQz, refresh, reportError, resolveConfiguredQzPrinter, supported, api, qzTransport])
+  }, [authenticated, captureAccess, isOnline, refresh, reportError, api, qzTransport])
 
   useEffect(() => {
-    const eligible = () => canSendPrintStationHeartbeat({
-      authenticated,
-      isOnline,
-      browserOnline: browserOnline(),
-      isQz,
-      station: localStationRef.current,
-    })
-    if (!eligible()) return undefined
-
+    if (!authenticated || !isOnline || !supported || !isQz) return undefined
     let cancelled = false
+    let tickInFlight = false
+    let lastPhysicalProbeAt = 0
+    let lastHeartbeatAt = 0
+
+    const ownsTick = captureAccess()
+
+    const revalidatePhysicalTransport = async () => {
+      if (!ownsTick() || busyJobIdRef.current) return false
+      const station = localStationRef.current
+      if (!station?.id || !qzTransport.readPrinterName(station.id)) return false
+      try {
+        await initializeBackgroundPhysicalTransport({
+          authenticated,
+          isOnline,
+          isQz,
+          station,
+          initializeQz: resolveConfiguredQzPrinter,
+        })
+      } catch (error) {
+        if (ownsTick()) reportError(error)
+      }
+      return true
+    }
+
     const heartbeat = async () => {
       const station = localStationRef.current
-      if (!station || !eligible() || heartbeatInFlightRef.current) return
+      const eligible = canSendPrintStationHeartbeat({
+        authenticated,
+        isOnline,
+        browserOnline: browserOnline(),
+        isQz,
+        station,
+      })
+      if (!station || !eligible || heartbeatInFlightRef.current || !ownsTick()) return false
+
       heartbeatInFlightRef.current = true
       const sequence = ++heartbeatSequenceRef.current
       const health = buildPrintStationHeartbeatHealth({
@@ -980,33 +1077,23 @@ export const usePrintingManager = ({ api = legacyPrintingApi, businessId, authen
       })
       try {
         const response = await api.heartbeatPrintStation(station.id, health)
-        if (!cancelled && sequence === heartbeatSequenceRef.current && response?.station) updateLocalStation(response.station)
+        if (!cancelled && ownsTick() && sequence === heartbeatSequenceRef.current && response?.station) {
+          updateLocalStation(response.station)
+        }
       } catch (error) {
-        if (!cancelled && sequence === heartbeatSequenceRef.current) reportError(error)
+        if (!cancelled && ownsTick() && sequence === heartbeatSequenceRef.current) reportError(error)
       } finally {
         if (sequence === heartbeatSequenceRef.current) heartbeatInFlightRef.current = false
       }
+      return true
     }
 
-    void heartbeat()
-    const timer = globalThis.setInterval?.(() => { void heartbeat() }, STATION_HEARTBEAT_MS)
-    return () => {
-      cancelled = true
-      heartbeatSequenceRef.current += 1
-      heartbeatInFlightRef.current = false
-      if (timer) globalThis.clearInterval?.(timer)
-    }
-  }, [authenticated, configuredPrinterName, isOnline, isQz, localStation?.id, localStation?.isPrimary, localStation?.platform, reportError, transportReady, updateLocalStation, api, qzTransport])
-
-  useEffect(() => {
-    if (!authenticated || !isOnline || !supported || !isQz) return undefined
     const consumeNext = async () => {
       const station = localStationRef.current
       if (!canConsumeAutomaticPrintJob({
         authenticated,
         isOnline,
         supported,
-        visible: visiblePage(),
         browserOnline: browserOnline(),
         busyJobId: busyJobIdRef.current,
         printerBlocked: printerBlockedRef.current,
@@ -1030,14 +1117,42 @@ export const usePrintingManager = ({ api = legacyPrintingApi, businessId, authen
         if (QZ_BLOCKING_ERROR_CODES.has(error?.code)) updateBlocked(true)
         updateTransportReady(false)
         reportError(error)
-        try { await refresh() } catch { /* next state poll will recover */ }
+        try { await refresh() } catch { /* next execution tick will recover */ }
       } finally {
         releasePrintOperation(owner)
       }
     }
-    const timer = globalThis.setInterval?.(() => { void consumeNext() }, PRINT_JOB_POLL_MS)
-    return () => { if (timer) globalThis.clearInterval?.(timer) }
-  }, [acquirePrintOperation, authenticated, executeClaimedJob, isOnline, isQz, ownsPrintOperation, refresh, releasePrintOperation, reportError, supported, businessId, updateBlocked, updateTransportReady, api, qzTransport])
+
+    const tick = async () => {
+      if (cancelled || tickInFlight || !ownsTick()) return
+      tickInFlight = true
+      try {
+        const now = Date.now()
+        if (now - lastPhysicalProbeAt >= PRINT_STATE_POLL_MS) {
+          if (await revalidatePhysicalTransport()) lastPhysicalProbeAt = Date.now()
+        }
+        if (now - lastHeartbeatAt >= STATION_HEARTBEAT_MS) {
+          if (await heartbeat()) lastHeartbeatAt = Date.now()
+        }
+        await consumeNext()
+      } finally {
+        tickInFlight = false
+      }
+    }
+
+    void tick()
+    const stopTicker = printExecutionTicker.start(() => { void tick() })
+    return () => {
+      cancelled = true
+      heartbeatSequenceRef.current += 1
+      heartbeatInFlightRef.current = false
+      stopTicker()
+    }
+  }, [
+    acquirePrintOperation, api, authenticated, captureAccess, executeClaimedJob, isOnline, isQz,
+    ownsPrintOperation, printExecutionTicker, qzTransport, refresh, releasePrintOperation, reportError,
+    resolveConfiguredQzPrinter, supported, updateBlocked, updateLocalStation, updateTransportReady,
+  ])
 
   const latestJobByOrderId = useMemo(() => {
     const latest = new Map()
