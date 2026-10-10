@@ -50,3 +50,18 @@ test('finance-only later revision does not suppress or raise a kitchen edit aler
  assert.equal(signal.operationalRevision,1)
  assert.equal(signal.editPending,true)
 })
+
+test('acknowledging one operational revision never acknowledges the next',async()=>{
+ const db=fixture();revision(db)
+ db.sqlite.prepare("INSERT INTO roles(id,business_id,code,name,created_at,updated_at) VALUES('r2',?,'custom2','Custom2',?,?)").run(B,NOW,NOW)
+ db.sqlite.prepare("INSERT INTO users(id,business_id,display_name,login_normalized,role_id,created_at,updated_at) VALUES('u2',?,'Operador','u2','r2',?,?)").run(B,NOW,NOW)
+ await acknowledgeOperationalOrderEdit(db,B,'o1',1,'u2',new Date(NOW))
+ db.sqlite.prepare("UPDATE orders SET content_revision=2,last_edited_at=? WHERE business_id=? AND id='o1'").run(NOW,B)
+ db.sqlite.prepare("INSERT INTO order_edit_revisions(id,business_id,order_id,revision,actor_name,edited_at,before_total_cents,after_total_cents,changes_json) VALUES('rev-new',?,'o1',2,'Operador',?,8000,8000,?)")
+   .run(B,NOW,JSON.stringify({items:[{kind:'added',before:null,after:{name:'Água',quantity:1,note:''}}]}))
+ const signal=(await loadOperationalEditSignals(db,B)).get('o1')
+ assert.equal(signal.operationalRevision,2)
+ assert.equal(signal.editPending,true)
+ await assert.rejects(acknowledgeOperationalOrderEdit(db,B,'o1',1,'u2',new Date(NOW)),{status:409})
+ assert.equal((await loadOperationalEditSignals(db,B)).get('o1').editPending,true)
+})

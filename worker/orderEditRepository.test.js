@@ -130,3 +130,26 @@ test('new item uses current official catalog and keeps old item price',async()=>
  assert.deepEqual(rows.map(x=>x.unit_price_cents),[3200,5500])
  assert.equal(rows[0].id,'i1')
 })
+
+test('phase A edits existing products after catalog deactivation without silently repricing them',async()=>{
+ const db=fixture()
+ db.sqlite.prepare("UPDATE products SET active=0,price_cents=9900,name='Novo nome' WHERE id='p1'").run()
+ const result=await updateExistingOrder(db,B,'o1',edit(),{},NOW)
+ assert.equal(result.order.total,64)
+ assert.equal(result.order.items[0].name,'Suco')
+ assert.equal(result.order.items[0].unitPrice,32)
+ await assert.rejects(updateExistingOrder(db,B,'o1',{
+   expectedContentRevision:1,mutationId:'add-inactive',
+   items:[{id:'i1',quantity:2,note:'sem cebola'},{productId:'p1',quantity:1,note:'extra'}],
+ },{},NOW),{status:404,code:'PRODUCT_NOT_FOUND'})
+ assert.equal(persist(db).revisions,1)
+})
+test('phase A edit after payment cannot change price even when offsetting fee/discount',async()=>{
+ const db=fixture()
+ await registerOrderPayment(db,B,'o1',[{methodCode:'pix',amountCents:3200}],NOW)
+ await assert.rejects(updateExistingOrder(db,B,'o1',edit({mutationId:'paid-extra',deliveryFee:4}),{},NOW),{
+   status:409,code:'ORDER_EDIT_PAYMENT_CONFLICT',
+ })
+ assert.equal(persist(db).revisions,0)
+ assert.equal(persist(db).receipts,0)
+})
