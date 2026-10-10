@@ -33,12 +33,21 @@ export function KitchenDisplayCard({ entry, now = new Date() }) {
   const scheduled = phase === 'scheduled'
   const timing = scheduled ? timeFormatter.format(new Date(order.scheduledFor)) : formatElapsed(entry.operationalStartAt || order.createdAt, now)
   const typeIcon = order.type === 'Retirada' ? 'pickup' : order.type === 'Local' ? 'local' : 'delivery-bike'
+  const editItems = order.editPending ? (order.editSummary?.items || []) : []
+  const editLabel = change => {
+    const before = change.before, after = change.after
+    const current = after || before || {}
+    if (change.kind === 'removed') return `Removido: ${before?.quantity || 1}x ${current.name || 'Produto'}`
+    if (change.kind === 'added') return `Adicionado: ${after?.quantity || 1}x ${current.name || 'Produto'}`
+    return `Alterado: ${current.name || 'Produto'} · ${before?.quantity || 1}x → ${after?.quantity || 1}x${before?.note !== after?.note ? ' · observação alterada' : ''}`
+  }
 
   return <article
     className={`kds-card kds-card--${state} kds-card--content-${metrics.density}${layoutClass}`}
     style={gridPosition ? { gridColumn: gridPosition.gridColumn, gridRow: gridPosition.gridRow } : undefined}
     data-order-id={String(order.id)}
     data-highlighted={state === 'new'}
+    data-edit-pending={order.editPending === true}
     data-item-count={items.length}
     data-layout-demand={layoutDemand}
     data-row-span={rowSpan}
@@ -58,6 +67,14 @@ export function KitchenDisplayCard({ entry, now = new Date() }) {
         <span className="kds-card__number">#{order.orderNumber || order.id}</span>
       </span>
     </div>
+    {order.editPending && editItems.length > 0 && <section className="kds-card__edit-banner" role="status" aria-label="Pedido alterado">
+      <strong>⚠ PEDIDO ALTERADO</strong>
+      <ul className="kds-card__edit-items">
+        {editItems.map((change, index) => <li key={index}>
+          {editLabel(change)}{change.after?.note && <span> · Obs: {change.after.note}</span>}
+        </li>)}
+      </ul>
+    </section>}
     <ul className={`kds-card__items${twoColumns ? ' is-two-columns' : ''}`}>
       {items.map((item, index) => {
         const note = normalizeKitchenItemNote(item)
