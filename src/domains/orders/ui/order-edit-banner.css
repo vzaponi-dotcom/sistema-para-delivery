@@ -1,0 +1,5 @@
+
+.kitchen-order-edit-banner { display:flex; align-items:center; justify-content:space-between; gap: 12px; flex-wrap:wrap; padding:10px; border:1px solid #d97706; border-radius:8px; margin:0 0 10px; background:rgba(217,119,6,.12); }
+.kitchen-order-edit-banner strong { font-size: .85rem; letter-spacing: .025em; }
+.kitchen-order-edit-banner button { border:1px solid currentColor; border-radius:6px; padding:6px 10px; background:transparent; cursor:pointer; }
+.kitchen-order-edit-banner button:disabled { opacity: .55; cursor:default; }
