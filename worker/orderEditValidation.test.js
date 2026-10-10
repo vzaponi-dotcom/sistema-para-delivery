@@ -41,8 +41,8 @@ test('new products use server prices, and repeated products are distinct editabl
  assert.throws(()=>evaluate(update({items:[{productId:'p-disabled',quantity:1}]})),{status:404,code:'PRODUCT_NOT_FOUND'})
 })
 test('reordering existing lines and normalized equivalent notes produce no operational change',()=>{
- const both=[...items,{...items,id:'line-b',product_id:'p-other',quantity:1,note:'com gelo'}]
- const out=evaluate(update({items:[{id:'line-b',quantity:1,note:' com  gelo '},{id:'line-a',quantity:2,note:' sem  gelo '}]}),{items:both})
+ const both=[...items,{...items[0],id:'line-b',product_id:'p-other',quantity:1,note:'com gelo'}]
+ const out=evaluate(update({items:[{id:'line-b',quantity:1,note:' com  gelo '},{id:'line-a',quantity:2,note:' sem  gelo '}]}),{items:both,order:{subtotal_cents:12000,total_cents:12000}})
  assert.equal(out.changed,false)
  assert.deepEqual(out.changes.items,[])
 })
