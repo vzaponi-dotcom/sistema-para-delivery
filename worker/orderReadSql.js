@@ -5,6 +5,7 @@ export const ORDER_SELECT = `SELECT o.id, o.order_number, o.client_id, o.client_
   o.customer_identity_type, o.table_tab_id, o.type, o.order_date, o.status,
   o.scheduled_for, o.promised_payment_date, o.is_backdated, o.subtotal_cents, o.delivery_fee_cents, o.adjustment_type, o.adjustment_mode,
   o.adjustment_value, o.adjustment_amount_cents, o.adjustment_reason, o.total_cents,
+  o.content_revision, o.last_edited_at,
   o.created_at, o.finished_at, o.cancelled_at, o.cancel_reason, o.cancel_reason_note,
   cr.label AS cancel_reason_label,
   o.timing_policy_snapshot_json,
