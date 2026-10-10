@@ -12,6 +12,8 @@ async function fixture(t) {
  sqlite.exec("UPDATE business_auth_state SET mode='user_only'")
  sqlite.prepare('INSERT INTO users(id,business_id,display_name,login_normalized,role_id,email_verified_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)')
   .run('editor',B,'Editor','editor@example.test',B+':operator',NOW.toISOString(),NOW.toISOString(),NOW.toISOString())
+ sqlite.prepare('INSERT INTO user_credentials(business_id,user_id,password_verifier,password_changed_at,created_at,updated_at) VALUES(?,?,?,?,?,?)')
+  .run(B,'editor','synthetic-verifier',NOW.toISOString(),NOW.toISOString(),NOW.toISOString())
  const token=(await createUserSession({DB:db},{businessId:B,userId:'editor'})).token
  sqlite.prepare('INSERT INTO products(id,business_id,category,size,name,price_cents,active,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)')
   .run('p1',B,'Bebidas','Un','Suco',3200,1,NOW.toISOString(),NOW.toISOString())
