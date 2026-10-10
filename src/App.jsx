@@ -703,8 +703,9 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
     if (!hasCapability(granted,'orders.kitchen.control') || writesBlocked) return false
     try {
       await clientsForContext.orders.acknowledgeOrderEdit(orderId,revision)
-      await refreshBootstrapSilently()
       showSuccessMessage('Alteração confirmada pela cozinha')
+      // Refresh after feedback; confirmed reads should not wait for full bootstrap.
+      void refreshBootstrapSilently().catch(() => {})
       return true
     } catch(error){showApiError(error);return false}
   }

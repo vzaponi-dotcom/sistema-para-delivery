@@ -324,11 +324,11 @@ function KitchenTvControlSurface({
       await api.acknowledgeOrderEdit(orderId,revision)
       setControlState(current=>current ? {...current,
         pendingOrderEdits:(current.pendingOrderEdits||[]).filter(item=>item.orderId!==orderId || item.operationalRevision!==revision)}:current)
-      await loadControl(true)
       onFeedback?.('Leitura da alteração confirmada.')
+      void loadControl(true).catch(() => {})
     } catch(cause) {
       setActionError(cause?.message || 'Não foi possível confirmar a alteração.')
-      await loadControl(true)
+      void loadControl(true).catch(() => {})
     } finally {setAcknowledgingEditId(null)}
   }
 
