@@ -34,7 +34,7 @@ test('TV keeps showing edited order icon and item-level diff even after an older
   const tv = read('../../../kitchen-display/KitchenDisplayCard.jsx')
   assert.match(tv, /Number\(order\.operationalRevision\) > 0/)
   assert.match(tv, /<OrderEditedBadge/)
-  assert.match(tv, /order\.editSummary\?\.items/)
+  assert.match(tv, /getKitchenDisplayEditRows\(order\.editSummary\)/)
   assert.doesNotMatch(tv, /order\.editPending \&\& editItems/)
   const controls = read('../../../app/surfaces/kitchen-tv-control/KitchenTvControlSurface.jsx')
   assert.match(controls, /Number\(entry\.order\.operationalRevision\) > 0/)
