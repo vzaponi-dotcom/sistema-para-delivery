@@ -97,7 +97,7 @@ body > .modal-backdrop .order-detail-modal .order-detail-cancel-action:hover { t
     margin-left: 0;
     gap: 0;
   }
-  .order-detail-dialog-primary-actions .button {
+  body > .modal-backdrop .order-detail-modal .modal-footer .order-detail-dialog-primary-actions .button {
     width: 100%;
     min-height: 44px;
   }
