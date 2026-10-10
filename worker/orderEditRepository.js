@@ -57,6 +57,36 @@ export async function updateExistingOrder(db,businessId,orderId,raw,options={},n
   ).bind(businessId,orderId).first()
   if(payment && plan.totals.totalCents!==Number(order.total_cents))throw paymentConflict()
 
+  // Preserve printed/claimed evidence. Only an untouched, zero-copy pending
+  // automatic job is eligible for a snapshot change with the same transaction.
+  const queued=plan.changed ? await db.prepare(
+    "SELECT id,status,copies_requested,copies_printed,snapshot_json FROM print_jobs "+
+    "WHERE business_id=? AND order_id=? AND type='order' AND trigger='automatic' LIMIT 1"
+  ).bind(businessId,orderId).first() : null
+  const updateQueued=queued?.status==='pending' && Number(queued.copies_printed)===0
+  let nextSnapshot=null
+  if(updateQueued) {
+    const before=JSON.parse(queued.snapshot_json)
+    nextSnapshot=JSON.stringify({
+      ...before,
+      items:plan.items.map(item=>({
+        name:item.name_snapshot, presentation:item.size_snapshot || '',
+        quantity:item.quantity,note:item.note || '',
+        unitPriceCents:item.unit_price_cents,
+        lineTotalCents:item.quantity*item.unit_price_cents,
+      })),
+      financial:{
+        ...before.financial,subtotalCents:plan.totals.subtotalCents,
+        deliveryFeeCents:plan.deliveryFeeCents,
+        adjustment:{
+          type:plan.adjustment.type,amountCents:plan.totals.adjustmentAmountCents,
+          reason:plan.adjustment.reason || '',
+        },
+        totalCents:plan.totals.totalCents,
+      },
+    })
+  }
+
   const actor=auditContext(db,businessId)
   const at=now.toISOString(),revision=Number(order.content_revision)+(plan.changed?1:0)
   const transactionId=crypto.randomUUID()
@@ -72,6 +102,13 @@ export async function updateExistingOrder(db,businessId,orderId,raw,options={},n
     statements.push(prepareSettingsAssertion(db,transactionId,'product-'+index,
       'EXISTS(SELECT 1 FROM products WHERE business_id=? AND id=? AND active=1 AND price_cents=?)',
       [businessId,productId,Number(item?.price_cents??-1)]))
+  }
+  if(updateQueued) {
+    statements.push(prepareSettingsAssertion(db,transactionId,'automatic-print',
+      "EXISTS(SELECT 1 FROM print_jobs WHERE id=? AND business_id=? AND order_id=? "+
+      "AND type='order' AND trigger='automatic' AND status='pending' "+
+      "AND copies_printed=0 AND copies_requested=? AND snapshot_json=?)",
+      [queued.id,businessId,orderId,Number(queued.copies_requested),queued.snapshot_json]))
   }
   if(plan.changed){
     statements.push(db.prepare(
@@ -109,6 +146,12 @@ export async function updateExistingOrder(db,businessId,orderId,raw,options={},n
     ).bind(crypto.randomUUID(),businessId,orderId,revision,actor.userId||null,
       actor.displayName||'Acesso legado',at,Number(order.total_cents),plan.totals.totalCents,
       JSON.stringify(plan.changes)))
+    if(updateQueued){
+      statements.push(db.prepare(
+        "UPDATE print_jobs SET snapshot_json=? WHERE id=? AND business_id=? AND order_id=? "+
+        "AND type='order' AND trigger='automatic' AND status='pending' AND copies_printed=0"
+      ).bind(nextSnapshot,queued.id,businessId,orderId))
+    }
     statements.push(businessEvent(db,businessId,{action:'order.edited',resourceType:'order',resourceId:orderId,now}))
   }
   statements.push(db.prepare(
