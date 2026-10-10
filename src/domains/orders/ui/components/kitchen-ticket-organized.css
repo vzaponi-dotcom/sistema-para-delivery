@@ -51,6 +51,9 @@
   color: var(--warning);
   flex: 0 0 auto;
 }
+.kitchen-page .kitchen-ticket-organized .kitchen-ticket-customer .order-edited-badge span {
+  color: inherit;
+}
 .kitchen-page .kitchen-ticket-organized .kitchen-ticket-id { opacity: 1; font-size: inherit; }
 .kitchen-page .kitchen-ticket-organized .kitchen-ticket-timing {
   display: flex;
