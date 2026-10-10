@@ -419,7 +419,7 @@ function NewOrder({
     }
 
     setCheckoutError('')
-    const result = await onSubmit(editOrderMode ? buildOrderEditPayload(numericDraft) : buildOrderPayload(numericDraft,paymentAllocations))
+    const result = await onSubmit(editOrderMode ? buildOrderEditPayload(numericDraft) : buildOrderPayload(numericDraft, paymentAllocations))
     if (result?.code === 'POLICY_CHANGED') {
       setPolicyReviewError('A política de modalidades foi alterada. Revise o tipo do pedido antes de confirmar novamente.')
       await onPolicyChanged?.()
