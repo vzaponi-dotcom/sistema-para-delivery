@@ -17,3 +17,21 @@
   vertical-align: middle;
 }
 .order-edited-badge svg { flex: 0 0 auto; }
+
+.order-detail-edit-history {
+  padding: 9px 11px;
+  border: 1px solid rgba(245, 158, 11, .32);
+  border-radius: 9px;
+  background: rgba(245, 158, 11, .06);
+  font-size: .8125rem;
+  color: var(--text);
+}
+.order-detail-edit-history summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 750;
+}
+.order-detail-edit-history summary svg { color: var(--warning, #d97706); }
+.order-detail-edit-history ul { margin: 8px 0 0; padding-left: 21px; line-height: 1.55; }

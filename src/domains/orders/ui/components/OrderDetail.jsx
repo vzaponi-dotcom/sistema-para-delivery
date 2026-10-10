@@ -128,6 +128,7 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
   const showEditAction = canEditOrders && order.status === 'Em preparo'
     && order.tableReservationStatus !== 'reserved' && Boolean(onEditOrder)
   const showCancelAction = canCancelOrders && order.status !== 'Cancelado' && Boolean(onRequestCancel)
+  const latestItemChanges = Array.isArray(order.editSummary?.items) ? order.editSummary.items : []
 
   return (
     <>
@@ -155,6 +156,22 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
                 {order.status === 'Cancelado' ? <OrderPaymentStatus order={order} /> : <PaymentBadge order={order} />}
                 {printJob && <PrintStatusBadge job={printJob} />}
               </div>
+            {Number(order.operationalRevision) > 0 && latestItemChanges.length > 0 && (
+              <details className="order-detail-edit-history">
+                <summary><Icon name="edit" size={15} /> Ver últimas alterações do pedido</summary>
+                <ul>
+                  {latestItemChanges.map((change, index) => {
+                    const item = change.after || change.before || {}
+                    const label = change.kind === 'removed' ? 'Removido' : change.kind === 'added' ? 'Adicionado' : 'Alterado'
+                    const amount = change.kind === 'removed' ? change.before?.quantity : change.after?.quantity
+                    return <li key={`${change.kind}-${index}`}>
+                      <strong>{label}:</strong> {amount || 1}× {item.name || 'Produto'}
+                      {change.before?.note !== change.after?.note && <span> · Observação alterada</span>}
+                    </li>
+                  })}
+                </ul>
+              </details>
+            )}
             <div className="order-detail-meta">
               <div><span>Criado em</span><strong>{formatPrintTimestamp(order.createdAt)}</strong></div>
               {order.finishedAt && order.status !== 'Cancelado' && <div><span>Finalizado em</span><strong>{formatPrintTimestamp(order.finishedAt)}</strong></div>}
