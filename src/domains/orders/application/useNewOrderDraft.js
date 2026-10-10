@@ -123,7 +123,7 @@ export function useNewOrderDraft({
               ...payload,mutationId:token.idempotencyKey,
               expectedContentRevision:token.context.orderContext.expectedContentRevision,
             })
-          : await submitOrderRef.current(payload,token.idempotencyKey)
+          : await submitOrderRef.current(payload, token.idempotencyKey)
 
       if (!ownsSubmit()) return false
       if (commitOfficialEffectsRef.current(result) === false) return false
