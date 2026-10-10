@@ -9,6 +9,7 @@ export const createOrdersApi = ({ request = apiRequest, json = withJson, randomU
       headers: { ...(options.headers || {}), 'idempotency-key': idempotencyKey },
     })
   },
+  updateOrder: (id,payload) => request(`/api/orders/${encodeURIComponent(id)}`,json('PATCH',payload)),
   updateOrderStatus: (id, status = 'Finalizado') => request(
     `/api/orders/${encodeURIComponent(id)}/status`,
     json('PATCH', { status }),
