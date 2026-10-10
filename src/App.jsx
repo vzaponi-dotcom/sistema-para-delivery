@@ -113,6 +113,8 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
   const [requestKey, setRequestKey] = useState(null)
   const [activityDetail, setActivityDetail] = useState(null)
   const [printQueueReviewJobId, setPrintQueueReviewJobId] = useState(null)
+  const [editedPrintPrompt, setEditedPrintPrompt] = useState(null)
+  const [editedPrintBusy, setEditedPrintBusy] = useState(false)
   const [kitchenSoundEnabled, setKitchenSoundEnabled] = useState(readKitchenSoundPreference)
   const [kitchenSoundProfile, setKitchenSoundProfile] = useState(readKitchenSoundProfilePreference)
   const [kitchenSoundVolume, setKitchenSoundVolume] = useState(readKitchenSoundVolumePreference)
@@ -561,6 +563,10 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
         if (identity) selectComanda(identity, nextTables)
       }
       if (context.mode === 'create' && order?.id) printing.rememberOriginOrder(order.id)
+      if (context.mode === 'edit-order' && order?.id && canExecutePrinting &&
+          Number(order.contentRevision || 0) > Number(context.orderContext?.expectedContentRevision || 0)) {
+        setEditedPrintPrompt({orderId:order.id,orderNumber:order.orderNumber,owner:accessContextId})
+      }
       completeNavigation(context.returnDestination)
     },
     onSuccess: (order, context) => {
@@ -886,6 +892,32 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
           </Modal>
         )}
 
+
+        {editedPrintPrompt && editedPrintPrompt.owner === accessContextId && <Modal
+          title="Pedido atualizado com sucesso"
+          onClose={() => { if (!editedPrintBusy) setEditedPrintPrompt(null) }}>
+          <div className="form-stack">
+            <p>Deseja reimprimir o pedido atualizado com todos os itens?</p>
+            <p>A edição já foi salva. Esta impressão é opcional e não altera o pedido.</p>
+            <div className="form-actions">
+              <Button type="button" variant="secondary" disabled={editedPrintBusy}
+                onClick={() => setEditedPrintPrompt(null)}>Não, obrigado</Button>
+              <Button type="button" disabled={editedPrintBusy || !canExecutePrinting || writesBlocked}
+                onClick={async () => {
+                  if (!editedPrintPrompt || editedPrintBusy || !canExecutePrinting || writesBlocked) return
+                  setEditedPrintBusy(true)
+                  try {
+                    await printing.printOrder(editedPrintPrompt.orderId)
+                    setEditedPrintPrompt(null)
+                    showSuccessMessage('Reimpressão enviada para a fila')
+                  } catch(error) {
+                    setEditedPrintPrompt(null)
+                    showApiError(error)
+                  } finally {setEditedPrintBusy(false)}
+                }}>Reimprimir pedido completo</Button>
+            </div>
+          </div>
+        </Modal>}
         {orderPayment.dialog && <OrderPaymentDialog dialog={orderPayment.dialog} currency={currency} />}
         {clientOrdersPayment.dialog && <ClientOrdersPaymentDialog dialog={clientOrdersPayment.dialog} currency={currency} />}
 
