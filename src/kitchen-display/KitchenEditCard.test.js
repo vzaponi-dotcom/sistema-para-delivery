@@ -33,3 +33,18 @@ test('TV omits unchanged quantities in note-only edits', async t => {
  assert.match(copy,/Observação alterada: Marmita/)
  assert.doesNotMatch(copy,/1x → 1x/)
 })
+
+test('TV groups identical removed lines without losing the removed quantity', async t => {
+ const h=await workspaceHarness(t)
+ const {KitchenDisplayCard}=await h.load('/src/kitchen-display/KitchenDisplayCard.jsx')
+ const order={id:'removed-twice',orderNumber:335,client:'Luiz',type:'Entrega',
+   createdAt:'2026-10-10T15:40:00Z',items:[{name:'Marmita',quantity:1}],
+   operationalRevision:1,editSummary:{items:[
+     {kind:'removed',before:{name:'Prato feito',quantity:1},after:null},
+     {kind:'removed',before:{name:'Prato feito',quantity:1},after:null},
+   ]}}
+ const render=await h.render(KitchenDisplayCard,{entry:{order,state:'preparing',phase:'preparing'},now:new Date('2026-10-10T15:42:00Z')})
+ const copy=nodeText(render.root)
+ assert.equal((copy.match(/Removido:/g)||[]).length,1)
+ assert.match(copy,/Removido: 2x Prato feito/)
+})
