@@ -1,7 +1,7 @@
 # Mesiva — Edição de pedidos até a finalização, cozinha e reconciliação financeira
 
 **Data:** 2026-10-10
-**Status:** DRAFT — proposta de Spec para autorrevisão e aprovação do usuário; nenhuma implementação autorizada por este documento.
+**Status:** AUTORREVISADA em 2026-10-10 — revisão final de consistência concluída; apta à preparação de plano TDD; implementação ainda não iniciada.
 **Branch documental:** docs/order-editing-design-2026-10-10
 **Base técnica inspecionada:** master @ e595f7ed2a801fde6ffab231194788430cc53316 (merge PR #107, 2026-10-06).
 **Produção:** proibido deploy sem implementação, staging, homologação e autorização separada.
@@ -41,7 +41,7 @@ Evidências observadas na master de referência:
 ### 3.1 Elegibilidade
 
 - Edição possível para pedidos operacionais com status real Em preparo, mesmo já impressos, em preparo ou com pagamento registrado.
-- Pedidos agendados de Entrega/Retirada também podem editar itens antes de entrar em preparo e, depois da entrada, enquanto não finalizados; preservar validações de agendamento.
+- Pedidos agendados de Entrega/Retirada também podem editar itens antes de entrar em preparo e, depois da entrada, enquanto não finalizados; preservar validações de agendamento. Data/horário permanecem imutáveis pelo editor geral da V1.
 - Reservas Local ainda em estado reserved mantêm guardas próprios para troca de mesa/data/horário. Após entrar na janela operacional, permitir editar **itens e observações** do pedido enquanto ele permanecer ativo, sem contornar regras de reserva/chegada. Não duplicar o fluxo da reserva existente.
 - Rejeitar no Worker pedidos Finalizado, Cancelado e estados terminais derivados; impedir reabertura silenciosa. Pedido histórico já criado finalizado não ganha edição.
 - Permitir salvar a edição de pedido já pago mesmo com novo saldo, observadas as fases e as regras financeiras abaixo.
@@ -53,7 +53,7 @@ Evidências observadas na master de referência:
 - Corrigir identificação/contato do cliente para pedido avulso com validação oficial; registrar snapshots. Não alterar cadastro global do cliente por efeito colateral.
 - Manter modalidade, vínculo de mesa/comanda, order ID, número, data original e histórico de impressão estáveis na V1. Conversões entre Entrega/Retirada/Local e transferência de mesa são fluxos próprios, fora desta Spec.
 - Mudança de agendamento/mesa de reserva segue o módulo de reservas existente; não criar segundo controle concorrente.
-- Produtos existentes mantêm unit_price_cents do snapshot original; inclusão usa preço autorizado de catálogo no momento do salvamento. Não recotar silenciosamente itens antigos. Se for necessário preço manual, exigir escopo/capability e regra explícita posterior.
+- Produtos existentes preservam ID de linha, valor unitário e snapshot histórico (inclusive se o produto foi desativado/excluído ou mudou de nome/preço no catálogo). Alterar quantidade/nota dessa linha não exige reativar o cadastro; novas linhas/substituições exigem produto ativo validado e precificado pelo Worker. Não recotar silenciosamente itens antigos. O servidor não deve aceitar IDs de linha pertencentes a outro pedido/empresa, nem confiar em valores monetários fornecidos pela UI. Preço manual exige contrato/capability específico fora da V1.
 
 ### 3.3 Identidade de linha e alterações reais
 
@@ -112,29 +112,39 @@ Definir para cada pedido:
 
 Invariantes: nenhum valor negativo/float; dueCents e refundDueCents não podem ser positivos ao mesmo tempo; o estado Pago significa due=0 e refundDue=0 (ou sem obrigação de estorno), e não apenas existência de um payment. Uma mudança de valor não modifica retroativamente pagamentos, recibos, alocações ou movimentos passados.
 
+### 5.1.1 Compatibilidade com a Spec de pagamento dividido
+
+A Spec de pagamento dividido proíbe **pagamento parcial arbitrário na operação de cobrança**. Este novo fluxo preserva tal regra: cada cobrança confirmada recebe **todo o saldo devido nessa cobrança**, com uma ou várias formas. O estado "Parcialmente pago" surge apenas quando o valor de um pedido anteriormente quitado aumenta por edição posterior, e desaparece quando o saldo adicional é integralmente recebido.
+
+Um receipt pode representar vários pedidos de um cliente ou de uma comanda. O valor já recebido **por pedido** vem de payments.amount_cents por pedido + lançamentos complementares efetivamente vinculados, não de repetir receipt.total_cents por cada pedido. Receipts, allocations e movimentos de um pagamento conjunto continuam representando um único dinheiro real, sem dupla contagem.
+
+Finalizar pedido **não** quita eventual saldo pendente; o pedido continua em A receber mesmo que já esteja finalizado. A finalização só impede novas edições.
+
 ### 5.2 Evolução aditiva da persistência
 
 - Preservar IDs, receipts, payment_allocations, payments.order_id UNIQUE e movimentos históricos. Nunca alterar pagamentos anteriores para adequá-los ao novo total, nem retirar a UNIQUE sem migração/prova de compatibilidade.
-- Introduzir lançamentos adicionais imutáveis de liquidação/estorno por pedido, vinculados ao business_id, order_id, receipt_id quando recebimento, movimento de saída quando devolução, amount_cents, ID único, mutationId/idempotência, horário e operador. Design exato/nomes de tabelas deverão ser confirmados no plano por testes de integração D1.
+- Introduzir lançamentos adicionais imutáveis de liquidação/estorno por pedido, vinculados ao business_id, order_id, receipt_id quando recebimento, movimento de saída quando devolução, amount_cents, ID único, mutationId/idempotência, horário e operador. Recibos compartilhados devem possuir alocação atribuível a cada pedido sem replicar receita. Preservar o root payments.order_id UNIQUE, compatibilidade e dados legados; não introduzir remapeamento destrutivo. Nomes e constraints devem ser validados no plano e em integração D1.
 - Novos recebimentos usam payment_receipts e payment_allocations reais e refletem em movimentos financeiros de entrada; devoluções registradas usam movimento de saída, sem criar entrada fictícia nem mexer no recibo anterior.
-- Consultas de quitação, A receber, detalhe, agrupamento por cliente, relatórios, Dashboard, baixa da comanda e estorno precisam migrar para o saldo derivado, não para p.id IS NULL.
+- Consultas de quitação, A receber, detalhe, agrupamento por cliente, relatórios, Dashboard, baixa da comanda e estorno precisam migrar para o saldo derivado, não para p.id IS NULL. Isso inclui explicitamente worker/orderPaymentReadModel.js, worker/orderReadSql.js, worker/orderPrintDocumentRepository.js, src/domains/orders/domain/orderPaymentEligibility.js, src/domains/finance/domain/receivables.js, src/app/workflows/payments/order/useOrderPaymentWorkflow.js, worker/reporting/financialAnalytics.js e worker/reporting/repository.js, entre outros consumidores. O comprovante atualizado não pode indicar 'Pago' só porque existe um receipt original se há saldo complementar.
 - Uma baixa complementar só quita o saldo consultado/validado no servidor. O pagamento tradicional integral de pedido sem recebimentos continua compatível; recebimentos complementares passam pelo novo caminho, não por um segundo payment violando UNIQUE.
 - Requerer baixa integral do **saldo da transação** (inclusive em múltiplos métodos) — não habilitar recebimentos arbitrariamente parciais por caixa. O estado parcialmente pago nasce somente de uma edição que aumentou o total já recebido.
-- Permitir devoluções parciais reais até o limite de refundDueCents, com método registrado, autorização payments.refund e trilha de auditoria. Não criar integração bancária/Pix/cartão nem afirmar que o provedor devolveu dinheiro; “registrar devolução” representa a confirmação manual da operação financeira real.
+- Permitir devoluções parciais reais até o limite de refundDueCents, com método registrado, autorização payments.refund e trilha de auditoria. Salvar um novo total menor **não** cria automaticamente movimento de saída; apenas a confirmação manual de devolução efetiva cria o movimento. Não criar integração bancária/Pix/cartão nem afirmar que o provedor devolveu dinheiro.
+- Atualizar o cancelamento/estorno de pedidos com complementos ou devoluções parciais: ao cancelar, o estorno devido deve ser o **montante líquido recebido ainda não devolvido**, nunca somente payments.amount_cents. worker/orderCancellation.js hoje estorna a quantia do pagamento original, então precisa evoluir junto com a Fase B. Preservar cancelamentos e estornos legados e impedir devolução cumulativa maior que o valor recebido.
+- As leituras worker/orderReadSql.js e worker/orderCancellation.js hoje fazem LEFT JOIN com movimentos de source='order-refund'; múltiplos estornos parciais não podem multiplicar registros de pedidos nem serem confundidos com um único refund_movement_id. Usar agregação/cardinalidade estável e diferenciar claramente estorno de edição de estorno de cancelamento, incluindo os relatórios.
 - As alocações das novas receitas preservam a composição por forma, e o agrupamento por cliente/comanda não inventa vínculo de uma forma de pagamento específica a um pedido quando o recibo abrange vários pedidos.
 
 ### 5.3 A receber, recebimentos e comanda
 
 - A receber lista um pedido se dueCents > 0, por valor restante, mesmo que haja payment anterior. A consulta por cliente deve agregar somente valores pendentes e não duplicar a venda.
 - Uma baixa agrupada de vários pedidos só deve contabilizar o saldo agregado, validado em transação com revisão/snapshot de cada pedido afetado.
-- Comanda aberta: pedidos de mesa continuam sem pagamento individual; edição altera total devido da comanda, inclusive quando um pedido ficou finalizado? Não: pedido finalizado continua inelegível à edição. O recebimento da comanda usa saldo oficial agregado, com travas que impedem corrida com edição de pedido.
+- Comanda aberta: pedidos de mesa continuam sem pagamento individual; edição altera somente pedidos ainda ativos e o saldo total oficial da comanda. Pedidos já finalizados continuam inelegíveis à edição, mas seus valores entram na quitação da comanda. O recebimento da comanda precisa validar o saldo agregado com guardas contra edição concorrente de qualquer pedido envolvido.
 - Comanda já paga e fechada: não reabrir automaticamente a mesa, alterar receipt histórico nem criar ocupação. Edição do pedido ainda ativo gera saldo ou devolução vinculado ao pedido/recebimento original e é tratada por fluxo próprio, não por reabertura.
 - Se um pedido foi pago/estornado ou contém movimentação de cancelamento, aplicar as regras de elegibilidade do lifecycle; não permitir editar pedido cancelado como atalho a estorno.
 - Financeiro, fluxo de caixa, A receber, relatórios e Dashboard devem distinguir valor de venda atualizado de dinheiro efetivamente recebido/estornado para impedir dupla contagem.
 
 ### 5.4 Corridas e idempotência
 
-- Toda escrita de pedido requer expectedRevision do pedido + mutationId única e vinculada ao contexto do negócio. Persistir revision e edited_at/updated_at na nova migration; rejeitar 409 quando a versão mudou.
+- Toda edição de **conteúdo** do pedido exige expectedContentRevision e mutationId única e vinculada ao contexto da empresa; persistir content_revision e edited_at e rejeitar 409 quando a versão mudou. Pagamentos, cancelamento, finalização, recebimento por cliente/comanda e conversão de reserva também precisam participar de proteção concorrente bidirecional no commit, por versão/guardas de estado financeiro e lifecycle. Pode haver versão geral de coordenação, mas a **revisão de conteúdo divulgada na TV só muda por alteração operacional real**, nunca apenas por pagamento.
 - Edição, finalização, cancelamento, conversão de reserva, baixa do pedido, baixa da comanda, baixa agrupada de cliente, geração de complemento e devolução precisam compartilhar guardas transacionais para que mudanças concorrentes não salvem versões incompatíveis.
 - Repetir mesma mutationId deve retornar a mesma decisão/efeitos sem duplicar revisão, recebimento, devolução, impressão ou auditoria; replay com payload diferente é conflito.
 - Após timeout/incerteza, consultar estado/recibo antes de repetir. Em conflito, preservar rascunho e pedir recarregamento/conferência; não fazer merge silencioso de edições simultâneas.
@@ -151,9 +161,9 @@ Invariantes: nenhum valor negativo/float; dueCents e refundDueCents não podem s
 ## 7. Cozinha, TV e controle remoto
 
 - Mesma identidade do pedido: alterações atualizam card existente, não criam “novo pedido” nem reordenam toda fila sem necessidade operacional.
-- Expor orderRevision, lastEditedAt e resumo operacional de delta (adicionado/removido/quantidade/nota) por leitura; evitar retransmitir snapshots financeiros/contatos ao token da TV.
+- Expor contentRevision, lastEditedAt e resumo operacional de delta (adicionado/removido/quantidade/nota) por leitura; evitar retransmitir snapshots financeiros/contatos ao token da TV. Uma baixa financeira não modifica contentRevision nem soa como edição na TV.
 - No painel Cozinha e na TV, indicar **PEDIDO ALTERADO**, com destaque legível e diferenças visíveis inclusive em itens removidos. Cor sozinha não basta.
-- Proposta de UX para aprovação: aviso persistente de revisão não reconhecida na interface administrativa da Cozinha/Controle da TV; a TV exibe aviso correspondente, sem capacidade de confirmar edição. Definir ação de ciência pela sessão humana com orders.kitchen.control, sem mudar status/ocultação. Não repetir som de NOVO PEDIDO apenas porque mudou a revisão; alerta próprio de alteração deve ser controlado separadamente.
+- Proposta de UX: aviso persistente até ciência da revisão na Cozinha/Controle da TV, com ação Confirmar leitura sob sessão humana e orders.kitchen.control; a TV exibe o aviso, mas permanece somente leitura. A ciência é por pedido+revisão: uma nova mudança exige nova leitura. Não bloquear a edição ou o preparo enquanto a ciência está pendente, nem confundir som de PEDIDO NOVO com alteração. TV iniciada após a alteração mostra aviso ainda pendente sem tocar som retroativo.
 - Poll da TV permanece aproximadamente 2s; evitar WebSocket ou novo runtime. Não chamar edição de “instantânea” se a rede estiver desconectada ou o browser suspenso.
 - Preservar filtro Entrega/Retirada/Mesa, paginação, ocultação manual e layout adaptativo. Uma alteração não pode tornar pedido oculto visível à força nem quebrar posição/controle por página.
 - TV aberta após alterações passadas não deve tocar alerta retroativo; marcador pendente visível conforme política de ciência.
@@ -173,7 +183,7 @@ Invariantes: nenhum valor negativo/float; dueCents e refundDueCents não podem s
 - Evolução persistente de lançamentos complementares/devoluções parciais.
 - Derivação de saldo no read model e todos os consumidores; edição com aumento/redução; Salvar/Salvar e receber; A receber; pagamentos avulsos/comanda quitada; devolução pendente e registro de devolução.
 - Gating de concorrência com cobrança, baixa de comanda e recebimento por cliente. Migrações aditivas com dados legados de pagamento e quitação.
-- Gate: só liberar edição com variação de total pago em staging depois de passar a matriz de testes financeiros; produção requer aprovação separada.
+- Gate: só liberar edição com variação de total pago em staging depois de passar a matriz de testes financeiros, recibos compartilhados e cancelamento depois de complementos/estornos parciais; produção requer aprovação separada.
 
 Fases podem morar na mesma Spec, mas não devem expor estado intermediário quebrado em produção nem fazer merge/release de fluxo financeiro incompleto. Plano TDD deve ser escrito **depois da aprovação desta Spec**.
 
@@ -193,7 +203,10 @@ Fases podem morar na mesma Spec, mas não devem expor estado intermediário queb
 12. Pedido antes pago R$80 alterado para R$65 gera R$15 de devolução pendente; registrar devolução atualiza caixa sem apagar pagamentos.
 13. Corridas pagamento × edição, devolução × edição, baixar comanda × edição e receber cliente × edição abortam/reconciliam sem duplicar movimento.
 14. Comanda aberta reflete novo saldo; comanda fechada não reabre nem ganha pagamento individual indevido.
-15. Dashboard, A receber, relatórios, histórico, recibos e movimentos permanecem coerentes; nenhuma receita duplicada.
+15. Dashboard, A receber, relatórios, histórico, recibos e movimentos permanecem coerentes; nenhuma receita duplicada, inclusive com recibos compartilhados de cliente/comanda.
+15a. Pedido recebido R$80, depois acrescido em R$15: ao cancelar após complemento recebido, estorna R$95 no total; após devolução prévia de R$15, estorna somente R$80 remanescentes, sem duplicar.
+15b. Dois ou mais estornos de edição não multiplicam linha de pedido, receita e movimentação.
+15c. Ticket manual de pedido com saldo pendente não exibe 'Pago' apenas pela existência do primeiro recebimento.
 16. Se Salvar e receber falhar depois de Salvar, pedido fica editado, saldo fica em aberto e operador recebe feedback correto.
 17. Diferenças de pagamento e estorno são auditáveis, inclusive autor e revisão, sem vazamento interempresa.
 18. Desktop/mobile, agendados, reservas antes/durante preparo, TV com paginação, QZ desconectado, segundo job e reconexão homologados em staging.
@@ -202,13 +215,13 @@ Fases podem morar na mesma Spec, mas não devem expor estado intermediário queb
 
 ## 10. Superfícies impactadas e ownership
 
-- Backend: migrations/0042+ (a confirmar no plano), worker/repositories.js (ou novo owner isolado), worker/index.js, worker/orderCheckout.js, worker/orderReadRepository.js, worker/orderPaymentReadModel.js, worker/paymentRepository.js, worker/tableTabDetailRepository.js, worker/orderPrintDocumentRepository.js, worker/orderPrintingRepository.js, worker/kitchenTvReadRepository.js, worker/access/*, worker/reporting/*.
+- Backend: migrations/0042+ (a confirmar no plano), worker/repositories.js (ou novo owner isolado), worker/index.js, worker/orderCheckout.js, worker/orderReadSql.js, worker/orderPaymentReadModel.js, worker/paymentRepository.js, worker/orderCancellation.js, worker/tableTabDetailRepository.js, worker/orderPrintDocumentRepository.js, worker/orderPrintingRepository.js, worker/kitchenTvReadRepository.js, worker/access/*, worker/reporting/*.
 - Frontend: src/domains/orders/*, src/app/workflows/payments/*, src/domains/finance/*, src/domains/table-service/*, src/domains/printing/* (reuso do caminho manual), src/kitchen-display/*, src/app/surfaces/kitchen-tv-control/*; App.jsx somente composição.
 - Contratos compartilhados: shared/settingsAccess.js, shared/orderPrintDocument.js, helpers de dinheiro, identidade, timing e impressão existentes.
 - Não criar runtime global paralelo, usar internal imports atravessando domínios, reimplementar receipt/alocação no módulo de Orders ou retornar a bridge legado de pagamentos.
 - Não editar diretamente a master; criar branch de implementação somente após aprovação + plano.
 
-## 11. Autorrevisão preliminar / decisões a ratificar com a Spec
+## 11. Autorrevisão final — revisão de consistência e escolhas de UX
 
 **Risco alto identificado:** o modelo atual payments.order_id UNIQUE e os consumidores baseados em payment_id requerem evolução consistente antes de habilitar edição de pago com diferença; “corrigir somente A receber” seria insuficiente.
 
@@ -220,4 +233,14 @@ Fases podem morar na mesma Spec, mas não devem expor estado intermediário queb
 
 **Pontos propostos para ratificação:** (a) manter modalidade, mesa e data do pedido imutáveis na V1, enquanto a edição de reservas segue seu fluxo próprio; (b) ciência persistente do aviso à cozinha, separada da TV passiva; (c) devolução manual real pode ser parcial por uma forma por transação, sem integração bancária e sem reabertura de comanda.
 
-**Status:** DRAFT para revisão. O usuário aprovou a direção funcional, mas este texto técnico ainda precisa de leitura crítica/autorrevisão e aprovação explícita antes de gerar plano de implementação e código.
+### Achados corrigidos na revisão final
+
+1. Compatibilidade da cobrança integral com o saldo residual criado por edição posterior.
+2. Tratamento de receipts compartilhados sem duplicação de receita por pedido.
+3. Estornos de cancelamento corrigidos pelo montante líquido efetivamente recebido, inclusive após complementos/devoluções.
+4. Consultas financeiras por saldo derivado e prevenção de duplicação de pedidos por múltiplos JOINs de devolução.
+5. Guardas atômicas recíprocas entre edição, baixa, cancelamento, finalização, reserva e comanda.
+6. Preservação de snapshots antigos mesmo com produtos inativos e separação de revisão operacional e financeira.
+7. Revisão e ciência da TV em projeção de leitura, sem conceder escrita à TV.
+
+**Resultado:** AUTORREVISADA — sem inconsistências internas adicionais identificadas após as correções, apta à próxima etapa (plano técnico e TDD). A criação desta Spec não autoriza implementação, migration, deploy, merge ou produção.
