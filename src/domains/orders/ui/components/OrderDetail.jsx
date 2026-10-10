@@ -7,6 +7,7 @@ import { OrderTicketPreview, PrintStatusBadge } from '../../../printing/index.js
 import PaymentBadge from '../PaymentBadge.jsx'
 import OrderPaymentStatus from './OrderPaymentStatus.jsx'
 import Icon from '../../../../shared/ui/Icon.jsx'
+import OrderEditedBadge from '../../../../shared/ui/OrderEditedBadge.jsx'
 import './order-detail-redesigned.css'
 import { actorLabel } from '../../../../shared/actorLabel.js'
 import StatusBadge from '../../../../shared/ui/StatusBadge'
@@ -150,6 +151,7 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
             </div>
               <div className="order-detail-badges">
                 <StatusBadge status={order.status} />
+                {Number(order.operationalRevision) > 0 && <OrderEditedBadge />}
                 {order.status === 'Cancelado' ? <OrderPaymentStatus order={order} /> : <PaymentBadge order={order} />}
                 {printJob && <PrintStatusBadge job={printJob} />}
               </div>

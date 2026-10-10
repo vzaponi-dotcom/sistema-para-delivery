@@ -1,0 +1,19 @@
+
+.order-edited-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 3px 7px;
+  border: 1px solid rgba(245, 158, 11, .44);
+  border-radius: 999px;
+  background: rgba(245, 158, 11, .12);
+  color: var(--warning, #d97706);
+  font-size: .72rem;
+  font-weight: 800;
+  line-height: 1.25;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.order-edited-badge svg { flex: 0 0 auto; }

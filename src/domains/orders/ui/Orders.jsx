@@ -7,6 +7,7 @@ import Button from '../../../shared/ui/Button'
 import CancelOrderDialog from './components/CancelOrderDialog'
 import ConfirmationDialog from '../../../shared/ui/ConfirmationDialog'
 import Icon from '../../../shared/ui/Icon'
+import OrderEditedBadge from '../../../shared/ui/OrderEditedBadge.jsx'
 import KitchenTicket from './components/KitchenTicket'
 import OrderDetail from './components/OrderDetail'
 import PageHeader from '../../../shared/ui/PageHeader'
@@ -16,7 +17,6 @@ import AreaNavigation from '../../../app/navigation/AreaNavigation.jsx'
 import { buildFutureScheduledOrdersModel, buildKitchenQueueModel } from '../domain/kitchenQueue.js'
 import { buildKitchenItemSummary } from '../domain/kitchenTicket.js'
 import { canReceiveStandaloneOrder } from '../domain/orderPaymentEligibility.js'
-import { isOperationalEditPending, rememberOperationalEditAck } from './orderEditAcknowledgement.js'
 import { formatOrderDisplayNumber } from '../../../../shared/orderDisplayNumber.js'
 import { FINANCE_TIME_ZONE } from '../../../../shared/finance.js'
 
@@ -76,7 +76,7 @@ function FutureScheduledOrderCard({
       </header>
       <div className="kitchen-ticket-customer">
         <span><Icon name={futureAttendanceIcons[order.type] || 'local'} size={16} />{order.type}</span>
-        <span className="kitchen-ticket-id">{formatOrderDisplayNumber(order)}</span>
+        <span className="kitchen-ticket-id">{formatOrderDisplayNumber(order)}</span>{Number(order.operationalRevision) > 0 && <OrderEditedBadge />}
       </div>
       <p className="kitchen-ticket-items">{buildKitchenItemSummary(order)}</p>
       <div className="kitchen-ticket-timing">
@@ -95,10 +95,9 @@ function FutureScheduledOrderCard({
 }
 
 
-function Orders({ orders, officialOrders = orders, now, currentTiming, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onEditReservation, onEditOrder, onAcknowledgeOrderEdit, onRegisterPayment, paymentDisabled = false, paymentOptions, cancellationOptions = [], cancellationRevision = null, onNavigatePrintQueue, printQueueActiveCount = 0, granted, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange, printing, onToast, canCreateOrders = true, canEditOrders = false, canAcknowledgeOrderEdits = false, canFinalizeOrders = true, canCancelOrders = true, canRefundPayments = true, canUseLocalPreferences = true, canViewPrintQueue = true, canForcePrinting = false, canExecutePrinting = true }) {
+function Orders({ orders, officialOrders = orders, now, currentTiming, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onEditReservation, onEditOrder, onRegisterPayment, paymentDisabled = false, paymentOptions, cancellationOptions = [], cancellationRevision = null, onNavigatePrintQueue, printQueueActiveCount = 0, granted, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange, printing, onToast, canCreateOrders = true, canEditOrders = false, canFinalizeOrders = true, canCancelOrders = true, canRefundPayments = true, canUseLocalPreferences = true, canViewPrintQueue = true, canForcePrinting = false, canExecutePrinting = true }) {
   const [queueFilter, setQueueFilter] = useState('all')
   const [pendingAction, setPendingAction] = useState(null)
-  const [locallyAcknowledgedEdits, setLocallyAcknowledgedEdits] = useState(() => new Set())
   const [detailOrderId, setDetailOrderId] = useState(null)
   const [cancelOrder, setCancelOrder] = useState(null)
   const [finalizeCandidate, setFinalizeCandidate] = useState(null)
@@ -119,14 +118,6 @@ function Orders({ orders, officialOrders = orders, now, currentTiming, search, o
     if (actionsDisabled) return
     setPendingAction(key)
     try { await action() } finally { setPendingAction(null) }
-  }
-
-  const confirmOrderEditRead = (order) => {
-    if (!canAcknowledgeOrderEdits || typeof onAcknowledgeOrderEdit !== 'function') return
-    return runAction('ack-edit:'+order.id, async () => {
-      const result = await onAcknowledgeOrderEdit(order.id,order.operationalRevision)
-      if (result !== false) setLocallyAcknowledgedEdits(current => rememberOperationalEditAck(current, order))
-    })
   }
 
   const confirmFinalize = async () => {
@@ -218,15 +209,7 @@ function Orders({ orders, officialOrders = orders, now, currentTiming, search, o
                   onFinalize={canFinalizeOrders ? (order) => { setFinalizeCandidate(order); return true } : undefined}
                   onCancel={canCancelOrders ? (order) => { setCancelOrder(order); return true } : undefined}
                 />
-                {isOperationalEditPending(entry.order, locallyAcknowledgedEdits) && <div className="kitchen-order-edit-banner" role="status">
-                  <strong>⚠ PEDIDO ALTERADO</strong>
-                  {canAcknowledgeOrderEdits && <button type="button"
-                    disabled={actionsDisabled}
-                    aria-busy={pendingAction === 'ack-edit:'+entry.order.id}
-                    onClick={() => confirmOrderEditRead(entry.order)}>
-                    {pendingAction === 'ack-edit:'+entry.order.id ? 'Confirmando…' : 'Confirmar leitura'}
-                  </button>}
-                </div>}
+                
               </div>
             ))}
             {!preparing.length && <div className="kitchen-queue-empty"><Icon name="preparation" size={24} /><strong>{queueFilter === 'late' ? 'Nenhum pedido em atraso nesta busca.' : 'Nenhum pedido em preparo agora.'}</strong><span>{search ? 'Nenhum resultado nesta fila para a busca atual.' : 'Novos pedidos aparecem aqui automaticamente.'}</span></div>}
@@ -251,15 +234,7 @@ function Orders({ orders, officialOrders = orders, now, currentTiming, search, o
                     onDetails={(order) => setDetailOrderId(order.id)}
                     onCancel={canCancelOrders ? (order) => { setCancelOrder(order); return true } : undefined}
                   />
-                  {isOperationalEditPending(entry.order, locallyAcknowledgedEdits) && <div className="kitchen-order-edit-banner" role="status">
-                    <strong>⚠ PEDIDO ALTERADO</strong>
-                    {canAcknowledgeOrderEdits && <button type="button"
-                      disabled={actionsDisabled}
-                      aria-busy={pendingAction === 'ack-edit:'+entry.order.id}
-                      onClick={() => confirmOrderEditRead(entry.order)}>
-                      {pendingAction === 'ack-edit:'+entry.order.id ? 'Confirmando…' : 'Confirmar leitura'}
-                    </button>}
-                  </div>}
+                  
                 </div>
               ))}
               {!queueModel.scheduled.length && <div className="kitchen-queue-empty"><Icon name="clock" size={24} /><strong>Nenhum pedido agendado aguardando preparo.</strong><span>{search ? 'Nenhum resultado nesta fila para a busca atual.' : 'Os próximos pedidos agendados aparecem aqui.'}</span></div>}
