@@ -5,6 +5,7 @@ import { buildKitchenQueueModel } from '../../../domains/orders/index.js'
 import Button from '../../../shared/ui/Button.jsx'
 import BottomSheet from '../../../shared/ui/BottomSheet.jsx'
 import Icon from '../../../shared/ui/Icon.jsx'
+import OrderEditedBadge from '../../../shared/ui/OrderEditedBadge.jsx'
 import { formatOrderDisplayNumber } from '../../../../shared/orderDisplayNumber.js'
 import {
   countKitchenTvModalities,
@@ -86,7 +87,6 @@ function KitchenTvControlSurface({
   const [pendingRevision, setPendingRevision] = useState(null)
   const [selectedOrderId, setSelectedOrderId] = useState(null)
   const [pendingOrderId, setPendingOrderId] = useState(null)
-  const [acknowledgingEditId, setAcknowledgingEditId] = useState(null)
   const [actionError, setActionError] = useState('')
   const [hiddenSheetOpen, setHiddenSheetOpen] = useState(false)
   const [printSnapshot, setPrintSnapshot] = useState(null)
@@ -315,23 +315,6 @@ function KitchenTvControlSurface({
     }
   }
 
-  const acknowledgeEdit = async () => {
-    if (!selectedEdit || !canControl || !isOnline || acknowledgingEditId !== null || !api.acknowledgeOrderEdit) return
-    const orderId=selectedEdit.orderId,revision=selectedEdit.operationalRevision
-    setAcknowledgingEditId(orderId)
-    setActionError('')
-    try {
-      await api.acknowledgeOrderEdit(orderId,revision)
-      setControlState(current=>current ? {...current,
-        pendingOrderEdits:(current.pendingOrderEdits||[]).filter(item=>item.orderId!==orderId || item.operationalRevision!==revision)}:current)
-      onFeedback?.('Leitura da alteração confirmada.')
-      void loadControl(true).catch(() => {})
-    } catch(cause) {
-      setActionError(cause?.message || 'Não foi possível confirmar a alteração.')
-      void loadControl(true).catch(() => {})
-    } finally {setAcknowledgingEditId(null)}
-  }
-
   const openOrderActions = (entry) => {
     setSelectedOrderId(String(entry.order.id))
     setActionError('')
@@ -364,7 +347,7 @@ function KitchenTvControlSurface({
     selectedEntry
       && (controlState?.hiddenOrderIds || []).some((id) => String(id) === String(selectedEntry.order.id)),
   )
-  const selectedEdit=(controlState?.pendingOrderEdits || []).find(item=>item.orderId===selectedOrderId)
+  const selectedEdit=Number(selectedEntry?.order?.operationalRevision) > 0 ? selectedEntry.order : null
   const selectedScheduled = selectedEntry?.phase === 'scheduled'
   const selectedActionDisabled = !operationalControlsEnabled || pendingOrderId !== null || selectedScheduled
 
@@ -466,12 +449,12 @@ function KitchenTvControlSurface({
         const displayNumber = formatOrderDisplayNumber(entry.order)
         const compactDisplayNumber = displayNumber.replace(/^Pedido\s*/i, '')
         const clientName = kitchenTvClientName(entry.order.client)
-        const edited=(controlState?.pendingOrderEdits || []).some(item=>item.orderId===String(entry.order.id))
+        const edited=Number(entry.order.operationalRevision) > 0
         return <button
           key={entry.order.id}
           type="button"
           className={`kitchen-tv-control-order-card status-${status.key}${isPending ? ' is-pending' : ''}`}
-          aria-label={`${formatOrderDisplayNumber(entry.order)}, ${clientName}, ${status.label}, ${visibility.label}`}
+          aria-label={`${formatOrderDisplayNumber(entry.order)}, ${clientName}, ${status.label}, ${visibility.label}${edited ? ", pedido editado" : ""}`}
           aria-haspopup="dialog"
           aria-busy={isPending || undefined}
           onClick={() => openOrderActions(entry)}
@@ -482,7 +465,7 @@ function KitchenTvControlSurface({
             <span className="kitchen-tv-control-order-number-compact">{compactDisplayNumber}</span>
           </span>
           <span className="kitchen-tv-control-badges">
-            {edited && <span className="kitchen-tv-control-badge edit-pending">Pedido alterado</span>}
+            {edited && <OrderEditedBadge />}
             <span className={`kitchen-tv-control-badge status-${status.key}`}><Icon name={statusIcon(status.key)} size={11} />{status.label}</span>
             <span className={`kitchen-tv-control-badge visibility-${visibility.key}`}><Icon name={visibilityIcon(visibility.key)} size={11} />{visibility.label}</span>
           </span>
@@ -527,15 +510,10 @@ function KitchenTvControlSurface({
         </section>
 
         {selectedEdit && <section className="kitchen-tv-control-edit-review" aria-label="Revisão do pedido">
-          <strong>PEDIDO ALTERADO</strong>
+          <strong><OrderEditedBadge /> Últimas alterações</strong>
           <ul>{(selectedEdit.editSummary?.items || []).map((item,index)=><li key={index}>
             {item.kind==='removed'?'Removido':item.kind==='added'?'Adicionado':'Alterado'}: {(item.after||item.before)?.name || 'Produto'}
           </li>)}</ul>
-          {canControl && <Button type="button" variant="secondary"
-            disabled={!isOnline || acknowledgingEditId!==null}
-            onClick={() => { void acknowledgeEdit() }}>
-            {acknowledgingEditId!==null?'Confirmando…':'Confirmar leitura'}
-          </Button>}
         </section>}
         <p className="kitchen-tv-control-action-explainer">Remove apenas do painel da TV. O pedido continua em preparo no sistema.</p>
         {!canControl && <p className="kitchen-tv-control-action-note">Somente leitura. Você não tem permissão para alterar a TV.</p>}

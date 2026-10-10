@@ -12,7 +12,7 @@ test('KDS card marks edited orders separately from NEW PEDIDO and shows removed 
  const entry={order,state:'preparing',phase:'preparing',operationalStartAt:new Date(order.createdAt)}
  const render=await h.render(KitchenDisplayCard,{entry,now:new Date('2026-10-10T15:42:00Z')})
  const text=nodeText(render.root)
- assert.match(text,/PEDIDO ALTERADO/)
+ assert.match(text,/Editado/)
  assert.match(text,/Salada/)
  assert.match(text,/Removido/)
  assert.match(text,/Marmita/)

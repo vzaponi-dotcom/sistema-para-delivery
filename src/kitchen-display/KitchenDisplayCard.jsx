@@ -1,4 +1,5 @@
 import Icon from '../shared/ui/Icon.jsx'
+import OrderEditedBadge from '../shared/ui/OrderEditedBadge.jsx'
 import {
   formatKitchenDisplayItemName,
   getKitchenCardContentMetrics,
@@ -33,7 +34,8 @@ export function KitchenDisplayCard({ entry, now = new Date() }) {
   const scheduled = phase === 'scheduled'
   const timing = scheduled ? timeFormatter.format(new Date(order.scheduledFor)) : formatElapsed(entry.operationalStartAt || order.createdAt, now)
   const typeIcon = order.type === 'Retirada' ? 'pickup' : order.type === 'Local' ? 'local' : 'delivery-bike'
-  const editItems = order.editPending ? (order.editSummary?.items || []) : []
+  const edited = Number(order.operationalRevision) > 0
+  const editItems = edited ? (order.editSummary?.items || []) : []
   const editLabel = change => {
     const before = change.before, after = change.after
     const current = after || before || {}
@@ -65,10 +67,11 @@ export function KitchenDisplayCard({ entry, now = new Date() }) {
       <span className="kds-card__meta">
         <span className="kds-card__type"><Icon name={typeIcon} size={20} />{order.type || 'Pedido'}</span>
         <span className="kds-card__number">#{order.orderNumber || order.id}</span>
+        {edited && <OrderEditedBadge />}
       </span>
     </div>
-    {order.editPending && editItems.length > 0 && <section className="kds-card__edit-banner" role="status" aria-label="Pedido alterado">
-      <strong>⚠ PEDIDO ALTERADO</strong>
+    {edited && editItems.length > 0 && <section className="kds-card__edit-details" aria-label="Alterações do pedido">
+      <strong>Alterações:</strong>
       <ul className="kds-card__edit-items">
         {editItems.map((change, index) => <li key={index}>
           {editLabel(change)}{change.after?.note && <span> · Obs: {change.after.note}</span>}
