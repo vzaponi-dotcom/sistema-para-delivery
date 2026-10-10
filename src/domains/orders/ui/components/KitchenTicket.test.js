@@ -46,5 +46,6 @@ test('edited badge remains visible on narrow kitchen tickets without changing th
   const css = source('./kitchen-ticket-organized.css')
   assert.match(ticket, /Number\(order\.operationalRevision\) > 0 && <OrderEditedBadge/)
   assert.match(css, /\.kitchen-page \.kitchen-ticket-organized \.kitchen-ticket-customer > \.order-edited-badge\s*\{[^}]*color:\s*var\(--warning/s)
+  assert.match(css, /\.kitchen-page \.kitchen-ticket-organized \.kitchen-ticket-customer \.order-edited-badge span\s*\{[^}]*color:\s*inherit/s)
   assert.match(css, /@media \(max-width: 640px\)[\s\S]*\.kitchen-ticket-customer > span:last-child:not\(\.order-edited-badge\)\s*\{[^}]*flex-basis:\s*100%/s)
 })
