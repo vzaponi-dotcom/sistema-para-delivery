@@ -126,7 +126,8 @@ test('reprint API creates a linked pending manual job from the current official 
   assert.equal(created.status, 201)
   const original = (await created.json()).job
   env.DB.sqlite.prepare("UPDATE print_jobs SET status = 'printed', copies_printed = 1, processed_at = ? WHERE id = ?")
-    .run('2026-09-08T19:01:00.000Z', original.id)
+    // A printed job should remain within the queue's 30-day retention window.
+    .run(new Date().toISOString(), original.id)
   const countBefore = env.DB.sqlite.prepare('SELECT count(*) AS count FROM print_jobs').get().count
 
   env.DB.sqlite.prepare(`UPDATE orders SET client_name_snapshot = ?, client_address_snapshot = ?

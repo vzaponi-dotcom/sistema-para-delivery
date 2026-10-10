@@ -1,6 +1,9 @@
 import Icon from '../shared/ui/Icon.jsx'
+import OrderEditedBadge from '../shared/ui/OrderEditedBadge.jsx'
 import {
   formatKitchenDisplayItemName,
+  formatKitchenDisplayEditChange,
+  getKitchenDisplayEditRows,
   getKitchenCardContentMetrics,
   normalizeKitchenItemNote,
 } from './kitchenDisplayContentLayout.js'
@@ -22,7 +25,9 @@ const itemQuantity = (item) => Math.max(1, Math.trunc(Number(item?.quantity) || 
 export function KitchenDisplayCard({ entry, now = new Date() }) {
   const { order, state, phase } = entry
   const items = Array.isArray(order.items) ? order.items : []
-  const metrics = entry.contentMetrics ?? getKitchenCardContentMetrics(items)
+  const edited = Number(order.operationalRevision) > 0
+  const editItems = edited ? getKitchenDisplayEditRows(order.editSummary) : []
+  const metrics = entry.contentMetrics ?? getKitchenCardContentMetrics(items, { editSummary: edited ? order.editSummary : null })
   const layoutDemand = entry.layoutDemand ?? metrics.layoutDemand
   const gridPosition = entry.gridPosition
   const rowSpan = Math.max(1, Number(entry.rowSpan ?? metrics.rowSpan) || 1)
@@ -39,6 +44,7 @@ export function KitchenDisplayCard({ entry, now = new Date() }) {
     style={gridPosition ? { gridColumn: gridPosition.gridColumn, gridRow: gridPosition.gridRow } : undefined}
     data-order-id={String(order.id)}
     data-highlighted={state === 'new'}
+    data-edit-pending={order.editPending === true}
     data-item-count={items.length}
     data-layout-demand={layoutDemand}
     data-row-span={rowSpan}
@@ -56,8 +62,17 @@ export function KitchenDisplayCard({ entry, now = new Date() }) {
       <span className="kds-card__meta">
         <span className="kds-card__type"><Icon name={typeIcon} size={20} />{order.type || 'Pedido'}</span>
         <span className="kds-card__number">#{order.orderNumber || order.id}</span>
+        {edited && <OrderEditedBadge />}
       </span>
     </div>
+    {edited && editItems.length > 0 && <section className="kds-card__edit-details" aria-label="Alterações do pedido">
+      <strong>Alterações:</strong>
+      <ul className="kds-card__edit-items">
+        {editItems.map((change, index) => <li key={index}>
+          {formatKitchenDisplayEditChange(change)}{change.after?.note && <span> · Obs: {change.after.note}</span>}
+        </li>)}
+      </ul>
+    </section>}
     <ul className={`kds-card__items${twoColumns ? ' is-two-columns' : ''}`}>
       {items.map((item, index) => {
         const note = normalizeKitchenItemNote(item)

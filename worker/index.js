@@ -8,6 +8,8 @@ import { parseFinanceSettingsInput, parseManualMovementInput } from './financeVa
 import { apiError, assertSameOriginMutation, handleError, json, readJson } from './http.js'
 import { cancelOrder, registerOrderRefund } from './orderCancellation.js'
 import { validateCheckoutInput } from './orderCheckout.js'
+import { validateOrderEditInput } from './orderEditValidation.js'
+import { updateExistingOrder } from './orderEditRepository.js'
 import { handlePrintingApi } from './orderPrintingApi.js'
 import { handleSettingsApi } from './settingsApi.js'
 import { resolveSettingsAccess } from './settingsAccess.js'
@@ -304,6 +306,16 @@ const dispatchAuthenticatedApi = async (request, env, session, context, url) => 
     if (reservation) response.reservation = reservation
     if (order.tableTabId || reservation) response.tables = await listTables(env.DB, session.businessId)
     return effectsJson(response, { status: 201 })
+  }
+  const editOrderMatch = url.pathname.match(/^\/api\/orders\/([^/]+)$/)
+  if (editOrderMatch && request.method === 'PATCH') {
+    requireCapability(context, 'orders.edit')
+    assertSameOriginMutation(request)
+    const body = validateOrderEditInput(await readJson(request))
+    const result = await updateExistingOrder(env.DB, session.businessId,
+      decodeURIComponent(editOrderMatch[1]), body,
+      {allowAdjustment:context.granted.has('orders.discount')})
+    return effectsJson({order:result.order})
   }
   const statusMatch = url.pathname.match(/^\/api\/orders\/([^/]+)\/status$/)
   if (statusMatch && request.method === 'PATCH') {
