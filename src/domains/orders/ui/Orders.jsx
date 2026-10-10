@@ -93,7 +93,7 @@ function FutureScheduledOrderCard({
 }
 
 
-function Orders({ orders, officialOrders = orders, now, currentTiming, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onEditReservation, onEditOrder, onRegisterPayment, paymentDisabled = false, paymentOptions, cancellationOptions = [], cancellationRevision = null, onNavigatePrintQueue, printQueueActiveCount = 0, granted, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange, printing, onToast, canCreateOrders = true, canEditOrders = false, canFinalizeOrders = true, canCancelOrders = true, canRefundPayments = true, canUseLocalPreferences = true, canViewPrintQueue = true, canForcePrinting = false, canExecutePrinting = true }) {
+function Orders({ orders, officialOrders = orders, now, currentTiming, search, onSearchChange, currency, onNewOrder, onFinalizeOrder, onCancelOrder, onEditReservation, onEditOrder, onAcknowledgeOrderEdit, onRegisterPayment, paymentDisabled = false, paymentOptions, cancellationOptions = [], cancellationRevision = null, onNavigatePrintQueue, printQueueActiveCount = 0, granted, newOrderIds = new Set(), soundEnabled = true, onSoundEnabledChange, printing, onToast, canCreateOrders = true, canEditOrders = false, canAcknowledgeOrderEdits = false, canFinalizeOrders = true, canCancelOrders = true, canRefundPayments = true, canUseLocalPreferences = true, canViewPrintQueue = true, canForcePrinting = false, canExecutePrinting = true }) {
   const [queueFilter, setQueueFilter] = useState('all')
   const [pendingAction, setPendingAction] = useState(null)
   const [detailOrderId, setDetailOrderId] = useState(null)
@@ -207,6 +207,15 @@ function Orders({ orders, officialOrders = orders, now, currentTiming, search, o
                   onFinalize={canFinalizeOrders ? (order) => { setFinalizeCandidate(order); return true } : undefined}
                   onCancel={canCancelOrders ? (order) => { setCancelOrder(order); return true } : undefined}
                 />
+                {entry.order.editPending && <div className="kitchen-order-edit-banner" role="status">
+                  <strong>⚠ PEDIDO ALTERADO</strong>
+                  {canAcknowledgeOrderEdits && <button type="button"
+                    disabled={actionsDisabled}
+                    onClick={() => runAction('ack-edit:'+entry.order.id,
+                      () => onAcknowledgeOrderEdit?.(entry.order.id,entry.order.operationalRevision))}>
+                    Confirmar leitura
+                  </button>}
+                </div>}
               </div>
             ))}
             {!preparing.length && <div className="kitchen-queue-empty"><Icon name="preparation" size={24} /><strong>{queueFilter === 'late' ? 'Nenhum pedido em atraso nesta busca.' : 'Nenhum pedido em preparo agora.'}</strong><span>{search ? 'Nenhum resultado nesta fila para a busca atual.' : 'Novos pedidos aparecem aqui automaticamente.'}</span></div>}
@@ -231,6 +240,15 @@ function Orders({ orders, officialOrders = orders, now, currentTiming, search, o
                     onDetails={(order) => setDetailOrderId(order.id)}
                     onCancel={canCancelOrders ? (order) => { setCancelOrder(order); return true } : undefined}
                   />
+                  {entry.order.editPending && <div className="kitchen-order-edit-banner" role="status">
+                    <strong>⚠ PEDIDO ALTERADO</strong>
+                    {canAcknowledgeOrderEdits && <button type="button"
+                      disabled={actionsDisabled}
+                      onClick={() => runAction('ack-edit:'+entry.order.id,
+                        () => onAcknowledgeOrderEdit?.(entry.order.id,entry.order.operationalRevision))}>
+                      Confirmar leitura
+                    </button>}
+                  </div>}
                 </div>
               ))}
               {!queueModel.scheduled.length && <div className="kitchen-queue-empty"><Icon name="clock" size={24} /><strong>Nenhum pedido agendado aguardando preparo.</strong><span>{search ? 'Nenhum resultado nesta fila para a busca atual.' : 'Os próximos pedidos agendados aparecem aqui.'}</span></div>}
