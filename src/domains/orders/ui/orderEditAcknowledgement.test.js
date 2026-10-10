@@ -41,7 +41,7 @@ test('confirmation updates Cozinha immediately but never hides a newer revision 
   assert.match(orders, /const \[locallyAcknowledgedEdits, setLocallyAcknowledgedEdits\]/)
   assert.match(orders, /isOperationalEditPending\(entry\.order, locallyAcknowledgedEdits\)/)
   assert.match(orders, /if \(result !== false\) setLocallyAcknowledgedEdits/)
-  assert.match(orders, /rememberOperationalEditAck\(current, entry\.order\)/)
+  assert.match(orders, /rememberOperationalEditAck\(current, order\)/)
   assert.match(orders, /aria-busy=\{pendingAction ===/)
 })
 
