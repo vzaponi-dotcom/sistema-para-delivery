@@ -2,6 +2,8 @@ import Icon from '../shared/ui/Icon.jsx'
 import OrderEditedBadge from '../shared/ui/OrderEditedBadge.jsx'
 import {
   formatKitchenDisplayItemName,
+  formatKitchenDisplayEditChange,
+  getKitchenDisplayEditRows,
   getKitchenCardContentMetrics,
   normalizeKitchenItemNote,
 } from './kitchenDisplayContentLayout.js'
@@ -23,7 +25,9 @@ const itemQuantity = (item) => Math.max(1, Math.trunc(Number(item?.quantity) || 
 export function KitchenDisplayCard({ entry, now = new Date() }) {
   const { order, state, phase } = entry
   const items = Array.isArray(order.items) ? order.items : []
-  const metrics = entry.contentMetrics ?? getKitchenCardContentMetrics(items)
+  const edited = Number(order.operationalRevision) > 0
+  const editItems = edited ? getKitchenDisplayEditRows(order.editSummary) : []
+  const metrics = entry.contentMetrics ?? getKitchenCardContentMetrics(items, { editSummary: edited ? order.editSummary : null })
   const layoutDemand = entry.layoutDemand ?? metrics.layoutDemand
   const gridPosition = entry.gridPosition
   const rowSpan = Math.max(1, Number(entry.rowSpan ?? metrics.rowSpan) || 1)
@@ -34,15 +38,6 @@ export function KitchenDisplayCard({ entry, now = new Date() }) {
   const scheduled = phase === 'scheduled'
   const timing = scheduled ? timeFormatter.format(new Date(order.scheduledFor)) : formatElapsed(entry.operationalStartAt || order.createdAt, now)
   const typeIcon = order.type === 'Retirada' ? 'pickup' : order.type === 'Local' ? 'local' : 'delivery-bike'
-  const edited = Number(order.operationalRevision) > 0
-  const editItems = edited ? (order.editSummary?.items || []) : []
-  const editLabel = change => {
-    const before = change.before, after = change.after
-    const current = after || before || {}
-    if (change.kind === 'removed') return `Removido: ${before?.quantity || 1}x ${current.name || 'Produto'}`
-    if (change.kind === 'added') return `Adicionado: ${after?.quantity || 1}x ${current.name || 'Produto'}`
-    return `Alterado: ${current.name || 'Produto'} · ${before?.quantity || 1}x → ${after?.quantity || 1}x${before?.note !== after?.note ? ' · observação alterada' : ''}`
-  }
 
   return <article
     className={`kds-card kds-card--${state} kds-card--content-${metrics.density}${layoutClass}`}
@@ -74,7 +69,7 @@ export function KitchenDisplayCard({ entry, now = new Date() }) {
       <strong>Alterações:</strong>
       <ul className="kds-card__edit-items">
         {editItems.map((change, index) => <li key={index}>
-          {editLabel(change)}{change.after?.note && <span> · Obs: {change.after.note}</span>}
+          {formatKitchenDisplayEditChange(change)}{change.after?.note && <span> · Obs: {change.after.note}</span>}
         </li>)}
       </ul>
     </section>}
