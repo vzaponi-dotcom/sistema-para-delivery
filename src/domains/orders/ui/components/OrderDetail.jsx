@@ -124,11 +124,15 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
     return null
   })()
 
+  const showEditAction = canEditOrders && order.status === 'Em preparo'
+    && order.tableReservationStatus !== 'reserved' && Boolean(onEditOrder)
+  const showCancelAction = canCancelOrders && order.status !== 'Cancelado' && Boolean(onRequestCancel)
+
   return (
     <>
-      <Modal title={`Detalhes do ${formatOrderDisplayNumber(order)}`} className="order-detail-modal" onClose={onClose} footer={<div className="order-detail-dialog-actions">
-        {canEditOrders && order.status === 'Em preparo' && order.tableReservationStatus !== 'reserved' && onEditOrder && <Button type="button" variant="secondary" icon="edit" onClick={() => onEditOrder(order)}>Editar pedido</Button>}
-        {canCancelOrders && order.status !== 'Cancelado' && onRequestCancel && <Button type="button" variant="secondary" className="order-detail-cancel-action" onClick={() => { if (canCancelOrders) onRequestCancel?.() }}>Cancelar pedido</Button>}
+      <Modal title={`Detalhes do ${formatOrderDisplayNumber(order)}`} className="order-detail-modal" onClose={onClose} footer={<div className={`order-detail-dialog-actions${showEditAction ? ' has-edit-action' : ''}${showCancelAction ? ' has-cancel-action' : ''}`}>
+        {showEditAction && <Button type="button" variant="secondary" className="order-detail-edit-action" icon="edit" onClick={() => onEditOrder(order)}>Editar pedido</Button>}
+        {showCancelAction && <Button type="button" variant="secondary" className="order-detail-cancel-action" onClick={() => { if (canCancelOrders) onRequestCancel?.() }}>Cancelar pedido</Button>}
         <div className="order-detail-dialog-primary-actions">{!showPaymentAction && <Button type="button" variant="secondary" onClick={onClose}>Fechar detalhes</Button>}
           {showPaymentAction && <Button type="button" disabled={registerPaymentDisabled} onClick={() => { if (!registerPaymentDisabled) onRegisterPayment?.() }}>Registrar pagamento</Button>}
         </div>
