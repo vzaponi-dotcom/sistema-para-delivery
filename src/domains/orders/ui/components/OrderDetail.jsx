@@ -39,7 +39,7 @@ const formatPrintTimestamp = (value) => {
 
 const PHYSICAL_PRINT_ACTIONS = new Set(['print', 'preview', 'pdf', 'second-copy', 'retry', 'reprint', 'historical-reprint'])
 
-function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCancel, canCancelOrders = true, canExecutePrinting = true, canForcePrinting = false, canRegisterPayment = false, registerPaymentDisabled = false, onRegisterPayment, onToast, initialPrintingOpen = false }) {
+function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCancel, onEditOrder, canEditOrders = false, canCancelOrders = true, canExecutePrinting = true, canForcePrinting = false, canRegisterPayment = false, registerPaymentDisabled = false, onRegisterPayment, onToast, initialPrintingOpen = false }) {
   const [previewDocument, setPreviewDocument] = useState(null)
   const [showTicketPreview, setShowTicketPreview] = useState(false)
   const [confirmReprint, setConfirmReprint] = useState(false)
@@ -127,6 +127,7 @@ function OrderDetail({ order, currency, printing, printJob, onClose, onRequestCa
   return (
     <>
       <Modal title={`Detalhes do ${formatOrderDisplayNumber(order)}`} className="order-detail-modal" onClose={onClose} footer={<div className="order-detail-dialog-actions">
+        {canEditOrders && order.status === 'Em preparo' && order.tableReservationStatus !== 'reserved' && onEditOrder && <Button type="button" variant="secondary" icon="edit" onClick={() => onEditOrder(order)}>Editar pedido</Button>}
         {canCancelOrders && order.status !== 'Cancelado' && onRequestCancel && <Button type="button" variant="secondary" className="order-detail-cancel-action" onClick={() => { if (canCancelOrders) onRequestCancel?.() }}>Cancelar pedido</Button>}
         <div className="order-detail-dialog-primary-actions">{!showPaymentAction && <Button type="button" variant="secondary" onClick={onClose}>Fechar detalhes</Button>}
           {showPaymentAction && <Button type="button" disabled={registerPaymentDisabled} onClick={() => { if (!registerPaymentDisabled) onRegisterPayment?.() }}>Registrar pagamento</Button>}

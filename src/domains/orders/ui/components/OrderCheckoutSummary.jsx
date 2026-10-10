@@ -113,6 +113,7 @@ function OrderCheckoutSummary({
   canSubmit = false,
   canAdjustOrders = true,
   allowImmediatePayment = true,
+  editOrderMode = false,
   onDeliveryFeeChange,
   onAdjustmentChange,
   onSavePending,
@@ -126,7 +127,7 @@ function OrderCheckoutSummary({
       <div className="section-heading">
         <div>
 
-          <h2>Resumo da venda</h2>
+          <h2>{editOrderMode ? 'Resumo da edição' : 'Resumo da venda'}</h2>
         </div>
       </div>
 
@@ -153,14 +154,14 @@ function OrderCheckoutSummary({
         })
       )}
 
-      <p className="new-order-payment-hint">{allowImmediatePayment ? 'Salvar pedido mantém o pagamento pendente.' : 'O pagamento é registrado pela comanda.'}</p>
+      <p className="new-order-payment-hint">{editOrderMode ? 'A edição preserva pagamentos anteriores. Nesta fase, alterações de valor em pedidos pagos não são permitidas.' : allowImmediatePayment ? 'Salvar pedido mantém o pagamento pendente.' : 'O pagamento é registrado pela comanda.'}</p>
       {!showPayment && (
         <div className="new-order-checkout-actions">
-          <Button type="button" onClick={onSavePending} disabled={disabled || !canSubmit}>{draft.type === 'Local' && draft.scheduledFor ? 'Salvar reserva' : 'Salvar pedido'}</Button>
+          <Button type="button" onClick={onSavePending} disabled={disabled || !canSubmit}>{editOrderMode ? 'Salvar alterações' : draft.type === 'Local' && draft.scheduledFor ? 'Salvar reserva' : 'Salvar pedido'}</Button>
           {allowImmediatePayment && renderPaymentComposition && <Button type="button" variant="secondary" onClick={() => setShowPayment(true)} disabled={disabled || !canSubmit}>Salvar e receber</Button>}
         </div>
       )}
-      {!showPayment && <div className="new-order-mobile-checkout"><div><small>Total da venda</small><strong>{currency(preview.total)}</strong></div><Button type="button" onClick={onSavePending} disabled={disabled || !canSubmit}>{draft.type === 'Local' && draft.scheduledFor ? 'Salvar reserva' : 'Salvar pedido'}</Button></div>}
+      {!showPayment && <div className="new-order-mobile-checkout"><div><small>Total da venda</small><strong>{currency(preview.total)}</strong></div><Button type="button" onClick={onSavePending} disabled={disabled || !canSubmit}>{editOrderMode ? 'Salvar alterações' : draft.type === 'Local' && draft.scheduledFor ? 'Salvar reserva' : 'Salvar pedido'}</Button></div>}
     </section>
   )
 }
