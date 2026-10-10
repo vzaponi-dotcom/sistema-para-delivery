@@ -550,7 +550,7 @@ function ApplicationRuntime({ capabilities, renderAccessSurface = (props) => <Ac
 
   newOrderDraftTargetsRef.current = {
     canSubmit: (payload, context) => (context?.mode === 'edit-order' ? canEditOrders : canCreateOrders)
-      && (canAdjustOrders || !payload?.adjustment || payload.adjustment.type === 'none')
+      && (context?.mode === 'edit-order' || canAdjustOrders || !payload?.adjustment || payload.adjustment.type === 'none')
       && !writesBlocked,
     commitOfficialEffects: applyOfficialEffects,
     onCommitted: (result, context) => {
