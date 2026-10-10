@@ -46,11 +46,11 @@ export async function loadOperationalEditSignals(db,businessId){
     'FROM order_edit_revisions er',
     'LEFT JOIN order_kitchen_edit_acknowledgements ack',
     'ON ack.business_id=er.business_id AND ack.order_id=er.order_id AND ack.revision=er.revision',
-    'WHERE er.business_id=? AND json_array_length(json_extract(er.changes_json,\\'$.items\\'))>0',
+    "WHERE er.business_id=? AND json_array_length(json_extract(er.changes_json,'$.items'))>0",
     'AND er.revision=(SELECT MAX(h.revision) FROM order_edit_revisions h',
     'WHERE h.business_id=er.business_id AND h.order_id=er.order_id',
-    'AND json_array_length(json_extract(h.changes_json,\\'$.items\\'))>0)',
-  ].join(' ').replaceAll("\\\\'","'")
+    "AND json_array_length(json_extract(h.changes_json,'$.items'))>0)",
+  ].join(' ')
   const result=await db.prepare(sql).bind(businessId).all()
   return new Map((Array.isArray(result?.results)?result.results:[]).map(row=>[row.order_id,{
     operationalRevision:Number(row.revision),
