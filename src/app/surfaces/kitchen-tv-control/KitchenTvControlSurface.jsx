@@ -86,6 +86,7 @@ function KitchenTvControlSurface({
   const [pendingRevision, setPendingRevision] = useState(null)
   const [selectedOrderId, setSelectedOrderId] = useState(null)
   const [pendingOrderId, setPendingOrderId] = useState(null)
+  const [acknowledgingEditId, setAcknowledgingEditId] = useState(null)
   const [actionError, setActionError] = useState('')
   const [hiddenSheetOpen, setHiddenSheetOpen] = useState(false)
   const [printSnapshot, setPrintSnapshot] = useState(null)
@@ -314,6 +315,23 @@ function KitchenTvControlSurface({
     }
   }
 
+  const acknowledgeEdit = async () => {
+    if (!selectedEdit || !canControl || !isOnline || acknowledgingEditId !== null || !api.acknowledgeOrderEdit) return
+    const orderId=selectedEdit.orderId,revision=selectedEdit.operationalRevision
+    setAcknowledgingEditId(orderId)
+    setActionError('')
+    try {
+      await api.acknowledgeOrderEdit(orderId,revision)
+      setControlState(current=>current ? {...current,
+        pendingOrderEdits:(current.pendingOrderEdits||[]).filter(item=>item.orderId!==orderId || item.operationalRevision!==revision)}:current)
+      await loadControl(true)
+      onFeedback?.('Leitura da alteração confirmada.')
+    } catch(cause) {
+      setActionError(cause?.message || 'Não foi possível confirmar a alteração.')
+      await loadControl(true)
+    } finally {setAcknowledgingEditId(null)}
+  }
+
   const openOrderActions = (entry) => {
     setSelectedOrderId(String(entry.order.id))
     setActionError('')
@@ -346,6 +364,7 @@ function KitchenTvControlSurface({
     selectedEntry
       && (controlState?.hiddenOrderIds || []).some((id) => String(id) === String(selectedEntry.order.id)),
   )
+  const selectedEdit=(controlState?.pendingOrderEdits || []).find(item=>item.orderId===selectedOrderId)
   const selectedScheduled = selectedEntry?.phase === 'scheduled'
   const selectedActionDisabled = !operationalControlsEnabled || pendingOrderId !== null || selectedScheduled
 
@@ -447,6 +466,7 @@ function KitchenTvControlSurface({
         const displayNumber = formatOrderDisplayNumber(entry.order)
         const compactDisplayNumber = displayNumber.replace(/^Pedido\s*/i, '')
         const clientName = kitchenTvClientName(entry.order.client)
+        const edited=(controlState?.pendingOrderEdits || []).some(item=>item.orderId===String(entry.order.id))
         return <button
           key={entry.order.id}
           type="button"
@@ -462,6 +482,7 @@ function KitchenTvControlSurface({
             <span className="kitchen-tv-control-order-number-compact">{compactDisplayNumber}</span>
           </span>
           <span className="kitchen-tv-control-badges">
+            {edited && <span className="kitchen-tv-control-badge edit-pending">Pedido alterado</span>}
             <span className={`kitchen-tv-control-badge status-${status.key}`}><Icon name={statusIcon(status.key)} size={11} />{status.label}</span>
             <span className={`kitchen-tv-control-badge visibility-${visibility.key}`}><Icon name={visibilityIcon(visibility.key)} size={11} />{visibility.label}</span>
           </span>
@@ -505,6 +526,17 @@ function KitchenTvControlSurface({
           </div>}
         </section>
 
+        {selectedEdit && <section className="kitchen-tv-control-edit-review" aria-label="Revisão do pedido">
+          <strong>PEDIDO ALTERADO</strong>
+          <ul>{(selectedEdit.editSummary?.items || []).map((item,index)=><li key={index}>
+            {item.kind==='removed'?'Removido':item.kind==='added'?'Adicionado':'Alterado'}: {(item.after||item.before)?.name || 'Produto'}
+          </li>)}</ul>
+          {canControl && <Button type="button" variant="secondary"
+            disabled={!isOnline || acknowledgingEditId!==null}
+            onClick={() => { void acknowledgeEdit() }}>
+            {acknowledgingEditId!==null?'Confirmando…':'Confirmar leitura'}
+          </Button>}
+        </section>}
         <p className="kitchen-tv-control-action-explainer">Remove apenas do painel da TV. O pedido continua em preparo no sistema.</p>
         {!canControl && <p className="kitchen-tv-control-action-note">Somente leitura. Você não tem permissão para alterar a TV.</p>}
         {canControl && (!isOnline || !controlState?.paired || !telemetryFresh) && <p className="kitchen-tv-control-action-note">A TV precisa estar conectada e com sinal recente para alterar a visibilidade.</p>}
