@@ -147,7 +147,7 @@ test('reprint API creates a linked pending manual job from the current official 
   assert.notDeepEqual(reprint.document, original.document)
   assert.equal(env.DB.sqlite.prepare('SELECT count(*) AS count FROM print_jobs').get().count, countBefore + 1)
 
-  const jobsResponse = await requestJson(env, cookie, '/api/printing/jobs?orderId=o1&limit=20', 'GET')
+  const jobsResponse = await requestJson(env, cookie, '/api/printing/jobs?orderId=o1&status=printed&limit=20', 'GET')
   const jobs = (await jobsResponse.json()).jobs
   const preservedOriginal = jobs.find((job) => job.id === original.id)
   assert.equal(preservedOriginal.status, 'printed')
